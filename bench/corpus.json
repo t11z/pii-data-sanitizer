@@ -102,5 +102,37 @@
       { "type": "PERSON", "text": "Reza Tehrani" },
       { "type": "PERSON", "text": "Li Na" }
     ]
+  },
+  {
+    "text": "Account holder Nadia Brzezinski paid the invoice.",
+    "entities": [{ "type": "PERSON", "text": "Nadia Brzezinski" }]
+  },
+  {
+    "text": "Engineer Tomasz Wojcik resolved the ticket.",
+    "entities": [{ "type": "PERSON", "text": "Tomasz Wojcik" }]
+  },
+  {
+    "text": "The claim filed by claimant Folake Adeyemi was approved.",
+    "entities": [{ "type": "PERSON", "text": "Folake Adeyemi" }]
+  },
+  {
+    "text": "Please ask Dr. Zzz Qwertz about the refund.",
+    "entities": [{ "type": "PERSON", "text": "Zzz Qwertz" }]
+  },
+  {
+    "text": "Forward the case to Omar al-Farouk.",
+    "entities": [{ "type": "PERSON", "text": "Omar al-Farouk" }]
+  },
+  {
+    "text": "Engineer Amir al-Rashid handled the case.",
+    "entities": [{ "type": "PERSON", "text": "Amir al-Rashid" }]
+  },
+  {
+    "text": "Customer Service Team responded quickly.",
+    "entities": []
+  },
+  {
+    "text": "The Account Approval Form is attached.",
+    "entities": []
   }
 ]

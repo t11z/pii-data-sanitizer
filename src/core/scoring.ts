@@ -5,6 +5,8 @@ export interface NameFeatures {
   parts: number;
   /** A recognized title precedes the chain (Dr., Herr, ...). */
   titleBefore: boolean;
+  /** An appositive role noun precedes the chain (Account holder, Engineer, ...). */
+  roleBefore: boolean;
   /** How many parts were found in the name database. */
   dbHits: number;
   /** Single-token candidate whose word is also ordinary vocabulary. */
@@ -28,6 +30,9 @@ export function scoreName(f: NameFeatures): number {
   if (f.dbHits >= 2) s += 0.1;
   if (f.parts >= 2) s += 0.25;
   if (f.titleBefore) s += 0.35;
+  // A role cue only counts for a multi-token candidate; a single capitalized word
+  // after a role noun ("Customer Service") must not clear the threshold on its own.
+  if (f.roleBefore && f.parts >= 2) s += 0.3;
   if (f.coreHit) s += 0.05; // common names are a stronger signal
   if (f.singleAmbiguous) s -= 0.35;
   if (f.singleAmbiguous && f.atSentenceStart) s -= 0.2;

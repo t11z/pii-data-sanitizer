@@ -10,12 +10,19 @@ on a schedule in CI.
 
 | Layer           | Slash command             | Workflow                                  | Purpose                                              |
 | --------------- | ------------------------- | ----------------------------------------- | --------------------------------------------------- |
-| 🌍 Expansion    | `/self-improve-languages` | `.github/workflows/self-improve-languages.yml` | Add new languages / new names (additive only).      |
+| 🌍 Expansion    | `/self-improve-languages` | `.github/workflows/self-improve-languages.yml` | **Dictionary breadth** — add new languages / names (additive only). |
 | 🎯 Refinement   | `/self-improve-refine`    | `.github/workflows/self-improve-refine.yml`    | Fix current false positives / false negatives only. |
-| 🔭 Discovery    | `/self-improve-coverage`  | `.github/workflows/self-improve-coverage.yml`  | Probe daily for unknown coverage gaps, then file an issue + fix PR. |
+| 🔭 Discovery    | `/self-improve-coverage`  | `.github/workflows/self-improve-coverage.yml`  | **Heuristics** — probe daily for gaps, then ship a *generalizing* engine fix as an issue + PR. |
 
 The command definitions live in `.claude/commands/`. The workflows reference
 them via `prompt: '/self-improve-…'` and contain no logic of their own.
+
+**Division of labor.** Discovery improves the *engine's heuristics* so it catches a
+whole class of cases (including names it has never seen) — it does **not** add
+individual names. Pure vocabulary growth is the Expansion loop's job. Discovery PRs
+must prove generalization with **held-out values absent from the database**; a fix
+that only works because a value is in the dictionary is memorization, not a heuristic,
+and is routed to Expansion instead.
 
 ## The discovery loop (Haiku → sanitizer → Opus)
 
@@ -34,12 +41,14 @@ runs **daily** (or on demand) to actively surface gaps the corpus doesn't cover 
 3. **Analyze (Opus).** `/self-improve-coverage` reads the report, finds the
    root cause of the most important gap, files a GitHub **issue labeled
    `self-improvement`** (the label signals the agent is actively analyzing &
-   improving), and opens a **PR** with the smallest safe fix that `Closes` the issue.
+   improving), and opens a **PR** with the smallest *generalizing* heuristic fix
+   (detector logic, scoring, or a context list — never a name dump) that `Closes`
+   the issue.
 
 The generated feed and gap report are **ephemeral discovery artifacts** —
-git-ignored, never committed, and never part of CI gating. Only a human-reviewed,
-minimized case from a real gap lands in `bench/corpus.json` as a permanent
-regression test.
+git-ignored, never committed, and never part of CI gating. The fix's regression
+cases use **held-out names absent from the database**, so they prove the heuristic
+generalizes rather than memorizing the synthetic feed.
 
 ## Guardrails (apply to every layer)
 
