@@ -1,0 +1,35 @@
+name: Deploy to Firebase Hosting
+
+# Static, zero-knowledge hosting. Requires two repo secrets:
+#   FIREBASE_SERVICE_ACCOUNT  – JSON key for a service account with Hosting access
+#   FIREBASE_PROJECT_ID       – your Firebase project id
+# Until those are set, this workflow is skipped (see the `if` below).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: ${{ vars.FIREBASE_ENABLED == 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:db
+      - run: npm run build
+      - name: Deploy
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+          channelId: live

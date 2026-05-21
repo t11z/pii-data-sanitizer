@@ -1,0 +1,38 @@
+name: Self-Improve - Language Expansion
+
+# Expansion layer of the multi-workflow self-improvement loop.
+# It does nothing here except invoke the /self-improve-languages slash command
+# (defined in .claude/commands/self-improve-languages.md) so the behaviour and
+# guardrails live in one place and stay in sync with local usage.
+#
+# Requires the ANTHROPIC_API_KEY repo secret. Opens PRs only — never merges.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1' # weekly, Monday 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      focus:
+        description: 'Optional language/region to focus on'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  expand:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run /self-improve-languages
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: '/self-improve-languages ${{ github.event.inputs.focus }}'

@@ -1,0 +1,157 @@
+import type { NameSource, Span, Token } from '../types';
+import { tokenize } from '../tokenize';
+import { isParticle } from '../context/particles';
+import { isTitle } from '../context/titles';
+import { isAmbiguousWord } from '../context/commonWords';
+import { scoreName } from '../scoring';
+
+function isCapitalized(token: string): boolean {
+  const first = token[0];
+  return !!first && first !== first.toLowerCase() && first === first.toUpperCase();
+}
+
+function givenHit(source: NameSource, token: string): boolean {
+  const l = token.toLowerCase();
+  if (source.hasGiven(l)) return true;
+  if (l.includes('-')) return l.split('-').some((p) => source.hasGiven(p));
+  return false;
+}
+
+function familyHit(source: NameSource, token: string): boolean {
+  const l = token.toLowerCase();
+  if (source.hasFamily(l)) return true;
+  if (l.includes('-')) return l.split('-').some((p) => source.hasFamily(p));
+  return false;
+}
+
+function anyHit(source: NameSource, token: string): boolean {
+  return givenHit(source, token) || familyHit(source, token);
+}
+
+function isCaselessNameScript(token: Token): boolean {
+  return token.script === 'Arabic' || token.script === 'Hebrew' || token.script === 'Devanagari';
+}
+
+function nameLike(token: Token, source: NameSource, allowUnknownCap: boolean): boolean {
+  if (token.script === 'Latin') {
+    if (!isCapitalized(token.text)) return false;
+    return anyHit(source, token.text) || allowUnknownCap;
+  }
+  if (isCaselessNameScript(token)) {
+    return anyHit(source, token.text);
+  }
+  return false;
+}
+
+// Horizontal whitespace (space, tab, NBSP, ...) but never a line break: name
+// parts may be joined by spaces, not across newlines.
+const SINGLE_GAP = /^[^\S\n\r]+$/;
+const TITLE_GAP = /^[^\S\n\r.]*$/;
+const HORIZONTAL_WS = /[^\S\n\r]/;
+const SENTENCE_BOUNDARY = '.!?:;\n\r"“”(';
+
+function isSentenceStart(text: string, pos: number): boolean {
+  let i = pos - 1;
+  while (i >= 0 && HORIZONTAL_WS.test(text[i])) i--;
+  if (i < 0) return true;
+  return SENTENCE_BOUNDARY.includes(text[i]);
+}
+
+interface StartInfo {
+  titleBefore: boolean;
+  dbHit: boolean;
+}
+
+function nameStart(tokens: Token[], i: number, source: NameSource, text: string): StartInfo | null {
+  const tok = tokens[i];
+  if (tok.script === 'Han' || tok.script === 'Other') return null;
+
+  let titleBefore = false;
+  if (i > 0) {
+    const prev = tokens[i - 1];
+    const between = text.slice(prev.end, tok.start);
+    if (isTitle(prev.text) && TITLE_GAP.test(between)) titleBefore = true;
+  }
+
+  const dbHit = anyHit(source, tok.text);
+
+  if (tok.script === 'Latin') {
+    if (!isCapitalized(tok.text)) return null;
+    if (titleBefore || dbHit) return { titleBefore, dbHit };
+    return null;
+  }
+  // Caseless scripts: require database membership (or a preceding title).
+  if (dbHit || titleBefore) return { titleBefore, dbHit };
+  return null;
+}
+
+export function detectNames(text: string, source: NameSource, minConfidence: number): Span[] {
+  const tokens = tokenize(text);
+  const spans: Span[] = [];
+  let i = 0;
+
+  while (i < tokens.length) {
+    const start = nameStart(tokens, i, source, text);
+    if (!start) {
+      i++;
+      continue;
+    }
+
+    let dbHits = start.dbHit ? 1 : 0;
+    let parts = 1;
+    let j = i;
+    const allowUnknownCap = start.titleBefore || start.dbHit;
+
+    while (j + 1 < tokens.length) {
+      const gap = text.slice(tokens[j].end, tokens[j + 1].start);
+      if (!SINGLE_GAP.test(gap)) break;
+      const next = tokens[j + 1];
+
+      if (isParticle(next.text) && j + 2 < tokens.length) {
+        const after = tokens[j + 2];
+        const gap2 = text.slice(next.end, after.start);
+        if (SINGLE_GAP.test(gap2) && nameLike(after, source, true)) {
+          if (anyHit(source, after.text)) dbHits++;
+          parts++;
+          j += 2;
+          continue;
+        }
+        break;
+      }
+
+      if (nameLike(next, source, allowUnknownCap || dbHits > 0)) {
+        if (anyHit(source, next.text)) dbHits++;
+        parts++;
+        j++;
+        continue;
+      }
+      break;
+    }
+
+    const spanStart = tokens[i].start;
+    const spanEnd = tokens[j].end;
+    const confidence = scoreName({
+      parts,
+      titleBefore: start.titleBefore,
+      dbHits,
+      singleAmbiguous: parts === 1 && isAmbiguousWord(tokens[i].text.toLowerCase()),
+      atSentenceStart: isSentenceStart(text, spanStart),
+      script: tokens[i].script,
+    });
+
+    if (confidence >= minConfidence) {
+      spans.push({
+        start: spanStart,
+        end: spanEnd,
+        type: 'PERSON',
+        text: text.slice(spanStart, spanEnd),
+        confidence,
+        source: 'names',
+      });
+    }
+
+    i = j + 1;
+  }
+
+  return spans;
+}

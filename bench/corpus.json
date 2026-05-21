@@ -1,0 +1,91 @@
+[
+  {
+    "text": "Contact jane.doe@example.com about the invoice.",
+    "entities": [{ "type": "EMAIL", "text": "jane.doe@example.com" }]
+  },
+  {
+    "text": "Wire the funds to DE89 3704 0044 0532 0130 00 by Friday.",
+    "entities": [{ "type": "IBAN", "text": "DE89 3704 0044 0532 0130 00" }]
+  },
+  {
+    "text": "The card 4111 1111 1111 1111 expires soon.",
+    "entities": [{ "type": "CREDIT_CARD", "text": "4111 1111 1111 1111" }]
+  },
+  {
+    "text": "The host 192.168.1.254 rebooted overnight.",
+    "entities": [{ "type": "IP", "text": "192.168.1.254" }]
+  },
+  {
+    "text": "Please call +49 30 1234567 tomorrow morning.",
+    "entities": [{ "type": "PHONE", "text": "+49 30 1234567" }]
+  },
+  {
+    "text": "The meeting with Kai-Uwe von Braun is confirmed.",
+    "entities": [{ "type": "PERSON", "text": "Kai-Uwe von Braun" }]
+  },
+  {
+    "text": "The report by John Smith is attached.",
+    "entities": [{ "type": "PERSON", "text": "John Smith" }]
+  },
+  {
+    "text": "Ask Dr. Anjali Sharma for the sign-off.",
+    "entities": [{ "type": "PERSON", "text": "Anjali Sharma" }]
+  },
+  {
+    "text": "A famous speech by David ben Gurion was archived.",
+    "entities": [{ "type": "PERSON", "text": "David ben Gurion" }]
+  },
+  {
+    "text": "We spoke with Omar al Farouk briefly.",
+    "entities": [{ "type": "PERSON", "text": "Omar al Farouk" }]
+  },
+  {
+    "text": "The award went to Zhang Wei this year.",
+    "entities": [{ "type": "PERSON", "text": "Zhang Wei" }]
+  },
+  {
+    "text": "A new novel by Haruki Murakami was released.",
+    "entities": [{ "type": "PERSON", "text": "Haruki Murakami" }]
+  },
+  {
+    "text": "यह प्रिया शर्मा है।",
+    "entities": [{ "type": "PERSON", "text": "प्रिया शर्मा" }]
+  },
+  {
+    "text": "Email John Smith and also محمد حسن before noon.",
+    "entities": [
+      { "type": "PERSON", "text": "John Smith" },
+      { "type": "PERSON", "text": "محمد حسن" }
+    ]
+  },
+  {
+    "text": "She gave a frank and rose-tinted review.",
+    "entities": []
+  },
+  {
+    "text": "Mark my words on this issue.",
+    "entities": []
+  },
+  {
+    "text": "We will visit Berlin in May.",
+    "entities": []
+  },
+  {
+    "text": "The total was 12345 units sold last quarter.",
+    "entities": []
+  },
+  {
+    "text": "Send the file to maria.lopez@correo.es and copy carlos@correo.es.",
+    "entities": [
+      { "type": "EMAIL", "text": "maria.lopez@correo.es" },
+      { "type": "EMAIL", "text": "carlos@correo.es" }
+    ]
+  },
+  {
+    "text": "Reach Michael Anderson or Giulia Rossi for details.",
+    "entities": [
+      { "type": "PERSON", "text": "Michael Anderson" },
+      { "type": "PERSON", "text": "Giulia Rossi" }
+    ]
+  }
+]
