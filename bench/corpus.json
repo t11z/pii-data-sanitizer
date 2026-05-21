@@ -134,5 +134,21 @@
   {
     "text": "The Account Approval Form is attached.",
     "entities": []
+  },
+  {
+    "text": "Report filed by Eng. Dimitri Petrov this morning.",
+    "entities": [{ "type": "PERSON", "text": "Dimitri Petrov" }]
+  },
+  {
+    "text": "Support came from Eng. Andreas Meyer-Krahmer overnight.",
+    "entities": [{ "type": "PERSON", "text": "Andreas Meyer-Krahmer" }]
+  },
+  {
+    "text": "Eng. Release Notes are attached for review.",
+    "entities": []
+  },
+  {
+    "text": "Please notify the duty engineer. Daily Briefing follows.",
+    "entities": []
   }
 ]

@@ -139,8 +139,24 @@ export const NON_NAME_WORDS = new Set<string>([
   'receipt',
 ]);
 
+/**
+ * Abbreviated professional-role prefixes written with a trailing period in prose
+ * ("Eng. Dimitri Petrov"). They behave like role cues but the period is intrinsic
+ * to the abbreviation, so the name detector tolerates that period in the gap (see
+ * the abbreviation branch in nameStart). Kept SEPARATE from ROLE_WORDS on purpose:
+ * a full role word followed by a period is a sentence boundary ("...notified the
+ * engineer. Bob arrived."), which must NOT start a name — only genuine
+ * abbreviations get the dot tolerance. Stored lowercased, without the dot.
+ */
+export const ROLE_ABBREVIATIONS = new Set<string>(['eng']);
+
 export function isRoleWord(token: string): boolean {
-  return ROLE_WORDS.has(token.toLowerCase());
+  const l = token.toLowerCase();
+  return ROLE_WORDS.has(l) || ROLE_ABBREVIATIONS.has(l);
+}
+
+export function isRoleAbbreviation(token: string): boolean {
+  return ROLE_ABBREVIATIONS.has(token.toLowerCase());
 }
 
 export function isNonNameWord(token: string): boolean {
