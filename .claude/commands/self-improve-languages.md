@@ -27,10 +27,13 @@ layer of the self-improvement loop. Work **additively only**.
 ## Steps
 
 1. Pick a target (use the argument if given, else the largest current coverage
-   gap). Inspect existing data in `src/core/db/embeddedData.ts` and the build
-   sources in `scripts/build-db/build.ts`.
-2. Add new names to the appropriate source list (and, for a new language, add a
-   new `SOURCES` entry with its `license`). Keep entries lowercased and deduped.
+   gap). Inspect the curated source of truth in `scripts/build-db/sources.ts` and
+   the ingested data under `scripts/build-db/data/`.
+2. Grow coverage by either:
+   - running `npm run ingest` to refresh the Wikidata (CC0) data files, and/or
+   - adding curated common names to `scripts/build-db/sources.ts` (Latin = core
+     tier; new native scripts get their own `SOURCES` entry with a `license`).
+   Keep entries lowercased and deduped. Only use permissively licensed data.
 3. Add a few **new** labeled cases to `bench/corpus.json` that exercise the new
    coverage (do not touch `bench/proven/`).
 4. Run the full gate locally and ensure it is green:

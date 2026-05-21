@@ -29,6 +29,7 @@
     "format": "prettier --check .",
     "format:write": "prettier --write .",
     "bench": "tsx bench/run.ts",
+    "ingest": "tsx scripts/build-db/ingest.ts",
     "build:db": "tsx scripts/build-db/build.ts"
   },
   "devDependencies": {

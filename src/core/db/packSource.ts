@@ -1,7 +1,7 @@
-import type { NameSource, Script } from '../types';
+import type { NameSource, Script, Tier } from '../types';
 import { BloomFilter } from './bloom';
 
-export type Tier = 'core' | 'ext';
+export type { Tier } from '../types';
 
 /** Target false-positive rate for name packs. Low enough that cross-token
  * chain mis-extensions are rare; cheap in bytes at our pack sizes. */
@@ -67,5 +67,17 @@ export class PackNameSource implements NameSource {
 
   has(name: string, script?: Script): boolean {
     return this.hit(name, script);
+  }
+
+  matchTier(name: string, script?: Script): Tier | null {
+    let ext = false;
+    for (const { filter, meta } of this.packs) {
+      if (script && meta.script !== script) continue;
+      if (filter.has(name)) {
+        if (meta.tier === 'core') return 'core';
+        ext = true;
+      }
+    }
+    return ext ? 'ext' : null;
   }
 }

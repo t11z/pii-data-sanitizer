@@ -87,5 +87,12 @@
       { "type": "PERSON", "text": "Michael Anderson" },
       { "type": "PERSON", "text": "Giulia Rossi" }
     ]
+  },
+  {
+    "text": "A talk by Reza Tehrani and Li Na is scheduled.",
+    "entities": [
+      { "type": "PERSON", "text": "Reza Tehrani" },
+      { "type": "PERSON", "text": "Li Na" }
+    ]
   }
 ]

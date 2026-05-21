@@ -26,6 +26,9 @@ export interface Span {
  * Membership oracle for names. Implemented by the embedded lists (v1) and by the
  * Bloom-filter backed registry (v2+). All lookups expect a lowercased string.
  */
+/** Frequency tier of a pack: `core` = common (curated), `ext` = long tail (bulk). */
+export type Tier = 'core' | 'ext';
+
 export interface NameSource {
   hasGiven(name: string, script?: Script): boolean;
   hasFamily(name: string, script?: Script): boolean;
@@ -35,6 +38,11 @@ export interface NameSource {
    * word matching the Latin pack by chance).
    */
   has(name: string, script?: Script): boolean;
+  /**
+   * Best tier a name was found in (`core` beats `ext`), or null if absent.
+   * Optional — sources without tier info are treated as `core` by the scorer.
+   */
+  matchTier?(name: string, script?: Script): Tier | null;
 }
 
 export interface DetectOptions {

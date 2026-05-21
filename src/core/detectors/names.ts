@@ -1,4 +1,4 @@
-import type { NameSource, Script, Span, Token } from '../types';
+import type { NameSource, Script, Span, Tier, Token } from '../types';
 import { tokenize } from '../tokenize';
 import { isParticle } from '../context/particles';
 import { isTitle } from '../context/titles';
@@ -26,6 +26,20 @@ function familyHit(source: NameSource, token: string, script: Script): boolean {
 
 function anyHit(source: NameSource, token: Token): boolean {
   return givenHit(source, token.text, token.script) || familyHit(source, token.text, token.script);
+}
+
+/** Best tier a token (or any of its hyphen parts) was found in. */
+function tierOf(source: NameSource, token: Token): Tier | null {
+  if (!source.matchTier) return 'core'; // sources without tier info count as core
+  const l = token.text.toLowerCase();
+  const parts = l.includes('-') ? [l, ...l.split('-')] : [l];
+  let best: Tier | null = null;
+  for (const p of parts) {
+    const t = source.matchTier(p, token.script);
+    if (t === 'core') return 'core';
+    if (t === 'ext') best = 'ext';
+  }
+  return best;
 }
 
 function isCaselessNameScript(token: Token): boolean {
@@ -101,6 +115,7 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
     let parts = 1;
     let j = i;
     const allowUnknownCap = start.titleBefore || start.dbHit;
+    const tiers: Array<Tier | null> = start.dbHit ? [tierOf(source, tokens[i])] : [];
 
     while (j + 1 < tokens.length) {
       const gap = text.slice(tokens[j].end, tokens[j + 1].start);
@@ -111,7 +126,10 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
         const after = tokens[j + 2];
         const gap2 = text.slice(next.end, after.start);
         if (SINGLE_GAP.test(gap2) && nameLike(after, source, true)) {
-          if (anyHit(source, after)) dbHits++;
+          if (anyHit(source, after)) {
+            dbHits++;
+            tiers.push(tierOf(source, after));
+          }
           parts++;
           j += 2;
           continue;
@@ -120,13 +138,19 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
       }
 
       if (nameLike(next, source, allowUnknownCap || dbHits > 0)) {
-        if (anyHit(source, next)) dbHits++;
+        if (anyHit(source, next)) {
+          dbHits++;
+          tiers.push(tierOf(source, next));
+        }
         parts++;
         j++;
         continue;
       }
       break;
     }
+
+    const coreHit = tiers.includes('core');
+    const extOnly = dbHits > 0 && !coreHit;
 
     const spanStart = tokens[i].start;
     const spanEnd = tokens[j].end;
@@ -136,6 +160,8 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
       dbHits,
       singleAmbiguous: parts === 1 && isAmbiguousWord(tokens[i].text.toLowerCase()),
       atSentenceStart: isSentenceStart(text, spanStart),
+      coreHit,
+      extOnly,
       script: tokens[i].script,
     });
 

@@ -19,6 +19,15 @@ describe('PackNameSource', () => {
     expect(source.packCount).toBe(2);
   });
 
+  it('reports the best matching tier (core beats ext)', () => {
+    const source = new PackNameSource();
+    source.addWords(['anna'], { script: 'Latin', tier: 'core' }, 'latin-core');
+    source.addWords(['anna', 'zorblax'], { script: 'Latin', tier: 'ext' }, 'latin-ext');
+    expect(source.matchTier('anna', 'Latin')).toBe('core');
+    expect(source.matchTier('zorblax', 'Latin')).toBe('ext');
+    expect(source.matchTier('absent', 'Latin')).toBeNull();
+  });
+
   it('tracks loaded pack ids', () => {
     const source = new PackNameSource();
     expect(source.isLoaded('latin-core')).toBe(false);

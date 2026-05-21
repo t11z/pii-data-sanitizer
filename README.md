@@ -63,7 +63,14 @@ npm run bench      # precision/recall/F1 gate
 npm run check      # type-check (svelte-check)
 npm run lint       # ESLint
 npm run build      # production build into dist/
+npm run ingest     # refresh name data from Wikidata (CC0); network, build-time only
 ```
+
+Name data comes from two committed sources, both permissively licensed: a curated
+set of common names (`scripts/build-db/sources.ts`, the Latin **core** tier) and a
+bulk sample ingested from **Wikidata (CC0)** (`scripts/build-db/data/`, the **ext**
+tier + native scripts). `build:db` merges them into Bloom packs; the browser loads
+the core eagerly, native scripts on demand, and the long tail in the background.
 
 ### Use the engine as a library
 

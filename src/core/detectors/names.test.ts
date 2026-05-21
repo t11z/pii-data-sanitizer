@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { detect } from '../index';
 import { nameSourceFromSources } from '../db/fromSources';
+import { PackNameSource } from '../db/packSource';
 
 const nameSource = nameSourceFromSources();
 
@@ -73,5 +74,30 @@ describe('mixed scripts in one document', () => {
     const found = persons('Email John Smith and also محمد حسن today.');
     expect(found).toContain('John Smith');
     expect(found).toContain('محمد حسن');
+  });
+});
+
+describe('frequency tier influences scoring', () => {
+  // A source where "rose" (an ambiguous word) lives only in the bulk ext tier,
+  // while "anna" and a rare unambiguous "zorblax" are present too.
+  const tiered = new PackNameSource();
+  tiered.addWords(['anna'], { script: 'Latin', tier: 'core' }, 'latin-core');
+  tiered.addWords(['rose', 'zorblax'], { script: 'Latin', tier: 'ext' }, 'latin-ext');
+
+  const find = (text: string) =>
+    detect(text, { nameSource: tiered })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('suppresses a single ambiguous word found only in the ext tier', () => {
+    expect(find('I bought a Rose today.')).not.toContain('Rose');
+  });
+
+  it('still detects a core-tier given name', () => {
+    expect(find('We met Anna today.')).toContain('Anna');
+  });
+
+  it('still detects a rare unambiguous ext-tier name (recall-first)', () => {
+    expect(find('We met Zorblax today.')).toContain('Zorblax');
   });
 });

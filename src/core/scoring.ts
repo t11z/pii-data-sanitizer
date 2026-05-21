@@ -11,6 +11,10 @@ export interface NameFeatures {
   singleAmbiguous: boolean;
   /** Candidate sits at the start of a sentence (capitalization less telling). */
   atSentenceStart: boolean;
+  /** At least one part matched a common (core) pack — a stronger name signal. */
+  coreHit: boolean;
+  /** DB hits came only from the long-tail (ext) bulk, none from core. */
+  extOnly: boolean;
   script: Script;
 }
 
@@ -24,7 +28,9 @@ export function scoreName(f: NameFeatures): number {
   if (f.dbHits >= 2) s += 0.1;
   if (f.parts >= 2) s += 0.25;
   if (f.titleBefore) s += 0.35;
+  if (f.coreHit) s += 0.05; // common names are a stronger signal
   if (f.singleAmbiguous) s -= 0.35;
   if (f.singleAmbiguous && f.atSentenceStart) s -= 0.2;
+  if (f.singleAmbiguous && f.extOnly) s -= 0.3; // a bulk-only word that's also vocab
   return Math.max(0, Math.min(1, s));
 }
