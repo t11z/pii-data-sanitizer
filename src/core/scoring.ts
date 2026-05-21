@@ -37,5 +37,12 @@ export function scoreName(f: NameFeatures): number {
   if (f.singleAmbiguous) s -= 0.35;
   if (f.singleAmbiguous && f.atSentenceStart) s -= 0.2;
   if (f.singleAmbiguous && f.extOnly) s -= 0.3; // a bulk-only word that's also vocab
+  // A lone token matched only in the long-tail (ext) bulk data — with no core
+  // match, no second name part, and no title to corroborate — is too weak on its
+  // own. The bulk lists contain many ordinary words that are also rare names
+  // ("Friday", "Service", "Forward"), so a single such hit needs corroboration
+  // before it counts as a person. (A role cue alone never promotes a single
+  // token — see roleBefore above — so it does not rescue this case either.)
+  if (f.parts === 1 && f.extOnly && !f.titleBefore) s -= 0.2;
   return Math.max(0, Math.min(1, s));
 }

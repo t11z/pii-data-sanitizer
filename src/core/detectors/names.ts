@@ -120,6 +120,20 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
 
   if (tok.script === 'Latin') {
     if (!isCapitalized(tok.text)) return null;
+    // A bulk-only (ext) token at a sentence start, with no title/role to vouch
+    // for it, must not START a name chain: sentence-initial capitalization is
+    // uninformative and the long-tail lists contain many ordinary words
+    // ("Ask", "Reach", "Daily"). Let the scan fall through to the next,
+    // genuinely-cased name token instead of anchoring on the leading word.
+    if (
+      dbHit &&
+      !titleBefore &&
+      !roleBefore &&
+      tierOf(source, tok) !== 'core' &&
+      isSentenceStart(text, tok.start)
+    ) {
+      return null;
+    }
     if (titleBefore || dbHit) return { titleBefore, roleBefore, dbHit };
     // Role-only start: generalize beyond the DB, but never start on a structural
     // noun (e.g. "Customer Service") — that path needs a real multi-token name.

@@ -152,10 +152,10 @@ describe('mixed scripts in one document', () => {
 
 describe('frequency tier influences scoring', () => {
   // A source where "rose" (an ambiguous word) lives only in the bulk ext tier,
-  // while "anna" and a rare unambiguous "zorblax" are present too.
+  // alongside the unambiguous ext-only "zorblax"/"quux" and the core "anna".
   const tiered = new PackNameSource();
   tiered.addWords(['anna'], { script: 'Latin', tier: 'core' }, 'latin-core');
-  tiered.addWords(['rose', 'zorblax'], { script: 'Latin', tier: 'ext' }, 'latin-ext');
+  tiered.addWords(['rose', 'zorblax', 'quux'], { script: 'Latin', tier: 'ext' }, 'latin-ext');
 
   const find = (text: string) =>
     detect(text, { nameSource: tiered })
@@ -170,7 +170,19 @@ describe('frequency tier influences scoring', () => {
     expect(find('We met Anna today.')).toContain('Anna');
   });
 
-  it('still detects a rare unambiguous ext-tier name (recall-first)', () => {
-    expect(find('We met Zorblax today.')).toContain('Zorblax');
+  it('does not flag a lone bulk-only token without corroboration', () => {
+    // With a large ext dictionary a single ext-only hit is more likely an
+    // ordinary word than a person, so it needs a second name part, a title or a
+    // role cue before it counts. (This is what keeps bulk vocabulary such as
+    // "Friday"/"Service" from becoming false positives.)
+    expect(find('We met Zorblax today.')).not.toContain('Zorblax');
+  });
+
+  it('detects a bulk-only name once a second part corroborates it', () => {
+    expect(find('We met Zorblax Quux today.')).toContain('Zorblax Quux');
+  });
+
+  it('detects a bulk-only name after a title', () => {
+    expect(find('Ask Dr. Zorblax about it.')).toContain('Zorblax');
   });
 });

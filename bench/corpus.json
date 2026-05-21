@@ -150,5 +150,44 @@
   {
     "text": "Please notify the duty engineer. Daily Briefing follows.",
     "entities": []
+  },
+  {
+    "text": "Please contact Rajesh Kumar about the shipment.",
+    "entities": [{ "type": "PERSON", "text": "Rajesh Kumar" }]
+  },
+  {
+    "text": "The invoice was approved by Anjali Sharma yesterday.",
+    "entities": [{ "type": "PERSON", "text": "Anjali Sharma" }]
+  },
+  {
+    "text": "Reach out to Imran Khan or Ali Hassan for details.",
+    "entities": [
+      { "type": "PERSON", "text": "Imran Khan" },
+      { "type": "PERSON", "text": "Ali Hassan" }
+    ]
+  },
+  {
+    "text": "यह अमित कुमार का खाता है।",
+    "entities": [{ "type": "PERSON", "text": "अमित कुमार" }]
+  },
+  {
+    "text": "Email from فاطمة الزهراء arrived this morning.",
+    "entities": [{ "type": "PERSON", "text": "فاطمة الزهراء" }]
+  },
+  {
+    "text": "The contract was signed by Mohammed Al-Rashid.",
+    "entities": [{ "type": "PERSON", "text": "Mohammed Al-Rashid" }]
+  },
+  {
+    "text": "הדוח נכתב על ידי דוד כהן בבוקר.",
+    "entities": [{ "type": "PERSON", "text": "דוד כהן" }]
+  },
+  {
+    "text": "Forward the documents by Friday.",
+    "entities": []
+  },
+  {
+    "text": "Service was restored on Monday.",
+    "entities": []
   }
 ]

@@ -31,22 +31,28 @@ function dedupeLower(words: string[]): string[] {
   return [...new Set(words.map((w) => w.toLowerCase()))];
 }
 
-/** Loads ingested Wikidata data files (scripts/build-db/data/*.json) by script. */
+/**
+ * Loads ingested data files (scripts/build-db/data/*.json) by script. Multiple
+ * files may target the same script (e.g. Wikidata + US Census, both Latin);
+ * their names are concatenated and their licenses combined.
+ */
 function readIngested(): { byScript: Map<Script, string[]>; license: string } {
   const byScript = new Map<Script, string[]>();
-  let license = '';
+  const licenses = new Set<string>();
   const dataDir = join(here, 'data');
-  if (!existsSync(dataDir)) return { byScript, license };
+  if (!existsSync(dataDir)) return { byScript, license: '' };
   for (const file of readdirSync(dataDir).filter((f) => f.endsWith('.json'))) {
     const parsed = JSON.parse(readFileSync(join(dataDir, file), 'utf8')) as {
       script: Script;
       license: string;
       names: string[];
     };
-    byScript.set(parsed.script, parsed.names);
-    license = parsed.license;
+    const existing = byScript.get(parsed.script);
+    if (existing) existing.push(...parsed.names);
+    else byScript.set(parsed.script, [...parsed.names]);
+    if (parsed.license) licenses.add(parsed.license);
   }
-  return { byScript, license };
+  return { byScript, license: [...licenses].join('; ') };
 }
 
 function buildInputs(): PackInput[] {
