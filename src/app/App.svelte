@@ -37,7 +37,12 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   );
   let run = $state<SanitizeRun | null>(null);
   let copied = $state(false);
-  let packs = $state<{ loaded: number; total: number } | null>(null);
+  let packs = $state<{
+    loaded: number;
+    total: number;
+    loadedNames: number;
+    totalNames: number;
+  } | null>(null);
   onPackProgress((p) => (packs = p));
 
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -115,8 +120,10 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
       Heuristic, multilingual PII detection &amp; redaction — running entirely in your browser.
     </p>
     <p class="zk">🛡️ Zero-knowledge: your text never leaves this device. No servers, no storage.</p>
-    {#if packs && packs.total > 0}
-      <p class="packs">🌍 {packs.loaded}/{packs.total} name packs loaded</p>
+    {#if packs && packs.totalNames > 0}
+      <p class="packs">
+        🌍 {packs.loadedNames.toLocaleString()} / {packs.totalNames.toLocaleString()} names loaded
+      </p>
     {/if}
   </header>
 
