@@ -124,9 +124,7 @@ is no public instance until a maintainer enables it. Workflows: `deploy.yml` (li
 deploy on `main`) and `deploy-preview.yml` (per-PR preview channels).
 
 Full setup (Firebase project, repo variables/secrets, going live) is in
-[`docs/deployment.md`](docs/deployment.md). Note: running a public instance from
-Germany generally requires an Impressum — this repo intentionally ships none, so
-add the legally required notice before enabling deploys.
+[`docs/deployment.md`](docs/deployment.md).
 
 ## 📄 License
 
