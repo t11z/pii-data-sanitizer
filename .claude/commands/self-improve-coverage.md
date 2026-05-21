@@ -1,15 +1,21 @@
 ---
-description: Analyze the coverage-gap report, file a labeled GitHub issue with a concrete proposal, and open a PR with the smallest safe fix.
+description: Analyze the coverage-gap report, find the root cause, and ship a generalizing heuristic fix as a labeled GitHub issue + PR (no dictionary dumps).
 allowed-tools: Bash, Read, Edit, Write, Glob, Grep
 argument-hint: "[optional: PII type or culture to focus on]"
 ---
 
-# Self-Improvement — Coverage Analysis & Fix
+# Self-Improvement — Coverage Analysis & Heuristic Fix
 
 You are the **analysis** step of the daily coverage-discovery loop. The previous
 steps generated a synthetic, PII-dense TAC case feed and ran the real detector over
-it. Your job: find the **root cause** of the most important coverage gap, file it as
-a **GitHub issue**, and open a **PR** with the smallest safe fix.
+it. Your job: find the **root cause** of the most important coverage gap and ship a
+fix that **generalizes** — a real heuristic improvement — as a **GitHub issue** + a
+**PR**.
+
+This loop is about **heuristics, not vocabulary.** Adding individual names to the
+dictionary is the job of the separate `/self-improve-languages` loop. Your fixes must
+make the *engine smarter* so it catches a whole **class** of cases — including names,
+formats, and contexts it has never seen.
 
 ## Inputs
 
@@ -25,73 +31,80 @@ them to a commit.
 
 1. **Evidence first.** Work only from a concrete gap in `gaps.json`. No gap → stop,
    open nothing.
-2. **Correct/extend, don't re-invent.** Make the smallest change that closes the
-   gap (add names, add a guard word, tune a weight, extend a regex). Do **not**
-   rewrite working detectors or scoring. The `bench/proven/` suite is the locked
-   record of proven behavior — it must keep passing **exactly** and you must never
-   edit those cases.
-3. **No regressions.** `npm test`, the proven suite, and the baseline F1 must all
-   stay green. A fix that helps one case but hurts another is not acceptable.
-4. **Offline-only — no server-side resources, no external LLMs.** Every fix must
-   keep the detection engine 100% client-side and offline. Allowed: static data
-   compiled at build time (e.g. names in `scripts/build-db/sources.ts` → Bloom
-   packs) and pure local heuristics (regex / guard words / scoring). **Forbidden:**
-   any proposal that needs a backend, a network/API call at engine runtime, or an
-   external/hosted model. If a gap could only be closed that way, say so in the
-   issue and **decline** it — do not implement it. (See `CONTRIBUTING.md`:
-   "Zero-knowledge stays sacred… no network calls from the engine.")
-5. **Public, permissive data only.** New names must come from public-domain /
-   permissively licensed sources, recorded per pack.
-6. **Issue + PR only — never merge, never push to `main`.**
+2. **Heuristic, not dictionary.** Ship a change that *generalizes* — detector logic,
+   scoring, or a context list (titles, role/appositive cues, particles, guard words).
+   **Adding specific names to `scripts/build-db/sources.ts` is OUT OF SCOPE here.** If
+   the only possible fix for a gap is "add these names," do **not** do it: file a
+   `languages`-labeled issue for the `/self-improve-languages` loop and move on to a
+   gap that admits a generalizing fix (or stop if none does).
+3. **Prove generalization.** The regression test for your fix MUST use **held-out
+   values that are absent from the database** — e.g. names not in `sources.ts`,
+   verified via `nameSourceFromSources()` (`hasGiven`/`hasFamily` === false). If your
+   fix only works because a value is in the DB, it is memorization, not a heuristic —
+   reject it.
+4. **Correct/extend, don't re-invent.** Make the smallest *generalizing* change. Do
+   **not** rewrite working detectors wholesale. The `bench/proven/` suite is the
+   locked record of proven behavior — it must keep passing **exactly** and you must
+   never edit those cases.
+5. **No regressions, protect precision.** `npm test`, the proven suite, and the
+   baseline F1 must stay green. A recall fix that adds false positives is not
+   acceptable — add **negative guard cases** to `bench/corpus.json` proving precision
+   holds.
+6. **Offline-only — no server-side resources, no external LLMs.** Every fix keeps the
+   engine 100% client-side and offline (static data compiled at build time + pure
+   local heuristics). **Forbidden:** any backend, network/API call at engine runtime,
+   or hosted model. If a gap could only be closed that way, say so and **decline** it.
+   (See `CONTRIBUTING.md`: "Zero-knowledge stays sacred… no network calls.")
+7. **Issue + PR only — never merge, never push to `main`.**
 
 ## Steps
 
-1. **Read the report.** `cat bench/self-improve/gaps.json`. If there are no
-   meaningful false negatives/positives, stop. Otherwise pick the **single
-   highest-impact** root cause (often a `PERSON` culture gap — e.g. missing
-   Persian/Indian names — or a structured-format miss). Use the argument as a focus
-   hint if provided.
-2. **Avoid duplicates.** Check for an already-open self-improvement issue:
+1. **Read the report.** `cat bench/self-improve/gaps.json`. Pick the **single
+   highest-impact** gap that admits a *generalizing* fix. Use the argument as a focus
+   hint. Reproduce it locally with a quick `tsx` probe calling `detect()` so you
+   understand the real root cause before changing anything.
+2. **Avoid duplicates.**
    ```bash
    gh issue list --label self-improvement --state open
    ```
-   If one already covers this gap, add a brief comment with the new evidence and
-   **stop** rather than stacking a duplicate issue/PR.
-3. **Trace the root cause** to the responsible code/data:
-   - missing names → `scripts/build-db/sources.ts`
-   - over-detection / ambiguous words → `src/core/context/commonWords.ts`
-   - scoring weights → `src/core/scoring.ts`
+   If one already covers this gap, add a brief comment with new evidence and **stop**.
+3. **Trace the root cause to a heuristic lever** (not the dictionary):
+   - missed names despite strong context (titles, "Account holder X", "Engineer X")
+     → context cues in `src/core/context/` (`titles.ts`, `roleWords.ts`,
+     `particles.ts`) and the start/extend logic in `src/core/detectors/names.ts`
+   - over-detection / ambiguous or structural words → `src/core/context/commonWords.ts`,
+     `src/core/context/roleWords.ts` (NON_NAME_WORDS), and `src/core/scoring.ts`
+   - confidence too low/high → weights in `src/core/scoring.ts`
    - structured formats (phone/IBAN/card/IP/email) → `src/core/detectors/structured/`
-4. **File the issue and label it.** Ensure the label exists, then create the issue
-   describing the gap (with concrete examples from `gaps.json`), the root cause, the
-   proposed fix, and the expected before/after effect:
+   - **pure missing-name gap with no exploitable context → NOT your job:** open a
+     `languages` issue and skip (rule 2).
+4. **File the issue and label it.** Ensure the label exists, then create it with the
+   gap evidence, the root cause, the *generalizing* fix, and the expected effect:
    ```bash
    gh label create self-improvement \
      --color 1d76db \
      --description "Automated coverage self-improvement (agent analyzing & improving)" || true
    gh issue create --label self-improvement \
      --title "coverage: <short description>" \
-     --body "<gap evidence, root cause, proposed fix>"
+     --body "<gap evidence, root cause, generalizing fix>"
    ```
-   The `self-improvement` label signals that the agent is actively analyzing and
-   improving this gap.
-5. **Implement the smallest safe fix** on a new branch. Prefer additive data and
-   guard changes over structural edits.
-6. **Lock the fix in as a regression test.** Add the previously-missed (minimized,
-   deterministic) case(s) to `bench/corpus.json` so the gap can never silently
-   reappear. **Do not** touch `bench/proven/`.
+5. **Implement the smallest generalizing fix** on a new branch (engine logic, scoring,
+   or a context list — not name data).
+6. **Lock it in with held-out regression tests.** Add to `bench/corpus.json` (never
+   `bench/proven/`): positive cases using **values absent from the DB** that pass only
+   via your heuristic, **and** negative guard cases proving precision. Add focused unit
+   tests in the relevant `*.test.ts`.
 7. **Run the full gate and confirm it is green:**
    ```bash
    npm ci
    npm run lint && npm run check && npm test
    npm run build:db && npm run bench
    ```
-   If overall F1 improved and you intend the gain to be the new floor, run
-   `npm run bench -- --update` and justify it in the PR.
-8. **Open the PR** (`fix: …` for behavior, `data: …` for name additions). Start the
+   Only run `npm run bench -- --update` if F1 genuinely improved and you justify it.
+8. **Open the PR** (`fix:` / `feat:` — a heuristic change, never `data:`). Start the
    body with `Closes #<issue-number>` and include the gap evidence, root cause, the
-   fix, and before/after benchmark numbers. **PR only — never merge.**
+   heuristic, the held-out proof, and before/after benchmark numbers. **PR only.**
 
-If the smallest viable fix would require a large structural change, risks the proven
-suite, or would need server-side/external resources, **do not force it**: file the
-issue describing the blocker and open no PR (or a draft that explains why).
+If no gap admits a safe generalizing fix (only dictionary additions, or a change that
+risks the proven suite / needs external resources), **do not force it**: file the
+appropriate issue (`languages` for name gaps) describing the blocker and open no PR.

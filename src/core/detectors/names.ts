@@ -3,6 +3,7 @@ import { tokenize } from '../tokenize';
 import { isParticle } from '../context/particles';
 import { isTitle } from '../context/titles';
 import { isAmbiguousWord } from '../context/commonWords';
+import { isRoleWord, isNonNameWord } from '../context/roleWords';
 import { scoreName } from '../scoring';
 
 function isCapitalized(token: string): boolean {
@@ -46,9 +47,24 @@ function isCaselessNameScript(token: Token): boolean {
   return token.script === 'Arabic' || token.script === 'Hebrew' || token.script === 'Devanagari';
 }
 
+/**
+ * A hyphen-joined token whose head is a particle and whose tail is capitalized,
+ * e.g. "al-Rashid", "al-Najjar", "al-Farouk". The tokenizer glues these into one
+ * lowercase-initial token, so without this they would fail the capitalization
+ * check and break the name chain.
+ */
+function particleHyphenName(token: Token): boolean {
+  if (token.script !== 'Latin') return false;
+  const idx = token.text.indexOf('-');
+  if (idx <= 0) return false;
+  const head = token.text.slice(0, idx);
+  const tail = token.text.slice(idx + 1);
+  return isParticle(head) && isCapitalized(tail);
+}
+
 function nameLike(token: Token, source: NameSource, allowUnknownCap: boolean): boolean {
   if (token.script === 'Latin') {
-    if (!isCapitalized(token.text)) return false;
+    if (!isCapitalized(token.text) && !particleHyphenName(token)) return false;
     return anyHit(source, token) || allowUnknownCap;
   }
   if (isCaselessNameScript(token)) {
@@ -60,7 +76,9 @@ function nameLike(token: Token, source: NameSource, allowUnknownCap: boolean): b
 // Horizontal whitespace (space, tab, NBSP, ...) but never a line break: name
 // parts may be joined by spaces, not across newlines.
 const SINGLE_GAP = /^[^\S\n\r]+$/;
-const TITLE_GAP = /^[^\S\n\r.]*$/;
+// Whitespace plus an optional abbreviation dot, so "Dr. Smith" (the common form)
+// gets the title boost — not just "Dr Smith". Never spans a line break.
+const TITLE_GAP = /^[^\S\n\r]*\.?[^\S\n\r]*$/;
 const HORIZONTAL_WS = /[^\S\n\r]/;
 const SENTENCE_BOUNDARY = '.!?:;\n\r"“”(';
 
@@ -73,6 +91,7 @@ function isSentenceStart(text: string, pos: number): boolean {
 
 interface StartInfo {
   titleBefore: boolean;
+  roleBefore: boolean;
   dbHit: boolean;
 }
 
@@ -81,21 +100,26 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
   if (tok.script === 'Han' || tok.script === 'Other') return null;
 
   let titleBefore = false;
+  let roleBefore = false;
   if (i > 0) {
     const prev = tokens[i - 1];
     const between = text.slice(prev.end, tok.start);
     if (isTitle(prev.text) && TITLE_GAP.test(between)) titleBefore = true;
+    if (isRoleWord(prev.text) && SINGLE_GAP.test(between)) roleBefore = true;
   }
 
   const dbHit = anyHit(source, tok);
 
   if (tok.script === 'Latin') {
     if (!isCapitalized(tok.text)) return null;
-    if (titleBefore || dbHit) return { titleBefore, dbHit };
+    if (titleBefore || dbHit) return { titleBefore, roleBefore, dbHit };
+    // Role-only start: generalize beyond the DB, but never start on a structural
+    // noun (e.g. "Customer Service") — that path needs a real multi-token name.
+    if (roleBefore && !isNonNameWord(tok.text)) return { titleBefore, roleBefore, dbHit };
     return null;
   }
-  // Caseless scripts: require database membership (or a preceding title).
-  if (dbHit || titleBefore) return { titleBefore, dbHit };
+  // Caseless scripts: require database membership (or a preceding title/role).
+  if (dbHit || titleBefore || roleBefore) return { titleBefore, roleBefore, dbHit };
   return null;
 }
 
@@ -114,7 +138,7 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
     let dbHits = start.dbHit ? 1 : 0;
     let parts = 1;
     let j = i;
-    const allowUnknownCap = start.titleBefore || start.dbHit;
+    const allowUnknownCap = start.titleBefore || start.roleBefore || start.dbHit;
     const tiers: Array<Tier | null> = start.dbHit ? [tierOf(source, tokens[i])] : [];
 
     while (j + 1 < tokens.length) {
@@ -138,7 +162,11 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
       }
 
       if (nameLike(next, source, allowUnknownCap || dbHits > 0)) {
-        if (anyHit(source, next)) {
+        const hit = anyHit(source, next);
+        // Don't extend an unknown (non-DB) capitalized token that is a structural
+        // noun — keeps "Customer Service Team" from chaining into a fake name.
+        if (!hit && isNonNameWord(next.text)) break;
+        if (hit) {
           dbHits++;
           tiers.push(tierOf(source, next));
         }
@@ -157,6 +185,7 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
     const confidence = scoreName({
       parts,
       titleBefore: start.titleBefore,
+      roleBefore: start.roleBefore,
       dbHits,
       singleAmbiguous: parts === 1 && isAmbiguousWord(tokens[i].text.toLowerCase()),
       atSentenceStart: isSentenceStart(text, spanStart),

@@ -39,6 +39,35 @@ describe('particle chains across scripts (transliterated)', () => {
   });
 });
 
+describe('context-based detection (generalizes beyond the DB)', () => {
+  // All names below are deliberately ABSENT from the name database, so these only
+  // pass via the title/role/particle heuristics — never via dictionary lookup.
+  it('uses a title with a trailing dot ("Dr.") to detect an unknown name', () => {
+    expect(persons('Please ask Dr. Zzz Qwertz about it.')).toContain('Zzz Qwertz');
+  });
+
+  it('detects an unknown full name after a role cue', () => {
+    expect(persons('Account holder Nadia Brzezinski paid the invoice.')).toContain(
+      'Nadia Brzezinski'
+    );
+    expect(persons('Engineer Tomasz Wojcik resolved the ticket.')).toContain('Tomasz Wojcik');
+  });
+
+  it('chains across a hyphenated particle surname ("al-Farouk")', () => {
+    expect(persons('Forward the case to Omar al-Farouk.')).toContain('Omar al-Farouk');
+  });
+
+  it('combines a role cue and a hyphenated particle for an unknown name', () => {
+    expect(persons('Engineer Amir al-Rashid handled the case.')).toContain('Amir al-Rashid');
+  });
+
+  it('does not turn a role cue + structural nouns into a person', () => {
+    expect(persons('Customer Service Team responded quickly.')).toHaveLength(0);
+    expect(persons('The Account Approval Form is attached.')).toHaveLength(0);
+    expect(persons('Merchant Services were down.')).toHaveLength(0);
+  });
+});
+
 describe('false-positive guards', () => {
   it('does not flag lowercase common words', () => {
     expect(persons('She gave a frank and rose-tinted review.')).toHaveLength(0);
