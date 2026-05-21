@@ -1,0 +1,19 @@
+node_modules/
+dist/
+coverage/
+*.local
+.DS_Store
+.env
+.env.*
+.firebase/
+.vite/
+public/packs/
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl

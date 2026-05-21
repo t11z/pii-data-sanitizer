@@ -1,0 +1,58 @@
+import type { MappingEntry, SanitizeMode, Span } from './types';
+
+function buildPlaceholders(
+  spans: Span[],
+  mode: SanitizeMode
+): { replacements: string[]; mapping: MappingEntry[] } {
+  const mapping: MappingEntry[] = [];
+  const counters = new Map<string, number>();
+  const assigned = new Map<string, string>();
+  const replacements: string[] = [];
+
+  for (const span of spans) {
+    let placeholder: string;
+    if (mode === 'redact') {
+      placeholder = `[${span.type}]`;
+    } else {
+      const key = `${span.type}:${span.text.toLowerCase()}`;
+      const existing = assigned.get(key);
+      if (existing) {
+        placeholder = existing;
+      } else {
+        const n = (counters.get(span.type) ?? 0) + 1;
+        counters.set(span.type, n);
+        placeholder = `[${span.type}_${n}]`;
+        assigned.set(key, placeholder);
+      }
+    }
+    replacements.push(placeholder);
+    mapping.push({ placeholder, original: span.text, type: span.type });
+  }
+
+  return { replacements, mapping };
+}
+
+/**
+ * Replaces the given (non-overlapping) spans in `text`. `redact` collapses each
+ * match to its type tag; `pseudonymize` assigns a stable per-value placeholder
+ * so identical originals map to the same token (structure-preserving). The
+ * returned mapping lives only in memory — nothing is persisted.
+ */
+export function applySanitization(
+  text: string,
+  spans: Span[],
+  mode: SanitizeMode
+): { text: string; mapping: MappingEntry[] } {
+  const ordered = [...spans].sort((a, b) => a.start - b.start);
+  const { replacements, mapping } = buildPlaceholders(ordered, mode);
+
+  let out = '';
+  let cursor = 0;
+  ordered.forEach((span, idx) => {
+    out += text.slice(cursor, span.start) + replacements[idx];
+    cursor = span.end;
+  });
+  out += text.slice(cursor);
+
+  return { text: out, mapping };
+}

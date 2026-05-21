@@ -1,0 +1,38 @@
+[
+  {
+    "text": "Contact jane.doe@example.com about the invoice.",
+    "entities": [{ "type": "EMAIL", "text": "jane.doe@example.com" }]
+  },
+  {
+    "text": "Wire the funds to DE89 3704 0044 0532 0130 00 by Friday.",
+    "entities": [{ "type": "IBAN", "text": "DE89 3704 0044 0532 0130 00" }]
+  },
+  {
+    "text": "The card 4111 1111 1111 1111 expires soon.",
+    "entities": [{ "type": "CREDIT_CARD", "text": "4111 1111 1111 1111" }]
+  },
+  {
+    "text": "The host 192.168.1.254 rebooted overnight.",
+    "entities": [{ "type": "IP", "text": "192.168.1.254" }]
+  },
+  {
+    "text": "The meeting with Kai-Uwe von Braun is confirmed.",
+    "entities": [{ "type": "PERSON", "text": "Kai-Uwe von Braun" }]
+  },
+  {
+    "text": "The report by John Smith is attached.",
+    "entities": [{ "type": "PERSON", "text": "John Smith" }]
+  },
+  {
+    "text": "She gave a frank and rose-tinted review.",
+    "entities": []
+  },
+  {
+    "text": "Mark my words on this issue.",
+    "entities": []
+  },
+  {
+    "text": "We will visit Berlin in May.",
+    "entities": []
+  }
+]

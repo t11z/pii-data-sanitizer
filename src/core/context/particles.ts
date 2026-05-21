@@ -1,0 +1,55 @@
+/**
+ * Nobiliary / connective particles that join the parts of a multi-token name
+ * (e.g. "von" in "Kai-Uwe von Braun", "al" in "Omar al-Farouk", "ben" in
+ * "David ben Gurion"). Stored lowercased. These may appear in lowercase between
+ * two capitalized name parts and should not, on their own, break a name chain.
+ */
+export const PARTICLES = new Set<string>([
+  // German / Dutch / Nordic
+  'von',
+  'van',
+  'der',
+  'den',
+  'ter',
+  'ten',
+  'zu',
+  'zur',
+  'zum',
+  'af',
+  'av',
+  // Romance
+  'de',
+  'del',
+  'della',
+  'dello',
+  'di',
+  'da',
+  'das',
+  'dos',
+  'du',
+  'le',
+  'la',
+  'les',
+  'y', // Spanish conjunction in compound surnames
+  'e', // Portuguese conjunction in compound surnames
+  // Arabic / Persian (transliterated)
+  'bin',
+  'ibn',
+  'bint',
+  'al',
+  'el',
+  'abu',
+  'abd',
+  'abdel',
+  'abdul',
+  // Hebrew (transliterated)
+  'ben',
+  'bat',
+  'bar',
+  // South-Asian
+  'das',
+]);
+
+export function isParticle(token: string): boolean {
+  return PARTICLES.has(token.toLowerCase().replace(/^['’-]|['’-]$/g, ''));
+}

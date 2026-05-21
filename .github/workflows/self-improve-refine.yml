@@ -1,0 +1,39 @@
+name: Self-Improve - Accuracy Refinement
+
+# Refinement layer of the multi-workflow self-improvement loop.
+# It only invokes the /self-improve-refine slash command (defined in
+# .claude/commands/self-improve-refine.md); all behaviour and guardrails live
+# there so CI and local runs stay identical.
+#
+# Requires the CLAUDE_CODE_OAUTH_TOKEN repo secret (generate with
+# `claude setup-token`). Opens PRs only — never merges.
+
+on:
+  schedule:
+    - cron: '0 6 * * 4' # weekly, Thursday 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      focus:
+        description: 'Optional PII type or failing case to focus on'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  refine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run /self-improve-refine
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: '/self-improve-refine ${{ github.event.inputs.focus }}'

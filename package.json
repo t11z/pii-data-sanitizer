@@ -1,0 +1,52 @@
+{
+  "name": "pii-data-sanitizer",
+  "version": "0.1.0",
+  "description": "Zero-knowledge, browser-only PII detection & sanitization with a heuristic engine and a multilingual name database.",
+  "type": "module",
+  "license": "MIT",
+  "author": "Thomas Sprock",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/t11z/pii-data-sanitizer"
+  },
+  "keywords": [
+    "pii",
+    "privacy",
+    "redaction",
+    "anonymization",
+    "pseudonymization",
+    "zero-knowledge",
+    "gdpr"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "bench": "tsx bench/run.ts",
+    "ingest": "tsx scripts/build-db/ingest.ts",
+    "build:db": "tsx scripts/build-db/build.ts"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.15.0",
+    "@sveltejs/vite-plugin-svelte": "^4.0.0",
+    "@types/node": "^22.9.0",
+    "eslint": "^9.15.0",
+    "eslint-plugin-svelte": "^2.46.0",
+    "globals": "^15.12.0",
+    "typescript-eslint": "^8.15.0",
+    "prettier": "^3.3.3",
+    "prettier-plugin-svelte": "^3.2.8",
+    "svelte": "^5.2.0",
+    "svelte-check": "^4.1.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.5"
+  }
+}
