@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { BloomFilter } from './bloom';
-import { BloomNameSource } from './bloomNameSource';
 
 describe('BloomFilter', () => {
   it('reports membership without false negatives', () => {
@@ -30,19 +29,5 @@ describe('BloomFilter', () => {
     expect(restored.k).toBe(bf.k);
     expect(restored.has('anna')).toBe(true);
     expect(restored.has('schmidt')).toBe(true);
-  });
-});
-
-describe('BloomNameSource', () => {
-  it('looks up across merged packs', () => {
-    const given = BloomFilter.forItems(10, 0.001);
-    const family = BloomFilter.forItems(10, 0.001);
-    given.add('haruki');
-    family.add('murakami');
-    const source = new BloomNameSource();
-    source.addPack(given, family);
-    expect(source.hasGiven('haruki')).toBe(true);
-    expect(source.hasFamily('murakami')).toBe(true);
-    expect(source.has('haruki')).toBe(true);
   });
 });

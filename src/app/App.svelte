@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { runSanitize, type SanitizeRun } from './sanitizerClient';
+  import { runSanitize, onPackProgress, type SanitizeRun } from './sanitizerClient';
   import { ALL_PII_TYPES } from '../core';
   import type { PiiType, SanitizeMode } from '../core';
   import Privacy from './Privacy.svelte';
@@ -37,6 +37,8 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   );
   let run = $state<SanitizeRun | null>(null);
   let copied = $state(false);
+  let packs = $state<{ loaded: number; total: number } | null>(null);
+  onPackProgress((p) => (packs = p));
 
   let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -113,6 +115,9 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
       Heuristic, multilingual PII detection &amp; redaction — running entirely in your browser.
     </p>
     <p class="zk">🛡️ Zero-knowledge: your text never leaves this device. No servers, no storage.</p>
+    {#if packs && packs.total > 0}
+      <p class="packs">🌍 {packs.loaded}/{packs.total} name packs loaded</p>
+    {/if}
   </header>
 
   <section class="controls">
@@ -207,6 +212,11 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   .tagline {
     margin: 0.25rem 0 0;
     color: var(--muted);
+  }
+  .packs {
+    margin: 0.25rem 0 0;
+    color: var(--muted);
+    font-size: 0.8rem;
   }
   .zk {
     margin: 0.5rem 0 1.25rem;

@@ -27,9 +27,14 @@ export interface Span {
  * Bloom-filter backed registry (v2+). All lookups expect a lowercased string.
  */
 export interface NameSource {
-  hasGiven(name: string): boolean;
-  hasFamily(name: string): boolean;
-  has(name: string): boolean;
+  hasGiven(name: string, script?: Script): boolean;
+  hasFamily(name: string, script?: Script): boolean;
+  /**
+   * Membership test. When `script` is given, only packs for that script are
+   * consulted — this avoids cross-script false positives (e.g. a Devanagari
+   * word matching the Latin pack by chance).
+   */
+  has(name: string, script?: Script): boolean;
 }
 
 export interface DetectOptions {
@@ -37,7 +42,7 @@ export interface DetectOptions {
   types?: PiiType[];
   /** Minimum confidence for a span to be reported. Defaults to 0.5. */
   minConfidence?: number;
-  /** Name membership oracle. Defaults to the embedded multilingual lists. */
+  /** Name membership oracle. Defaults to an empty source (no PERSON matches). */
   nameSource?: NameSource;
 }
 

@@ -1,4 +1,4 @@
-import type { NameSource, Span, Token } from '../types';
+import type { NameSource, Script, Span, Token } from '../types';
 import { tokenize } from '../tokenize';
 import { isParticle } from '../context/particles';
 import { isTitle } from '../context/titles';
@@ -10,22 +10,22 @@ function isCapitalized(token: string): boolean {
   return !!first && first !== first.toLowerCase() && first === first.toUpperCase();
 }
 
-function givenHit(source: NameSource, token: string): boolean {
+function givenHit(source: NameSource, token: string, script: Script): boolean {
   const l = token.toLowerCase();
-  if (source.hasGiven(l)) return true;
-  if (l.includes('-')) return l.split('-').some((p) => source.hasGiven(p));
+  if (source.hasGiven(l, script)) return true;
+  if (l.includes('-')) return l.split('-').some((p) => source.hasGiven(p, script));
   return false;
 }
 
-function familyHit(source: NameSource, token: string): boolean {
+function familyHit(source: NameSource, token: string, script: Script): boolean {
   const l = token.toLowerCase();
-  if (source.hasFamily(l)) return true;
-  if (l.includes('-')) return l.split('-').some((p) => source.hasFamily(p));
+  if (source.hasFamily(l, script)) return true;
+  if (l.includes('-')) return l.split('-').some((p) => source.hasFamily(p, script));
   return false;
 }
 
-function anyHit(source: NameSource, token: string): boolean {
-  return givenHit(source, token) || familyHit(source, token);
+function anyHit(source: NameSource, token: Token): boolean {
+  return givenHit(source, token.text, token.script) || familyHit(source, token.text, token.script);
 }
 
 function isCaselessNameScript(token: Token): boolean {
@@ -35,10 +35,10 @@ function isCaselessNameScript(token: Token): boolean {
 function nameLike(token: Token, source: NameSource, allowUnknownCap: boolean): boolean {
   if (token.script === 'Latin') {
     if (!isCapitalized(token.text)) return false;
-    return anyHit(source, token.text) || allowUnknownCap;
+    return anyHit(source, token) || allowUnknownCap;
   }
   if (isCaselessNameScript(token)) {
-    return anyHit(source, token.text);
+    return anyHit(source, token);
   }
   return false;
 }
@@ -73,7 +73,7 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
     if (isTitle(prev.text) && TITLE_GAP.test(between)) titleBefore = true;
   }
 
-  const dbHit = anyHit(source, tok.text);
+  const dbHit = anyHit(source, tok);
 
   if (tok.script === 'Latin') {
     if (!isCapitalized(tok.text)) return null;
@@ -111,7 +111,7 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
         const after = tokens[j + 2];
         const gap2 = text.slice(next.end, after.start);
         if (SINGLE_GAP.test(gap2) && nameLike(after, source, true)) {
-          if (anyHit(source, after.text)) dbHits++;
+          if (anyHit(source, after)) dbHits++;
           parts++;
           j += 2;
           continue;
@@ -120,7 +120,7 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
       }
 
       if (nameLike(next, source, allowUnknownCap || dbHits > 0)) {
-        if (anyHit(source, next.text)) dbHits++;
+        if (anyHit(source, next)) dbHits++;
         parts++;
         j++;
         continue;

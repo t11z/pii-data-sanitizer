@@ -1,7 +1,7 @@
 import { normalize } from './normalize';
 import { resolveOverlaps } from './resolve';
 import { applySanitization } from './sanitize';
-import { defaultNameSource } from './db/embedded';
+import { PackNameSource } from './db/packSource';
 import { detectEmails } from './detectors/structured/email';
 import { detectPhones } from './detectors/structured/phone';
 import { detectIbans } from './detectors/structured/iban';
@@ -19,12 +19,15 @@ const STRUCTURED: Record<string, (text: string) => Span[]> = {
   IP: detectIps,
 };
 
+// No names without packs: callers (worker/tests) inject a populated source.
+const EMPTY_NAME_SOURCE = new PackNameSource();
+
 /** Detects PII spans in `text`. Offsets are relative to the NFC-normalized text. */
 export function detect(text: string, options: DetectOptions = {}): Span[] {
   const normalized = normalize(text);
   const types = new Set<PiiType>(options.types ?? ALL_PII_TYPES);
   const minConfidence = options.minConfidence ?? 0.5;
-  const nameSource = options.nameSource ?? defaultNameSource;
+  const nameSource = options.nameSource ?? EMPTY_NAME_SOURCE;
 
   const spans: Span[] = [];
   for (const type of Object.keys(STRUCTURED) as PiiType[]) {
@@ -49,7 +52,11 @@ export function sanitize(text: string, options: SanitizeOptions = {}): SanitizeR
 
 export { normalize } from './normalize';
 export { tokenize, detectScript } from './tokenize';
-export { SetNameSource, defaultNameSource } from './db/embedded';
+export { BloomFilter } from './db/bloom';
+export { PackNameSource } from './db/packSource';
+export type { PackMeta, Tier } from './db/packSource';
+export { PackLoader } from './db/loader';
+export type { PackManifest, PackManifestEntry } from './db/loader';
 export { ALL_PII_TYPES } from './types';
 export type {
   DetectOptions,

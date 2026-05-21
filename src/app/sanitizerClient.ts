@@ -1,11 +1,21 @@
 import type { SanitizeOptions } from '../core';
-import type { WorkerResponse } from './worker/sanitizer.worker';
+import type { WorkerResult, WorkerResponse } from './worker/sanitizer.worker';
 
-export type SanitizeRun = Omit<WorkerResponse, 'id'>;
+export type SanitizeRun = Omit<WorkerResult, 'id'>;
+export interface PackProgress {
+  loaded: number;
+  total: number;
+}
 
 let worker: Worker | null = null;
 let seq = 0;
 const pending = new Map<number, (run: SanitizeRun) => void>();
+let progressHandler: ((p: PackProgress) => void) | null = null;
+
+/** Subscribe to name-pack loading progress (for a UI indicator). */
+export function onPackProgress(handler: (p: PackProgress) => void): void {
+  progressHandler = handler;
+}
 
 function getWorker(): Worker {
   if (!worker) {
@@ -13,7 +23,12 @@ function getWorker(): Worker {
       type: 'module',
     });
     worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-      const { id, ...run } = event.data;
+      const data = event.data;
+      if (!('id' in data)) {
+        progressHandler?.({ loaded: data.loaded, total: data.total });
+        return;
+      }
+      const { id, ...run } = data;
       const resolve = pending.get(id);
       if (resolve) {
         pending.delete(id);

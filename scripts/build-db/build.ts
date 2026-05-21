@@ -1,82 +1,112 @@
 /**
- * Builds Bloom-filter name packs for the browser.
+ * Builds Bloom-filter name packs for the browser from the single source of truth
+ * (scripts/build-db/sources.ts). Output: public/packs/<name>.bin + packs.json.
  *
- * v1 uses the embedded multilingual seed lists as the single source. As
- * permissively licensed, language-specific datasets are added (see
- * docs/self-improve.md and the licensing note below), append them to SOURCES —
- * one entry per language/script. Output: public/packs/<lang>-{given,family}.bin
- * plus a packs.json manifest.
+ * Partitioning is by SCRIPT, not culture: one merged `latin` pack (frequency-
+ * sharded into core + ext) plus one pack per native script. The Latin core ships
+ * eagerly; the long tail and native scripts load on demand at runtime.
  *
- * Licensing: only ingest name data under a permissive/public-domain license
- * (e.g. CC0). Record the source + license for every pack you add.
+ * The source is currently a curated starter set. As permissively licensed data
+ * (Wikidata CC0, open census/SSA, ...) is ingested, append it to sources.ts —
+ * keep this build offline and deterministic; record source + license per pack.
  */
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { BloomFilter } from '../../src/core/db/bloom';
-import { GIVEN_NAMES, FAMILY_NAMES } from '../../src/core/db/embeddedData';
+import { PACK_FP } from '../../src/core/db/packSource';
+import { SOURCES } from './sources';
+import type { Script } from '../../src/core/types';
 
-interface SourceList {
-  lang: string;
+// Names beyond this rank (by source order) move into the Latin `ext` shard. With
+// real frequency-ranked data this keeps the eagerly-loaded core small.
+const LATIN_CORE_LIMIT = 80000;
+
+interface PackInput {
+  name: string;
+  script: Script;
+  tier: 'core' | 'ext';
   license: string;
-  given: string[];
-  family: string[];
+  names: string[];
 }
-
-const SOURCES: SourceList[] = [
-  {
-    lang: 'seed',
-    license: 'project-curated',
-    given: GIVEN_NAMES,
-    family: FAMILY_NAMES,
-  },
-];
 
 function dedupeLower(words: string[]): string[] {
   return [...new Set(words.map((w) => w.toLowerCase()))];
 }
 
-function buildFilter(words: string[]): BloomFilter {
-  const bf = BloomFilter.forItems(words.length, 0.01);
-  words.forEach((w) => bf.add(w));
-  return bf;
+function buildInputs(): PackInput[] {
+  const inputs: PackInput[] = [];
+  for (const src of SOURCES) {
+    const names = dedupeLower(src.names);
+    if (src.script === 'Latin') {
+      const core = names.slice(0, LATIN_CORE_LIMIT);
+      const ext = names.slice(LATIN_CORE_LIMIT);
+      inputs.push({
+        name: 'latin-core',
+        script: 'Latin',
+        tier: 'core',
+        license: src.license,
+        names: core,
+      });
+      if (ext.length > 0) {
+        inputs.push({
+          name: 'latin-ext',
+          script: 'Latin',
+          tier: 'ext',
+          license: src.license,
+          names: ext,
+        });
+      }
+    } else {
+      inputs.push({
+        name: src.script.toLowerCase(),
+        script: src.script,
+        tier: src.tier,
+        license: src.license,
+        names,
+      });
+    }
+  }
+  return inputs;
+}
+
+function buildFilter(names: string[]): Uint8Array {
+  const bf = BloomFilter.forItems(names.length, PACK_FP);
+  for (const n of names) bf.add(n);
+  return bf.serialize();
 }
 
 const here = dirname(fileURLToPath(import.meta.url));
 const outDir = join(here, '..', '..', 'public', 'packs');
 mkdirSync(outDir, { recursive: true });
 
-interface PackEntry {
-  lang: string;
+interface ManifestEntry {
+  name: string;
+  file: string;
+  script: Script;
+  tier: 'core' | 'ext';
   license: string;
-  given: string;
-  family: string;
-  counts: { given: number; family: number };
-  bytes: { given: number; family: number };
+  count: number;
+  bytes: number;
 }
 
-const packs: PackEntry[] = [];
+const packs: ManifestEntry[] = [];
 
-for (const src of SOURCES) {
-  const given = dedupeLower(src.given);
-  const family = dedupeLower(src.family);
-  const givenBytes = buildFilter(given).serialize();
-  const familyBytes = buildFilter(family).serialize();
-  const givenFile = `${src.lang}-given.bin`;
-  const familyFile = `${src.lang}-family.bin`;
-  writeFileSync(join(outDir, givenFile), givenBytes);
-  writeFileSync(join(outDir, familyFile), familyBytes);
+for (const input of buildInputs()) {
+  if (input.names.length === 0) continue;
+  const bytes = buildFilter(input.names);
+  const file = `${input.name}.bin`;
+  writeFileSync(join(outDir, file), bytes);
   packs.push({
-    lang: src.lang,
-    license: src.license,
-    given: givenFile,
-    family: familyFile,
-    counts: { given: given.length, family: family.length },
-    bytes: { given: givenBytes.length, family: familyBytes.length },
+    name: input.name,
+    file,
+    script: input.script,
+    tier: input.tier,
+    license: input.license,
+    count: input.names.length,
+    bytes: bytes.length,
   });
-  console.log(
-    `  ${src.lang}: ${given.length} given (${givenBytes.length} B), ${family.length} family (${familyBytes.length} B)`
-  );
+  console.log(`  ${input.name}: ${input.names.length} names (${bytes.length} B)`);
 }
 
 const manifest = { generated: new Date().toISOString(), packs };

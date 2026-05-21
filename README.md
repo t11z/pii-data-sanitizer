@@ -67,15 +67,24 @@ npm run build      # production build into dist/
 
 ### Use the engine as a library
 
+Structured PII (email, IBAN, …) works out of the box. **Name** detection needs a
+name source — load Bloom packs with `PackLoader` (browser) or build one from the
+source lists (Node/tests). Without a source, no PERSON matches are produced.
+
 ```ts
 import { sanitize } from './src/core';
+import { nameSourceFromSources } from './src/core/db/fromSources'; // tests/Node helper
 
 const { text, mapping } = sanitize('Mail kai-uwe@example.com to Kai-Uwe von Braun.', {
   mode: 'pseudonymize',
+  nameSource: nameSourceFromSources(),
 });
 // text:   "Mail [EMAIL_1] to [PERSON_1]."
 // mapping: [{ placeholder: '[EMAIL_1]', original: 'kai-uwe@example.com', type: 'EMAIL' }, …]
 ```
+
+In the browser the Web Worker loads packs automatically (Latin core eagerly,
+native scripts on demand) — see `src/app/worker/sanitizer.worker.ts`.
 
 ## 🤖 Self-improving
 

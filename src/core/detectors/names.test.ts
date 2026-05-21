@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { detect } from '../index';
+import { nameSourceFromSources } from '../db/fromSources';
+
+const nameSource = nameSourceFromSources();
 
 const persons = (text: string) =>
-  detect(text)
+  detect(text, { nameSource })
     .filter((s) => s.type === 'PERSON')
     .map((s) => s.text);
 

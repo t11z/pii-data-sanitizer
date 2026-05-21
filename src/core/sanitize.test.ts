@@ -1,9 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { sanitize, detect } from './index';
+import { nameSourceFromSources } from './db/fromSources';
+
+const nameSource = nameSourceFromSources();
 
 describe('redaction', () => {
   it('replaces matches with type tags', () => {
-    const { text } = sanitize('Mail jane@example.com to John Smith.', { mode: 'redact' });
+    const { text } = sanitize('Mail jane@example.com to John Smith.', {
+      mode: 'redact',
+      nameSource,
+    });
     expect(text).toBe('Mail [EMAIL] to [PERSON].');
   });
 });
@@ -12,13 +18,17 @@ describe('pseudonymization', () => {
   it('assigns stable per-value placeholders', () => {
     const { text, mapping } = sanitize('John Smith called. Later John Smith left.', {
       mode: 'pseudonymize',
+      nameSource,
     });
     expect(text).toBe('[PERSON_1] called. Later [PERSON_1] left.');
     expect(mapping[0]).toMatchObject({ placeholder: '[PERSON_1]', original: 'John Smith' });
   });
 
   it('numbers distinct values separately per type', () => {
-    const { text } = sanitize('John Smith met Michael Anderson.', { mode: 'pseudonymize' });
+    const { text } = sanitize('John Smith met Michael Anderson.', {
+      mode: 'pseudonymize',
+      nameSource,
+    });
     expect(text).toBe('[PERSON_1] met [PERSON_2].');
   });
 });

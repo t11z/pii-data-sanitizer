@@ -16,6 +16,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { detect } from '../src/core/index';
 import type { PiiType } from '../src/core/index';
+import { nameSourceFromSources } from '../src/core/db/fromSources';
+
+const nameSource = nameSourceFromSources();
 
 interface Entity {
   type: PiiType;
@@ -69,7 +72,9 @@ function evaluate(cases: Case[]): Eval {
   const failures: Eval['failures'] = [];
 
   for (const c of cases) {
-    const detected = new Set(detect(c.text).map((s) => key({ type: s.type, text: s.text })));
+    const detected = new Set(
+      detect(c.text, { nameSource }).map((s) => key({ type: s.type, text: s.text }))
+    );
     const expected = new Set(c.entities.map(key));
     const caseFp: string[] = [];
     const caseFn: string[] = [];
