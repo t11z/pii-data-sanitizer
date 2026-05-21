@@ -92,6 +92,9 @@ const LATIN: string[] = [
   'kavya',
   'aditya',
   'lakshmi',
+  'meera',
+  'vikram',
+  'pradeep',
   // --- Arabic (transliterated) given ---
   'mohammed',
   'ahmed',
@@ -117,6 +120,7 @@ const LATIN: string[] = [
   'kourosh',
   'darius',
   'parisa',
+  'ramin',
   // --- Chinese (Pinyin) given ---
   'wei',
   'fang',
@@ -184,6 +188,8 @@ const LATIN: string[] = [
   'reddy',
   'nair',
   'rao',
+  'chatterjee',
+  'shrivastava',
   // --- Arabic (transliterated) family ---
   'farouk',
   'hassan',
@@ -201,6 +207,7 @@ const LATIN: string[] = [
   'ahmadi',
   'hosseini',
   'karimi',
+  'javaheri',
   // --- Chinese (Pinyin) family ---
   'wang',
   'li',

@@ -102,5 +102,21 @@
       { "type": "PERSON", "text": "Reza Tehrani" },
       { "type": "PERSON", "text": "Li Na" }
     ]
+  },
+  {
+    "text": "The refund for Ramin Javaheri was approved.",
+    "entities": [{ "type": "PERSON", "text": "Ramin Javaheri" }]
+  },
+  {
+    "text": "Account holder Meera Chatterjee paid the invoice.",
+    "entities": [{ "type": "PERSON", "text": "Meera Chatterjee" }]
+  },
+  {
+    "text": "Fraud was reported by Vikram Shrivastava yesterday.",
+    "entities": [{ "type": "PERSON", "text": "Vikram Shrivastava" }]
+  },
+  {
+    "text": "Merchant Pradeep Kumar-Singh was flagged for review.",
+    "entities": [{ "type": "PERSON", "text": "Pradeep Kumar-Singh" }]
   }
 ]
