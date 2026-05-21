@@ -5,7 +5,8 @@ name: Self-Improve - Language Expansion
 # (defined in .claude/commands/self-improve-languages.md) so the behaviour and
 # guardrails live in one place and stay in sync with local usage.
 #
-# Requires the ANTHROPIC_API_KEY repo secret. Opens PRs only — never merges.
+# Requires the CLAUDE_CODE_OAUTH_TOKEN repo secret (generate with
+# `claude setup-token`). Opens PRs only — never merges.
 
 on:
   schedule:
@@ -34,5 +35,5 @@ jobs:
       - name: Run /self-improve-languages
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: '/self-improve-languages ${{ github.event.inputs.focus }}'

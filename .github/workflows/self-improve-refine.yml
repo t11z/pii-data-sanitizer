@@ -5,7 +5,8 @@ name: Self-Improve - Accuracy Refinement
 # .claude/commands/self-improve-refine.md); all behaviour and guardrails live
 # there so CI and local runs stay identical.
 #
-# Requires the ANTHROPIC_API_KEY repo secret. Opens PRs only — never merges.
+# Requires the CLAUDE_CODE_OAUTH_TOKEN repo secret (generate with
+# `claude setup-token`). Opens PRs only — never merges.
 
 on:
   schedule:
@@ -34,5 +35,5 @@ jobs:
       - name: Run /self-improve-refine
         uses: anthropics/claude-code-action@v1
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: '/self-improve-refine ${{ github.event.inputs.focus }}'

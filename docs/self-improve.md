@@ -41,6 +41,7 @@ self-improvement PR can only be merged once all of these are green.
 
 ## Setup
 
-Add an `ANTHROPIC_API_KEY` repository secret for the scheduled workflows. Until
-then they can still be run manually via **workflow_dispatch** by a maintainer
-with the key configured.
+Add a `CLAUDE_CODE_OAUTH_TOKEN` repository secret for the scheduled workflows
+(generate it locally with `claude setup-token`). Until it is set, the workflows
+simply don't authenticate; a maintainer can also trigger them manually via
+**workflow_dispatch** once the secret is configured.
