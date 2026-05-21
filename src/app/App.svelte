@@ -3,6 +3,17 @@
   import { runSanitize, type SanitizeRun } from './sanitizerClient';
   import { ALL_PII_TYPES } from '../core';
   import type { PiiType, SanitizeMode } from '../core';
+  import Privacy from './Privacy.svelte';
+
+  function currentRoute(): 'home' | 'privacy' {
+    return location.hash.replace(/^#\/?/, '') === 'privacy' ? 'privacy' : 'home';
+  }
+  let route = $state(currentRoute());
+  $effect(() => {
+    const onHashChange = () => (route = currentRoute());
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  });
 
   const SAMPLE = `Hi, this is Kai-Uwe von Braun. Reach me at kai-uwe@example.com
 or +49 30 1234567. My account is DE89 3704 0044 0532 0130 00 and the
@@ -93,95 +104,100 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   }
 </script>
 
-<header>
-  <h1>🔒 PII Data Sanitizer</h1>
-  <p class="tagline">
-    Heuristic, multilingual PII detection &amp; redaction — running entirely in your browser.
-  </p>
-  <p class="zk">🛡️ Zero-knowledge: your text never leaves this device. No servers, no storage.</p>
-</header>
+{#if route === 'privacy'}
+  <Privacy />
+{:else}
+  <header>
+    <h1>🔒 PII Data Sanitizer</h1>
+    <p class="tagline">
+      Heuristic, multilingual PII detection &amp; redaction — running entirely in your browser.
+    </p>
+    <p class="zk">🛡️ Zero-knowledge: your text never leaves this device. No servers, no storage.</p>
+  </header>
 
-<section class="controls">
-  <div class="control">
-    <span class="label">Mode</span>
-    <label><input type="radio" bind:group={mode} value="redact" /> 🏷️ Redact</label>
-    <label><input type="radio" bind:group={mode} value="pseudonymize" /> 🔁 Pseudonymize</label>
-  </div>
+  <section class="controls">
+    <div class="control">
+      <span class="label">Mode</span>
+      <label><input type="radio" bind:group={mode} value="redact" /> 🏷️ Redact</label>
+      <label><input type="radio" bind:group={mode} value="pseudonymize" /> 🔁 Pseudonymize</label>
+    </div>
 
-  <div class="control">
-    <span class="label">Detect</span>
-    {#each ALL_PII_TYPES as type (type)}
-      <label><input type="checkbox" bind:checked={enabled[type]} /> {TYPE_LABELS[type]}</label>
-    {/each}
-  </div>
-
-  <div class="control">
-    <span class="label">Min. confidence: {minConfidence.toFixed(2)}</span>
-    <input type="range" min="0" max="1" step="0.05" bind:value={minConfidence} />
-  </div>
-
-  <div class="control actions">
-    <button onclick={loadSample}>Sample</button>
-    <button onclick={clearAll}>Clear</button>
-    <label class="file"
-      >📁 Open .txt<input type="file" accept=".txt,text/plain" onchange={onFile} /></label
-    >
-  </div>
-</section>
-
-<section class="panes">
-  <div class="pane">
-    <h2>Input</h2>
-    <textarea bind:value={input} spellcheck="false" placeholder="Paste text with PII…"></textarea>
-  </div>
-
-  <div class="pane">
-    <h2>
-      Detected
-      {#each counts as [type, n] (type)}
-        <span class="chip">{TYPE_LABELS[type]} {n}</span>
-      {/each}
-    </h2>
-    <div class="preview">
-      {#each segments as seg, i (i)}
-        {#if seg.type}
-          <mark class="pii" data-type={seg.type} title={seg.type}>{seg.text}</mark>
-        {:else}{seg.text}{/if}
+    <div class="control">
+      <span class="label">Detect</span>
+      {#each ALL_PII_TYPES as type (type)}
+        <label><input type="checkbox" bind:checked={enabled[type]} /> {TYPE_LABELS[type]}</label>
       {/each}
     </div>
-  </div>
-</section>
 
-<section class="pane output">
-  <h2>
-    Sanitized output
-    <button onclick={copyOutput} disabled={!run}>{copied ? '✅ Copied' : '📋 Copy'}</button>
-  </h2>
-  <pre>{run?.result.text ?? ''}</pre>
-</section>
+    <div class="control">
+      <span class="label">Min. confidence: {minConfidence.toFixed(2)}</span>
+      <input type="range" min="0" max="1" step="0.05" bind:value={minConfidence} />
+    </div>
 
-{#if run && run.result.mapping.length > 0}
-  <section class="pane">
-    <h2>Mapping ({run.result.mapping.length})</h2>
-    <table>
-      <thead>
-        <tr><th>Placeholder</th><th>Original</th><th>Type</th></tr>
-      </thead>
-      <tbody>
-        {#each run.result.mapping as m, i (i)}
-          <tr><td><code>{m.placeholder}</code></td><td>{m.original}</td><td>{m.type}</td></tr>
-        {/each}
-      </tbody>
-    </table>
+    <div class="control actions">
+      <button onclick={loadSample}>Sample</button>
+      <button onclick={clearAll}>Clear</button>
+      <label class="file"
+        >📁 Open .txt<input type="file" accept=".txt,text/plain" onchange={onFile} /></label
+      >
+    </div>
   </section>
-{/if}
 
-<footer>
-  <p>
-    Open source (MIT) ·
-    <a href="https://github.com/t11z/pii-data-sanitizer">GitHub</a> · Contributions welcome 🤝
-  </p>
-</footer>
+  <section class="panes">
+    <div class="pane">
+      <h2>Input</h2>
+      <textarea bind:value={input} spellcheck="false" placeholder="Paste text with PII…"></textarea>
+    </div>
+
+    <div class="pane">
+      <h2>
+        Detected
+        {#each counts as [type, n] (type)}
+          <span class="chip">{TYPE_LABELS[type]} {n}</span>
+        {/each}
+      </h2>
+      <div class="preview">
+        {#each segments as seg, i (i)}
+          {#if seg.type}
+            <mark class="pii" data-type={seg.type} title={seg.type}>{seg.text}</mark>
+          {:else}{seg.text}{/if}
+        {/each}
+      </div>
+    </div>
+  </section>
+
+  <section class="pane output">
+    <h2>
+      Sanitized output
+      <button onclick={copyOutput} disabled={!run}>{copied ? '✅ Copied' : '📋 Copy'}</button>
+    </h2>
+    <pre>{run?.result.text ?? ''}</pre>
+  </section>
+
+  {#if run && run.result.mapping.length > 0}
+    <section class="pane">
+      <h2>Mapping ({run.result.mapping.length})</h2>
+      <table>
+        <thead>
+          <tr><th>Placeholder</th><th>Original</th><th>Type</th></tr>
+        </thead>
+        <tbody>
+          {#each run.result.mapping as m, i (i)}
+            <tr><td><code>{m.placeholder}</code></td><td>{m.original}</td><td>{m.type}</td></tr>
+          {/each}
+        </tbody>
+      </table>
+    </section>
+  {/if}
+
+  <footer>
+    <p>
+      Open source (MIT) ·
+      <a href="https://github.com/t11z/pii-data-sanitizer">GitHub</a> ·
+      <a href="#/privacy">Privacy &amp; Security</a> · Contributions welcome 🤝
+    </p>
+  </footer>
+{/if}
 
 <style>
   header h1 {
