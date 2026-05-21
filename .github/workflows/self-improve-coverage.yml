@@ -1,0 +1,64 @@
+name: Self-Improve - Coverage Discovery
+
+# Discovery layer of the multi-workflow self-improvement loop. It probes the
+# detector with fresh, PII-dense synthetic input and turns coverage gaps into a
+# labeled issue + a fix PR:
+#
+#   1. Generate (Haiku) — /self-improve-coverage-generate writes a synthetic TAC
+#      case feed with ground-truth labels to bench/self-improve/generated.json.
+#   2. Evaluate (deterministic) — `npm run bench:coverage` runs the real detector
+#      and writes the gap report bench/self-improve/gaps.json.
+#   3. Analyze (Opus) — /self-improve-coverage files a labeled GitHub issue with a
+#      concrete proposal and opens a PR with the smallest safe fix.
+#
+# All behaviour and guardrails live in the slash commands (.claude/commands/) so
+# CI and local runs stay identical. Requires the CLAUDE_CODE_OAUTH_TOKEN repo
+# secret (generate with `claude setup-token`). Opens issues/PRs only — never merges.
+
+on:
+  schedule:
+    - cron: '0 5 * * *' # daily, 05:00 UTC
+  workflow_dispatch:
+    inputs:
+      focus:
+        description: 'Optional PII type or culture/region to focus on'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+# One discovery run at a time so the loop never stacks duplicate issues/PRs.
+concurrency:
+  group: self-improve-coverage
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Generate synthetic TAC case feed (Haiku)
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--model claude-haiku-4-5-20251001'
+          prompt: '/self-improve-coverage-generate ${{ github.event.inputs.focus }}'
+
+      - name: Evaluate coverage gaps
+        run: npm run bench:coverage
+
+      - name: Analyze gaps, file issue & open fix PR (Opus)
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--model claude-opus-4-7'
+          prompt: '/self-improve-coverage ${{ github.event.inputs.focus }}'

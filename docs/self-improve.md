@@ -12,9 +12,34 @@ on a schedule in CI.
 | --------------- | ------------------------- | ----------------------------------------- | --------------------------------------------------- |
 | 🌍 Expansion    | `/self-improve-languages` | `.github/workflows/self-improve-languages.yml` | Add new languages / new names (additive only).      |
 | 🎯 Refinement   | `/self-improve-refine`    | `.github/workflows/self-improve-refine.yml`    | Fix current false positives / false negatives only. |
+| 🔭 Discovery    | `/self-improve-coverage`  | `.github/workflows/self-improve-coverage.yml`  | Probe daily for unknown coverage gaps, then file an issue + fix PR. |
 
 The command definitions live in `.claude/commands/`. The workflows reference
 them via `prompt: '/self-improve-…'` and contain no logic of their own.
+
+## The discovery loop (Haiku → sanitizer → Opus)
+
+The expansion and refinement layers *react* to known cases. The discovery layer
+runs **daily** (or on demand) to actively surface gaps the corpus doesn't cover yet:
+
+1. **Generate (Haiku).** `/self-improve-coverage-generate` writes a synthetic,
+   PII-dense **TAC case feed** — support tickets with TAC engineers and customer
+   persons from European, Indian and Persian cultures, plus all six PII types — to
+   `bench/self-improve/generated.json`, with ground-truth labels. **Synthetic data
+   only**; nothing real is ever generated.
+2. **Evaluate (deterministic).** `npm run bench:coverage`
+   (`scripts/self-improve/evaluate-coverage.ts`) runs the real detector over the
+   feed and writes a per-type gap report (`bench/self-improve/gaps.json`) listing
+   the missed PII (false negatives) and over-detections (false positives).
+3. **Analyze (Opus).** `/self-improve-coverage` reads the report, finds the
+   root cause of the most important gap, files a GitHub **issue labeled
+   `self-improvement`** (the label signals the agent is actively analyzing &
+   improving), and opens a **PR** with the smallest safe fix that `Closes` the issue.
+
+The generated feed and gap report are **ephemeral discovery artifacts** —
+git-ignored, never committed, and never part of CI gating. Only a human-reviewed,
+minimized case from a real gap lands in `bench/corpus.json` as a permanent
+regression test.
 
 ## Guardrails (apply to every layer)
 
@@ -31,7 +56,9 @@ them via `prompt: '/self-improve-…'` and contain no logic of their own.
    licensed sources (recorded per pack). No user data — that would break the
    zero-knowledge guarantee.
 6. **Offline engine.** All additions are compiled at build time; the browser
-   engine makes no network calls.
+   engine makes no network calls. No fix may introduce server-side resources, a
+   runtime backend/API, or an external/hosted LLM — gaps that would need any of
+   those are written up and declined, not implemented.
 
 ## The gate
 
@@ -45,3 +72,7 @@ Add a `CLAUDE_CODE_OAUTH_TOKEN` repository secret for the scheduled workflows
 (generate it locally with `claude setup-token`). Until it is set, the workflows
 simply don't authenticate; a maintainer can also trigger them manually via
 **workflow_dispatch** once the secret is configured.
+
+The discovery workflow additionally needs `issues: write` permission (already set
+in `self-improve-coverage.yml`) so it can create and label the issue. It reuses the
+same `CLAUDE_CODE_OAUTH_TOKEN` — no extra secret is required.
