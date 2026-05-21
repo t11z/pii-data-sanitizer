@@ -66,6 +66,50 @@ describe('context-based detection (generalizes beyond the DB)', () => {
     expect(persons('The Account Approval Form is attached.')).toHaveLength(0);
     expect(persons('Merchant Services were down.')).toHaveLength(0);
   });
+
+  it('detects an unknown name after an abbreviated role prefix ("Eng.")', () => {
+    expect(persons('Report filed by Eng. Dimitri Petrov this morning.')).toContain(
+      'Dimitri Petrov'
+    );
+    expect(persons('Escalated by Eng. Sophia Papadopoulos yesterday.')).toContain(
+      'Sophia Papadopoulos'
+    );
+    // Held-out hyphenated surname after the abbreviation.
+    expect(persons('Support from Eng. Andreas Meyer-Krahmer overnight.')).toContain(
+      'Andreas Meyer-Krahmer'
+    );
+  });
+
+  it('does not let a full role word + period (a sentence boundary) start a name', () => {
+    // "engineer." here ends a sentence; "Daily Briefing" must NOT become a person.
+    // Only genuine abbreviations ("Eng.") get the dot-tolerant role gap.
+    expect(persons('Please notify the duty engineer. Daily Briefing follows.')).toHaveLength(0);
+    expect(persons('The lead engineer. Final Review is pending.')).toHaveLength(0);
+  });
+
+  it('does not turn an abbreviated role cue + structural nouns into a person', () => {
+    expect(persons('Eng. Release Notes are attached for review.')).toHaveLength(0);
+    expect(persons('Eng. Support Team responded.')).toHaveLength(0);
+  });
+
+  it('proves the abbreviated-role-cue names are held out (absent from the DB)', () => {
+    // Guards rule: the "Eng." detections above must come from the heuristic, not
+    // from dictionary membership. If any of these land in the DB later, the cases
+    // above stop proving generalization and must be re-pointed at fresh held-outs.
+    const heldOut: Array<[string, 'Latin']> = [
+      ['dimitri', 'Latin'],
+      ['petrov', 'Latin'],
+      ['sophia', 'Latin'],
+      ['papadopoulos', 'Latin'],
+      ['andreas', 'Latin'],
+      ['meyer', 'Latin'],
+      ['krahmer', 'Latin'],
+    ];
+    for (const [word, script] of heldOut) {
+      expect(nameSource.hasGiven(word, script), `${word} should be out-of-DB`).toBe(false);
+      expect(nameSource.hasFamily(word, script), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
 });
 
 describe('false-positive guards', () => {

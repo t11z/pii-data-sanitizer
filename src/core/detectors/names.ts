@@ -3,7 +3,7 @@ import { tokenize } from '../tokenize';
 import { isParticle } from '../context/particles';
 import { isTitle } from '../context/titles';
 import { isAmbiguousWord } from '../context/commonWords';
-import { isRoleWord, isNonNameWord } from '../context/roleWords';
+import { isRoleWord, isRoleAbbreviation, isNonNameWord } from '../context/roleWords';
 import { scoreName } from '../scoring';
 
 function isCapitalized(token: string): boolean {
@@ -79,6 +79,11 @@ const SINGLE_GAP = /^[^\S\n\r]+$/;
 // Whitespace plus an optional abbreviation dot, so "Dr. Smith" (the common form)
 // gets the title boost — not just "Dr Smith". Never spans a line break.
 const TITLE_GAP = /^[^\S\n\r]*\.?[^\S\n\r]*$/;
+// Same shape as TITLE_GAP, applied only to abbreviated role cues ("Eng. Petrov")
+// so the abbreviation's trailing dot does not break the role-cue link. Full role
+// words keep the strict whitespace-only SINGLE_GAP, so a real sentence boundary
+// ("...the engineer. Bob ...") never starts a name.
+const ROLE_ABBR_GAP = /^[^\S\n\r]*\.?[^\S\n\r]*$/;
 const HORIZONTAL_WS = /[^\S\n\r]/;
 const SENTENCE_BOUNDARY = '.!?:;\n\r"“”(';
 
@@ -105,7 +110,10 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
     const prev = tokens[i - 1];
     const between = text.slice(prev.end, tok.start);
     if (isTitle(prev.text) && TITLE_GAP.test(between)) titleBefore = true;
-    if (isRoleWord(prev.text) && SINGLE_GAP.test(between)) roleBefore = true;
+    if (isRoleWord(prev.text)) {
+      const roleGap = isRoleAbbreviation(prev.text) ? ROLE_ABBR_GAP : SINGLE_GAP;
+      if (roleGap.test(between)) roleBefore = true;
+    }
   }
 
   const dbHit = anyHit(source, tok);
