@@ -8,12 +8,3 @@ coverage/
 .firebase/
 .vite/
 public/packs/
-
-# Terraform
-**/.terraform/*
-*.tfstate
-*.tfstate.*
-crash.log
-*.tfvars
-!*.tfvars.example
-.terraform.lock.hcl
