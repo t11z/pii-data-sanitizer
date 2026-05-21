@@ -16,6 +16,14 @@
     "entities": [{ "type": "IP", "text": "192.168.1.254" }]
   },
   {
+    "text": "The probe reached 203.0.113.42.",
+    "entities": [{ "type": "IP", "text": "203.0.113.42" }]
+  },
+  {
+    "text": "Gateway logged 2001:db8::1 at noon.",
+    "entities": [{ "type": "IP", "text": "2001:db8::1" }]
+  },
+  {
     "text": "Please call +49 30 1234567 tomorrow morning.",
     "entities": [{ "type": "PHONE", "text": "+49 30 1234567" }]
   },

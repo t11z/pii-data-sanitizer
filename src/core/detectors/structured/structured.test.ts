@@ -65,6 +65,24 @@ describe('IP detection', () => {
     const spans = only('addr 2001:0db8:85a3:0000:0000:8a2e:0370:7334 ok', 'IP');
     expect(spans).toHaveLength(1);
   });
+
+  it('detects an IPv4 that ends a sentence', () => {
+    const spans = only('Server IP involved: 203.0.113.42.', 'IP');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('203.0.113.42');
+  });
+
+  it('keeps the trailing group of a compressed IPv6', () => {
+    const spans = only('Customer IPv6 fe80::1 logged.', 'IP');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('fe80::1');
+  });
+
+  it('does not let phone swallow an IPv4 at a sentence end', () => {
+    const spans = detect('Tech support traced issue to subnet 198.51.100.0.');
+    expect(spans.filter((s) => s.type === 'PHONE')).toHaveLength(0);
+    expect(spans.filter((s) => s.type === 'IP').map((s) => s.text)).toEqual(['198.51.100.0']);
+  });
 });
 
 describe('credit card beats phone on overlap', () => {
