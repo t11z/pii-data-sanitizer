@@ -5,6 +5,8 @@ export type SanitizeRun = Omit<WorkerResult, 'id'>;
 export interface PackProgress {
   loaded: number;
   total: number;
+  loadedNames: number;
+  totalNames: number;
 }
 
 let worker: Worker | null = null;
@@ -25,7 +27,12 @@ function getWorker(): Worker {
     worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const data = event.data;
       if (!('id' in data)) {
-        progressHandler?.({ loaded: data.loaded, total: data.total });
+        progressHandler?.({
+          loaded: data.loaded,
+          total: data.total,
+          loadedNames: data.loadedNames,
+          totalNames: data.totalNames,
+        });
         return;
       }
       const { id, ...run } = data;

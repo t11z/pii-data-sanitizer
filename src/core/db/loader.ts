@@ -111,4 +111,18 @@ export class PackLoader {
   get totalCount(): number {
     return this.manifest?.packs.length ?? 0;
   }
+
+  /** Unique names across loaded packs (summed manifest counts). */
+  get loadedNameCount(): number {
+    if (!this.manifest) return 0;
+    let n = 0;
+    for (const p of this.manifest.packs) if (this.loadedNames.has(p.name)) n += p.count;
+    return n;
+  }
+
+  /** Unique names across the whole dictionary (all manifest packs). */
+  get totalNameCount(): number {
+    if (!this.manifest) return 0;
+    return this.manifest.packs.reduce((sum, p) => sum + p.count, 0);
+  }
 }

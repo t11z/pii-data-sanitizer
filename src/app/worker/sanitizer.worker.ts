@@ -17,6 +17,8 @@ export interface WorkerProgress {
   type: 'progress';
   loaded: number;
   total: number;
+  loadedNames: number;
+  totalNames: number;
 }
 
 export type WorkerResponse = WorkerResult | WorkerProgress;
@@ -29,6 +31,8 @@ function postProgress(): void {
     type: 'progress',
     loaded: loader.loadedCount,
     total: loader.totalCount,
+    loadedNames: loader.loadedNameCount,
+    totalNames: loader.totalNameCount,
   };
   (self as unknown as Worker).postMessage(msg);
 }
