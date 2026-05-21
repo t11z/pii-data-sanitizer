@@ -1,0 +1,36 @@
+name: Deploy Preview (Firebase Hosting)
+
+# Deploys each pull request to a temporary Firebase Hosting preview channel and
+# comments the preview URL on the PR. Inert until Hosting is enabled (repo
+# variable FIREBASE_ENABLED=true + the FIREBASE_SERVICE_ACCOUNT / FIREBASE_PROJECT_ID
+# secrets). Preview channels are isolated from the live site and auto-expire.
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  checks: write
+  pull-requests: write
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    # Skip for forks (they cannot access secrets) and when Hosting is disabled.
+    if: ${{ vars.FIREBASE_ENABLED == 'true' && github.event.pull_request.head.repo.full_name == github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build:db
+      - run: npm run build
+      - name: Deploy to preview channel
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          projectId: ${{ secrets.FIREBASE_PROJECT_ID }}
+          expires: 7d

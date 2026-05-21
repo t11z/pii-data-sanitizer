@@ -1,0 +1,5 @@
+# Copy to terraform.tfvars and fill in. Do NOT commit terraform.tfvars.
+project_id = "your-gcp-project-id"
+region     = "europe-west1"
+site_id    = "your-firebase-site-id"
+# custom_domain = "sanitizer.example.com"

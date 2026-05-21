@@ -101,13 +101,20 @@ Please run `npm test && npm run bench && npm run lint` before opening a PR. See
 [CONTRIBUTING.md](CONTRIBUTING.md) for details. First-time contributors are
 especially welcome — open an issue if you're unsure where to start. 💜
 
-## ☁️ Deploying (Firebase Hosting)
+## ☁️ Deploying & Infrastructure
 
-1. Create a Firebase project and set `default` in `.firebaserc`.
-2. Add repo secrets `FIREBASE_SERVICE_ACCOUNT` and `FIREBASE_PROJECT_ID`, and a
-   repo variable `FIREBASE_ENABLED=true`.
-3. Push to `main` — `.github/workflows/deploy.yml` builds and deploys the static
-   site.
+Hosting is the only infrastructure (a static CDN) and everything is **disabled by
+default** — there is no public instance until a maintainer enables it.
+
+- **IaC:** `infra/terraform/` provisions the Firebase Hosting site (enable APIs,
+  create the site, optional custom domain). See [`infra/README.md`](infra/README.md).
+- **Workflows:** `infra.yml` (Terraform plan/apply), `deploy.yml` (live deploy on
+  `main`), `deploy-preview.yml` (per-PR preview channels).
+
+Full setup (GCP project, repo variables/secrets, going live) is in
+[`docs/deployment.md`](docs/deployment.md). Note: running a public instance from
+Germany generally requires an Impressum — this repo intentionally ships none, so
+add the legally required notice before enabling deploys.
 
 ## 📄 License
 
