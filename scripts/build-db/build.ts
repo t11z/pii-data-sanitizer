@@ -11,7 +11,7 @@
  */
 import { writeFileSync, mkdirSync, readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { BloomFilter } from '../../src/core/db/bloom';
 import { PACK_FP } from '../../src/core/db/packSource';
 import { SOURCES } from './sources';
@@ -55,7 +55,7 @@ function readIngested(): { byScript: Map<Script, string[]>; license: string } {
   return { byScript, license: [...licenses].join('; ') };
 }
 
-function buildInputs(): PackInput[] {
+export function buildInputs(): PackInput[] {
   const curated = new Map<Script, { license: string; names: string[] }>();
   for (const src of SOURCES) curated.set(src.script, { license: src.license, names: src.names });
 
@@ -100,9 +100,6 @@ function buildFilter(names: string[]): Uint8Array {
   return bf.serialize();
 }
 
-const outDir = join(here, '..', '..', 'public', 'packs');
-mkdirSync(outDir, { recursive: true });
-
 interface ManifestEntry {
   name: string;
   file: string;
@@ -113,25 +110,36 @@ interface ManifestEntry {
   bytes: number;
 }
 
-const packs: ManifestEntry[] = [];
+function main(): void {
+  const outDir = join(here, '..', '..', 'public', 'packs');
+  mkdirSync(outDir, { recursive: true });
 
-for (const input of buildInputs()) {
-  if (input.names.length === 0) continue;
-  const bytes = buildFilter(input.names);
-  const file = `${input.name}.bin`;
-  writeFileSync(join(outDir, file), bytes);
-  packs.push({
-    name: input.name,
-    file,
-    script: input.script,
-    tier: input.tier,
-    license: input.license,
-    count: input.names.length,
-    bytes: bytes.length,
-  });
-  console.log(`  ${input.name}: ${input.names.length} names (${bytes.length} B)`);
+  const packs: ManifestEntry[] = [];
+
+  for (const input of buildInputs()) {
+    if (input.names.length === 0) continue;
+    const bytes = buildFilter(input.names);
+    const file = `${input.name}.bin`;
+    writeFileSync(join(outDir, file), bytes);
+    packs.push({
+      name: input.name,
+      file,
+      script: input.script,
+      tier: input.tier,
+      license: input.license,
+      count: input.names.length,
+      bytes: bytes.length,
+    });
+    console.log(`  ${input.name}: ${input.names.length} names (${bytes.length} B)`);
+  }
+
+  const manifest = { generated: new Date().toISOString(), packs };
+  writeFileSync(join(outDir, 'packs.json'), JSON.stringify(manifest, null, 2) + '\n');
+  console.log(`Built ${packs.length} pack(s) into ${outDir}`);
 }
 
-const manifest = { generated: new Date().toISOString(), packs };
-writeFileSync(join(outDir, 'packs.json'), JSON.stringify(manifest, null, 2) + '\n');
-console.log(`Built ${packs.length} pack(s) into ${outDir}`);
+// Only build packs when run directly (`npm run build:db`); importing buildInputs()
+// from this module must not trigger file writes.
+const invokedDirectly =
+  !!process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (invokedDirectly) main();
