@@ -31,6 +31,7 @@
     "bench": "tsx bench/run.ts",
     "bench:coverage": "tsx scripts/self-improve/evaluate-coverage.ts",
     "ingest": "tsx scripts/build-db/ingest.ts",
+    "ingest:census": "tsx scripts/build-db/ingest-census.ts",
     "build:db": "tsx scripts/build-db/build.ts"
   },
   "devDependencies": {

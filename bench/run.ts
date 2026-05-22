@@ -11,14 +11,36 @@
  * Run `tsx bench/run.ts` to evaluate, or with `--update` to (re)write the
  * baseline after an intentional, reviewed improvement.
  */
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { detect } from '../src/core/index';
 import type { PiiType } from '../src/core/index';
-import { nameSourceFromSources } from '../src/core/db/fromSources';
+import { PackNameSource } from '../src/core/db/packSource';
+import { SOURCES } from '../scripts/build-db/sources';
+import type { Script } from '../src/core/types';
 
-const nameSource = nameSourceFromSources();
+// Build the same merged dictionary the production packs ship: curated sources
+// (Latin = core) plus the ingested bulk under scripts/build-db/data (Latin =
+// ext, native scripts = core). This way the benchmark gate exercises the real
+// shipped data, so a bulk addition that introduces false positives is caught.
+function buildNameSource(): PackNameSource {
+  const src = new PackNameSource();
+  for (const s of SOURCES) {
+    src.addWords(s.names, { script: s.script, tier: s.tier }, `${s.script}-${s.tier}`);
+  }
+  const dir = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'build-db', 'data');
+  if (existsSync(dir)) {
+    for (const f of readdirSync(dir).filter((n) => n.endsWith('.json'))) {
+      const p = JSON.parse(readFileSync(join(dir, f), 'utf8')) as { script: Script; names: string[] };
+      const tier = p.script === 'Latin' ? 'ext' : 'core';
+      src.addWords(p.names, { script: p.script, tier }, f);
+    }
+  }
+  return src;
+}
+
+const nameSource = buildNameSource();
 
 interface Entity {
   type: PiiType;
