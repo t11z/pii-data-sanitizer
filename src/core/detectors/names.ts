@@ -212,16 +212,34 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
       if (!SINGLE_GAP.test(gap)) break;
       const next = tokens[j + 1];
 
-      if (isParticle(next.text) && j + 2 < tokens.length) {
-        const after = tokens[j + 2];
-        const gap2 = text.slice(next.end, after.start);
-        if (SINGLE_GAP.test(gap2) && nameLike(after, source, true)) {
-          if (anyHit(source, after)) {
+      if (isParticle(next.text)) {
+        // Skip a *run* of one or more consecutive particles, then require a real
+        // name token after the run. Multi-particle surnames are common — Spanish
+        // "de la Cruz", Dutch "van der Berg" / "van den Heuvel", German "von der
+        // Leyen" — and chaining only a single particle stopped at the second one
+        // and truncated the name. Each step stays whitespace-joined on one line.
+        let k = j + 1;
+        while (
+          k + 1 < tokens.length &&
+          isParticle(tokens[k + 1].text) &&
+          SINGLE_GAP.test(text.slice(tokens[k].end, tokens[k + 1].start))
+        ) {
+          k++;
+        }
+        const after = tokens[k + 1];
+        const gap2 = after ? text.slice(tokens[k].end, after.start) : '';
+        if (after && SINGLE_GAP.test(gap2) && nameLike(after, source, true)) {
+          const hit = anyHit(source, after);
+          // Mirror the direct-extension guard: an unknown structural noun after a
+          // particle run ("van der Department", "de la Invoice") must not become a
+          // name part.
+          if (!hit && isNonNameWord(after.text)) break;
+          if (hit) {
             dbHits++;
             tiers.push(tierOf(source, after));
           }
           parts++;
-          j += 2;
+          j = k + 1;
           continue;
         }
         break;

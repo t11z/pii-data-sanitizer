@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { detect } from '../index';
-import { nameSourceFromSources } from '../db/fromSources';
+import { nameSourceFromSources, nameSourceFromBuildInputs } from '../db/fromSources';
 import { PackNameSource } from '../db/packSource';
 
 const nameSource = nameSourceFromSources();
@@ -109,6 +109,64 @@ describe('context-based detection (generalizes beyond the DB)', () => {
       expect(nameSource.hasGiven(word, script), `${word} should be out-of-DB`).toBe(false);
       expect(nameSource.hasFamily(word, script), `${word} should be out-of-DB`).toBe(false);
     }
+  });
+});
+
+describe('multi-particle name chains (de la, van der, von der, van den)', () => {
+  // Verified against the FULL committed dictionary (core + ingested ext), so the
+  // names below are genuinely held out — detection rides on the particle-run
+  // heuristic plus a role/title cue, never on dictionary membership.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('chains a held-out surname across two particles after a role cue', () => {
+    expect(personsFull('Engineer Wlodimar de la Qwesterveldt resolved the ticket.')).toContain(
+      'Wlodimar de la Qwesterveldt'
+    );
+    expect(personsFull('Analyst Brunhildricka van der Zorblatt approved the refund.')).toContain(
+      'Brunhildricka van der Zorblatt'
+    );
+  });
+
+  it('chains a held-out surname across two particles after a title abbreviation', () => {
+    expect(personsFull('Filed by Eng. Gwendolthar van den Vexbruck overnight.')).toContain(
+      'Gwendolthar van den Vexbruck'
+    );
+  });
+
+  it('proves the multi-particle names are held out (absent from the full DB)', () => {
+    // The fix is the particle-run skip, not memorization: if any of these land in
+    // the DB later, the cases above stop proving generalization — re-point them.
+    const heldOut = [
+      'wlodimar',
+      'qwesterveldt',
+      'brunhildricka',
+      'zorblatt',
+      'gwendolthar',
+      'vexbruck',
+    ];
+    for (const word of heldOut) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('does not chain a particle run into an unknown structural noun', () => {
+    // "van der Department" is not a surname — the non-name guard must reject the
+    // structural noun even across a particle run, so no multi-token person forms.
+    expect(personsFull('Account holder Tomasz van der Department closed early.')).not.toContain(
+      'Tomasz van der Department'
+    );
+    expect(personsFull('Dr. Wlodimar de la Invoice was filed.')).not.toContain(
+      'Wlodimar de la Invoice'
+    );
+  });
+
+  it('does not start a name on a bare particle run', () => {
+    expect(personsFull('Reach out to the de la team about it.')).toHaveLength(0);
   });
 });
 

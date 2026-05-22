@@ -152,6 +152,22 @@
     "entities": [{ "type": "PERSON", "text": "Amir al-Rashid" }]
   },
   {
+    "text": "Engineer Wlodimar de la Qwesterveldt resolved the ticket.",
+    "entities": [{ "type": "PERSON", "text": "Wlodimar de la Qwesterveldt" }]
+  },
+  {
+    "text": "Analyst Brunhildricka van der Zorblatt approved the refund.",
+    "entities": [{ "type": "PERSON", "text": "Brunhildricka van der Zorblatt" }]
+  },
+  {
+    "text": "Reach out to the de la team about it.",
+    "entities": []
+  },
+  {
+    "text": "Account holder Tomasz van der Department closed early.",
+    "entities": []
+  },
+  {
     "text": "Customer Service Team responded quickly.",
     "entities": []
   },
