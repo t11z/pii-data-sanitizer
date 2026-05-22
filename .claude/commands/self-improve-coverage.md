@@ -38,10 +38,12 @@ them to a commit.
    `languages`-labeled issue for the `/self-improve-languages` loop and move on to a
    gap that admits a generalizing fix (or stop if none does).
 3. **Prove generalization.** The regression test for your fix MUST use **held-out
-   values that are absent from the database** — e.g. names not in `sources.ts`,
-   verified via `nameSourceFromSources()` (`hasGiven`/`hasFamily` === false). If your
-   fix only works because a value is in the DB, it is memorization, not a heuristic —
-   reject it.
+   values that are absent from the database**, verified against the **full committed
+   dictionary** via `nameSourceFromBuildInputs()` (`hasGiven`/`hasFamily` === false).
+   Do **not** verify with `nameSourceFromSources()`: that loads only the curated `core`
+   subset, so every ingested `ext`-tier name reads as falsely absent — the exact error
+   that produced a bogus "pure dictionary gap" diagnosis. If your fix only works because
+   a value is in the DB, it is memorization, not a heuristic — reject it.
 4. **Correct/extend, don't re-invent.** Make the smallest *generalizing* change. Do
    **not** rewrite working detectors wholesale. The `bench/proven/` suite is the
    locked record of proven behavior — it must keep passing **exactly** and you must

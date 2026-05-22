@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path';
 import { detect } from '../../src/core/index';
 import { ALL_PII_TYPES } from '../../src/core/index';
 import type { PiiType, Span } from '../../src/core/index';
-import { nameSourceFromSources } from '../../src/core/db/fromSources';
+import { nameSourceFromBuildInputs } from '../../src/core/db/fromSources';
 
 interface Entity {
   type: PiiType;
@@ -51,7 +51,10 @@ const inputPath = join(outDir, 'generated.json');
 const outputPath = join(outDir, 'gaps.json');
 
 const PII_TYPES = new Set<string>(ALL_PII_TYPES);
-const nameSource = nameSourceFromSources();
+// Use the full committed dictionary (curated core + ingested ext) so the gap
+// report reflects what the shipped app actually knows — not just the small
+// curated subset. Otherwise every ext-tier name surfaces as a false gap.
+const nameSource = nameSourceFromBuildInputs();
 
 function nfc(s: string): string {
   return s.normalize('NFC');
