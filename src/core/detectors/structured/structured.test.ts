@@ -131,6 +131,37 @@ describe('IP detection', () => {
   });
 });
 
+describe('phone detection', () => {
+  it('detects an international number', () => {
+    const spans = only('Please call +49 30 1234567 tomorrow', 'PHONE');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('+49 30 1234567');
+  });
+
+  it('keeps a real number with an internal hyphen', () => {
+    const spans = only('Reach the desk at 089 5550-1234 before noon.', 'PHONE');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('089 5550-1234');
+  });
+
+  it('does not flag a digit run inside a hyphenated identifier', () => {
+    // Held-out identifier prefixes (not the gap's "ORD") prove the guard is
+    // structural, not a memorized string.
+    expect(only('Invoice INV-2024-998877-Z processed.', 'PHONE')).toHaveLength(0);
+    expect(only('Ref REF-7782-119003 logged.', 'PHONE')).toHaveLength(0);
+    expect(only('Ticket CASE-2024-99812 escalated.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('keeps a real phone in a line that also has an order number', () => {
+    const spans = only(
+      'Order #ORD-2025-001847-X needs review; call +39 02 1234 5678 today.',
+      'PHONE'
+    );
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('+39 02 1234 5678');
+  });
+});
+
 describe('credit card beats phone on overlap', () => {
   it('keeps a single CREDIT_CARD span', () => {
     const spans = detect('4111 1111 1111 1111');
