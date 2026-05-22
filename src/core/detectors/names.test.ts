@@ -126,6 +126,53 @@ describe('false-positive guards', () => {
   });
 });
 
+describe('Latin diacritic folding (matches accented surface forms to folded entries)', () => {
+  // The Latin lists store most names ASCII-folded ("garcia", "lopez",
+  // "gonzalez", "maria"). Before folding, the very same names appearing with
+  // their accents were missed. These prove the accented forms are now detected.
+  it('detects an accented surname stored ASCII-folded', () => {
+    expect(persons('Alert: López, Fernando attempted login.')).toContain('López');
+    expect(persons('TM Report: González, Isabel reached out.')).toContain('González');
+  });
+
+  it('detects an accented given+family pair stored ASCII-folded', () => {
+    expect(persons('Report by José García was filed.')).toContain('José García');
+  });
+
+  it('still detects an entry stored WITH its diacritics (raw lookup unaffected)', () => {
+    expect(persons('A message from Jürgen Kraus arrived.')).toContain('Jürgen Kraus');
+  });
+
+  it('proves the detections are held out: the accented forms are absent from the DB', () => {
+    // Folding is the lever, not dictionary membership: the exact accented surface
+    // forms used above are NOT in the pack (only their ASCII-folded keys are). If
+    // any accented form is added later, re-point these at fresh held-outs.
+    for (const word of ['garcía', 'maría', 'lópez', 'gonzález']) {
+      expect(nameSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(nameSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('generalizes to any name: an unseen accented form folds to a core entry', () => {
+    // The fixture knows only the ASCII key "qwzzelton"; the accented surface form
+    // "Qwźżelton" is never added (raw membership is false), yet folding recovers
+    // it. This is the heuristic working independent of which names exist.
+    const fixture = new PackNameSource();
+    fixture.addWords(['qwzzelton'], { script: 'Latin', tier: 'core' }, 'latin-core');
+    expect(fixture.hasFamily('qwźżelton', 'Latin')).toBe(false);
+    const found = detect('Please ask Dr. Qwźżelton about it.', { nameSource: fixture })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+    expect(found).toContain('Qwźżelton');
+  });
+
+  it('does not turn accented common words or place names into people', () => {
+    expect(persons('We will visit Bogotá in May.')).toHaveLength(0);
+    expect(persons('She prefers café au lait every morning.')).toHaveLength(0);
+    expect(persons('The Über rollout shipped on schedule.')).toHaveLength(0);
+  });
+});
+
 describe('transcribed CJK names', () => {
   it('detects a Pinyin full name', () => {
     expect(persons('The award went to Zhang Wei this year.')).toContain('Zhang Wei');
