@@ -24,6 +24,30 @@
     "entities": [{ "type": "IP", "text": "2001:db8::1" }]
   },
   {
+    "text": "Access logged from 2001:db8::8a2e:370:7335 overnight.",
+    "entities": [{ "type": "IP", "text": "2001:db8::8a2e:370:7335" }]
+  },
+  {
+    "text": "The adapter reported fe80::abcd:1234:5678:9abc%eth2 online.",
+    "entities": [{ "type": "IP", "text": "fe80::abcd:1234:5678:9abc%eth2" }]
+  },
+  {
+    "text": "The relay used ::ffff:198.51.100.7 for translation.",
+    "entities": [{ "type": "IP", "text": "::ffff:198.51.100.7" }]
+  },
+  {
+    "text": "Translation went via 64:ff9b::203.0.113.9 last night.",
+    "entities": [{ "type": "IP", "text": "64:ff9b::203.0.113.9" }]
+  },
+  {
+    "text": "The sync job ran at 12:34:56 sharp.",
+    "entities": []
+  },
+  {
+    "text": "The adapter hardware id 00:1a:2b:3c:4d:5e was logged.",
+    "entities": []
+  },
+  {
     "text": "Please call +49 30 1234567 tomorrow morning.",
     "entities": [{ "type": "PHONE", "text": "+49 30 1234567" }]
   },

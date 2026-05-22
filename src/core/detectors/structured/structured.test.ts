@@ -83,6 +83,52 @@ describe('IP detection', () => {
     expect(spans.filter((s) => s.type === 'PHONE')).toHaveLength(0);
     expect(spans.filter((s) => s.type === 'IP').map((s) => s.text)).toEqual(['198.51.100.0']);
   });
+
+  it('keeps every trailing group of a compressed IPv6', () => {
+    const spans = only('Access logged from 2001:db8::8a2e:370:7334. End', 'IP');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('2001:db8::8a2e:370:7334');
+  });
+
+  it('includes the zone identifier of a link-local address', () => {
+    const spans = only('iface fe80::abcd:ef01:2345:6789%en0 up', 'IP');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('fe80::abcd:ef01:2345:6789%en0');
+  });
+
+  it('does not let the zone identifier swallow a sentence period', () => {
+    const spans = only('Access from fe80::1%eth0.', 'IP');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('fe80::1%eth0');
+  });
+
+  it('detects an IPv4-mapped IPv6 address as one span', () => {
+    const spans = only('connected via ::ffff:192.0.2.1 today', 'IP');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('::ffff:192.0.2.1');
+  });
+
+  it('detects an IPv4-embedded IPv6 address after compression', () => {
+    const spans = only('route 64:ff9b::203.0.113.5 mapped', 'IP');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('64:ff9b::203.0.113.5');
+  });
+
+  it('rejects a clock time that looks colon-separated', () => {
+    expect(only('meeting at 12:34:56 today', 'IP')).toHaveLength(0);
+  });
+
+  it('rejects a six-group MAC address', () => {
+    expect(only('mac 00:1A:2B:3C:4D:5E here', 'IP')).toHaveLength(0);
+  });
+
+  it('rejects an IPv6 with too many groups', () => {
+    expect(only('host 2001:db8:1:2:3:4:5:6:7 bad', 'IP')).toHaveLength(0);
+  });
+
+  it('rejects an embedded IPv4 with an out-of-range octet', () => {
+    expect(only('weird ::ffff:999.1.1.1 bad', 'IP')).toHaveLength(0);
+  });
 });
 
 describe('credit card beats phone on overlap', () => {
