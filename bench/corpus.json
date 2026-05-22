@@ -233,5 +233,17 @@
   {
     "text": "The Über rollout shipped on schedule.",
     "entities": []
+  },
+  {
+    "text": "Invoice INV-2024-998877-Z was processed without issue.",
+    "entities": []
+  },
+  {
+    "text": "Please reference REF-7782-119003 in the next reply.",
+    "entities": []
+  },
+  {
+    "text": "Order #ORD-2025-001847-X needs review; call +39 02 1234 5678 today.",
+    "entities": [{ "type": "PHONE", "text": "+39 02 1234 5678" }]
   }
 ]
