@@ -308,8 +308,10 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   textarea,
   .preview,
   pre {
+    box-sizing: border-box;
     width: 100%;
-    min-height: 220px;
+    height: 220px;
+    overflow: auto;
     font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
     font-size: 0.9rem;
     line-height: 1.5;
