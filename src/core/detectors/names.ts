@@ -11,17 +11,51 @@ function isCapitalized(token: string): boolean {
   return !!first && first !== first.toLowerCase() && first === first.toUpperCase();
 }
 
+const COMBINING_MARKS = new RegExp('[\\u0300-\\u036f]', 'g');
+
+/**
+ * Strips Latin diacritics so an accented surface form ("García", "María",
+ * "López") matches the ASCII-folded dictionary entry. The Latin name lists are an
+ * inconsistent mix — a few entries keep their marks ("jürgen"), most are folded
+ * ("garcia", "lopez", "gonzalez") — so without this a perfectly in-pack name is
+ * missed purely because it appears with its accents. Querying the folded form too
+ * recovers the whole class of accented Latin names.
+ *
+ * Only used on the Latin path: combining marks in Arabic harakat, Hebrew niqqud
+ * and Devanagari matras are lexically meaningful, so folding them would corrupt
+ * native-script lookups (see callers, gated on script === 'Latin').
+ */
+function foldLatin(word: string): string {
+  return word.normalize('NFD').replace(COMBINING_MARKS, '');
+}
+
+/** Membership for one already-lowercased word, with a Latin diacritic-fold fallback. */
+function lookup(
+  has: (name: string, script: Script) => boolean,
+  word: string,
+  script: Script
+): boolean {
+  if (has(word, script)) return true;
+  if (script === 'Latin') {
+    const folded = foldLatin(word);
+    if (folded !== word && has(folded, script)) return true;
+  }
+  return false;
+}
+
 function givenHit(source: NameSource, token: string, script: Script): boolean {
   const l = token.toLowerCase();
-  if (source.hasGiven(l, script)) return true;
-  if (l.includes('-')) return l.split('-').some((p) => source.hasGiven(p, script));
+  const has = source.hasGiven.bind(source);
+  if (lookup(has, l, script)) return true;
+  if (l.includes('-')) return l.split('-').some((p) => lookup(has, p, script));
   return false;
 }
 
 function familyHit(source: NameSource, token: string, script: Script): boolean {
   const l = token.toLowerCase();
-  if (source.hasFamily(l, script)) return true;
-  if (l.includes('-')) return l.split('-').some((p) => source.hasFamily(p, script));
+  const has = source.hasFamily.bind(source);
+  if (lookup(has, l, script)) return true;
+  if (l.includes('-')) return l.split('-').some((p) => lookup(has, p, script));
   return false;
 }
 
@@ -31,12 +65,22 @@ function anyHit(source: NameSource, token: Token): boolean {
 
 /** Best tier a token (or any of its hyphen parts) was found in. */
 function tierOf(source: NameSource, token: Token): Tier | null {
-  if (!source.matchTier) return 'core'; // sources without tier info count as core
+  const matchTier = source.matchTier;
+  if (!matchTier) return 'core'; // sources without tier info count as core
   const l = token.text.toLowerCase();
   const parts = l.includes('-') ? [l, ...l.split('-')] : [l];
+  // Mirror the diacritic-fold fallback used for membership so a name matched only
+  // via folding ("García") still reports its real tier instead of null — null
+  // would make scoring treat it as ext-only and re-penalize it below threshold.
+  const tierLookup = (p: string): Tier | null => {
+    const t = matchTier.call(source, p, token.script);
+    if (t || token.script !== 'Latin') return t;
+    const folded = foldLatin(p);
+    return folded !== p ? matchTier.call(source, folded, token.script) : null;
+  };
   let best: Tier | null = null;
   for (const p of parts) {
-    const t = source.matchTier(p, token.script);
+    const t = tierLookup(p);
     if (t === 'core') return 'core';
     if (t === 'ext') best = 'ext';
   }

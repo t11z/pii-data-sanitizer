@@ -213,5 +213,25 @@
   {
     "text": "Service was restored on Monday.",
     "entities": []
+  },
+  {
+    "text": "Account holder Šimon Čech reviewed the invoice.",
+    "entities": [{ "type": "PERSON", "text": "Šimon Čech" }]
+  },
+  {
+    "text": "Engineer Niño Gübler resolved the outage overnight.",
+    "entities": [{ "type": "PERSON", "text": "Niño Gübler" }]
+  },
+  {
+    "text": "We will visit Bogotá in May.",
+    "entities": []
+  },
+  {
+    "text": "She prefers café au lait every morning.",
+    "entities": []
+  },
+  {
+    "text": "The Über rollout shipped on schedule.",
+    "entities": []
   }
 ]
