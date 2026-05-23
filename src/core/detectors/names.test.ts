@@ -291,3 +291,72 @@ describe('frequency tier influences scoring', () => {
     expect(find('Ask Dr. Zorblax about it.')).toContain('Zorblax');
   });
 });
+
+describe('clause-opening name after a colon/sentence boundary', () => {
+  // Names constantly open a clause after a label in support prose ("Case
+  // escalation: <Name>", "Support note: <Name>"). A known-but-bulk (ext) given
+  // name was being dropped there by the sentence-start guard; it now anchors when
+  // a real second name part corroborates it. Verified against the FULL committed
+  // dictionary so the SURNAMES are genuinely held out — detection rides on the
+  // heuristic (ext anchor + corroborating part), not on dictionary membership.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('anchors an ext given name + held-out surname at a clause start', () => {
+    expect(personsFull('Case escalation: Bahar Qorvanni reached out today.')).toContain(
+      'Bahar Qorvanni'
+    );
+  });
+
+  it('anchors across a particle run at a clause start with a held-out surname', () => {
+    expect(personsFull('Support note: Marcus de Zeldravix processed the claim.')).toContain(
+      'Marcus de Zeldravix'
+    );
+  });
+
+  it('proves the surnames are held out (absent from the full DB)', () => {
+    // The lever is the corroborated sentence-start anchor, not memorization: if a
+    // surname below lands in the DB later, re-point these at fresh held-outs.
+    for (const word of ['qorvanni', 'zeldravix']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('still suppresses a lone ext given name at a clause start (no continuation)', () => {
+    expect(personsFull('Case note: Bahar reached out about the order.')).not.toContain('Bahar');
+  });
+
+  it('does not let a clause-opener verb/greeting anchor a name', () => {
+    // "Call"/"Best"/"Dear"/"Forward" are everyday words that also read as ext
+    // names; the guard list keeps them from anchoring even with a capitalized
+    // follower. (A genuine lone name elsewhere in the sentence may still detect.)
+    expect(personsFull('Best Regards from the whole team.')).toHaveLength(0);
+    expect(personsFull('Dear Customer, your refund is processing.')).toHaveLength(0);
+    expect(personsFull('Subject: Refund Request was submitted.')).toHaveLength(0);
+    expect(personsFull('Service Desk closed the ticket quickly.')).toHaveLength(0);
+  });
+
+  it('mechanism: an ext-only given anchors at sentence start only when corroborated', () => {
+    // Fully controlled fixture: "korvan" is ext-only, "zelbrith" never added.
+    const tiered = new PackNameSource();
+    tiered.addWords(['anna'], { script: 'Latin', tier: 'core' }, 'latin-core');
+    tiered.addWords(['korvan', 'best'], { script: 'Latin', tier: 'ext' }, 'latin-ext');
+    const find = (text: string) =>
+      detect(text, { nameSource: tiered })
+        .filter((s) => s.type === 'PERSON')
+        .map((s) => s.text);
+    // Held out: a surname after the ext given anchors the whole name at a colon.
+    // ("Filed by:" is a neutral label — no role/title cue — so the credit is the
+    // sentence-start anchor relaxation, not the role path.)
+    expect(tiered.hasFamily('zelbrith', 'Latin')).toBe(false);
+    expect(find('Filed by: Korvan Zelbrith called in.')).toContain('Korvan Zelbrith');
+    // No corroborating second part → the lone ext anchor stays suppressed.
+    expect(find('Filed by: Korvan called in.')).not.toContain('Korvan');
+    // A clause-opener anchor ("Best") is suppressed even with a follower.
+    expect(find('Note: Best Zelbrith called in.')).not.toContain('Best Zelbrith');
+  });
+});
