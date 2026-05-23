@@ -261,5 +261,33 @@
   {
     "text": "Order #ORD-2025-001847-X needs review; call +39 02 1234 5678 today.",
     "entities": [{ "type": "PHONE", "text": "+39 02 1234 5678" }]
+  },
+  {
+    "text": "Case escalation: Bahar Mehrabad reached out today.",
+    "entities": [{ "type": "PERSON", "text": "Bahar Mehrabad" }]
+  },
+  {
+    "text": "Case ORD-2024-7743: Kaveh Mohamadi opened a ticket.",
+    "entities": [{ "type": "PERSON", "text": "Kaveh Mohamadi" }]
+  },
+  {
+    "text": "Support note: Marcus de Wilde processed the claim.",
+    "entities": [{ "type": "PERSON", "text": "Marcus de Wilde" }]
+  },
+  {
+    "text": "Best Regards from the whole team.",
+    "entities": []
+  },
+  {
+    "text": "Service Desk closed the ticket quickly.",
+    "entities": []
+  },
+  {
+    "text": "Dear Customer, your refund is processing.",
+    "entities": []
+  },
+  {
+    "text": "Subject: Refund Request was submitted.",
+    "entities": []
   }
 ]

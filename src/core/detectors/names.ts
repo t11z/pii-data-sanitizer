@@ -4,6 +4,7 @@ import { isParticle } from '../context/particles';
 import { isTitle } from '../context/titles';
 import { isAmbiguousWord } from '../context/commonWords';
 import { isRoleWord, isRoleAbbreviation, isNonNameWord } from '../context/roleWords';
+import { isSentenceOpener } from '../context/sentenceOpeners';
 import { scoreName } from '../scoring';
 
 function isCapitalized(token: string): boolean {
@@ -144,6 +145,33 @@ interface StartInfo {
   dbHit: boolean;
 }
 
+/**
+ * Does the token at index `i` lead directly into a *second* name part — another
+ * capitalized, non-structural token, reached either immediately or across a run
+ * of connective particles ("de", "van der", ...)? All steps stay whitespace-
+ * joined on one line. This is the corroboration that lets an otherwise-weak
+ * sentence-initial ext token anchor a name: "Bahar Mehrabad", "Marcus de Wilde"
+ * carry a real surname after them, whereas a lone "Ask the ...", "Reach out ..."
+ * does not (the next token is lowercase). Mirrors the chain-extension rule, so a
+ * structural noun ("Service Desk"), role cue ("Dear Customer") or title is not
+ * mistaken for the corroborating part.
+ */
+function nameContinuation(tokens: Token[], i: number, text: string): boolean {
+  let j = i;
+  while (
+    j + 1 < tokens.length &&
+    isParticle(tokens[j + 1].text) &&
+    SINGLE_GAP.test(text.slice(tokens[j].end, tokens[j + 1].start))
+  ) {
+    j++;
+  }
+  const next = tokens[j + 1];
+  if (!next) return false;
+  if (!SINGLE_GAP.test(text.slice(tokens[j].end, next.start))) return false;
+  if (next.script !== 'Latin' || !isCapitalized(next.text)) return false;
+  return !isNonNameWord(next.text) && !isRoleWord(next.text) && !isTitle(next.text);
+}
+
 function nameStart(tokens: Token[], i: number, source: NameSource, text: string): StartInfo | null {
   const tok = tokens[i];
   if (tok.script === 'Han' || tok.script === 'Other') return null;
@@ -165,16 +193,24 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
   if (tok.script === 'Latin') {
     if (!isCapitalized(tok.text)) return null;
     // A bulk-only (ext) token at a sentence start, with no title/role to vouch
-    // for it, must not START a name chain: sentence-initial capitalization is
-    // uninformative and the long-tail lists contain many ordinary words
-    // ("Ask", "Reach", "Daily"). Let the scan fall through to the next,
-    // genuinely-cased name token instead of anchoring on the leading word.
+    // for it, is normally too weak to START a name chain: sentence-initial
+    // capitalization is uninformative and the long-tail lists contain many
+    // ordinary words ("Ask", "Reach", "Daily"). It may anchor ONLY when a
+    // following name part corroborates it ("Case escalation: Bahar Mehrabad",
+    // "Support note: Marcus de Wilde" — names that open a clause after a label,
+    // ubiquitous in support prose) AND the token is not itself a common
+    // clause-opener or structural noun. A lone ext word, or a verb/greeting like
+    // "Best Regards" / "Call Maria", still falls through to the next genuinely-
+    // cased name token.
     if (
       dbHit &&
       !titleBefore &&
       !roleBefore &&
       tierOf(source, tok) !== 'core' &&
-      isSentenceStart(text, tok.start)
+      isSentenceStart(text, tok.start) &&
+      (isSentenceOpener(tok.text) ||
+        isNonNameWord(tok.text) ||
+        !nameContinuation(tokens, i, text))
     ) {
       return null;
     }
