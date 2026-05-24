@@ -289,5 +289,25 @@
   {
     "text": "Subject: Refund Request was submitted.",
     "entities": []
+  },
+  {
+    "text": "Dr. van der Vandermeerux arrived today.",
+    "entities": [{ "type": "PERSON", "text": "van der Vandermeerux" }]
+  },
+  {
+    "text": "Ms. de Brakkenzoon signed the form.",
+    "entities": [{ "type": "PERSON", "text": "de Brakkenzoon" }]
+  },
+  {
+    "text": "Engineer de Hollvardsen reviewed the ticket.",
+    "entities": [{ "type": "PERSON", "text": "de Hollvardsen" }]
+  },
+  {
+    "text": "Dr. van der Department escalated this.",
+    "entities": []
+  },
+  {
+    "text": "Engineer de Service confirmed the order.",
+    "entities": []
   }
 ]

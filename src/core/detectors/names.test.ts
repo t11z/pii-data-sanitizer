@@ -170,6 +170,54 @@ describe('multi-particle name chains (de la, van der, von der, van den)', () => 
   });
 });
 
+describe('title/role-anchored particle start (no leading given name)', () => {
+  // "Dr. van der Berg", "Ms. de Vries": a title or role cue sits immediately
+  // before a particle that leads into a capitalized surname, with NO given name
+  // in between. The chain must begin on the lowercase particle so the title/role
+  // boost is kept; otherwise it can only start at the bare surname, which scores
+  // below threshold and is dropped. Verified against the FULL committed dictionary
+  // so the surnames below are genuinely held out — detection rides on the
+  // particle-start heuristic, never on dictionary membership.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('starts a held-out surname on a particle after a title', () => {
+    expect(personsFull('Dr. van der Vandermeerux arrived today.')).toContain(
+      'van der Vandermeerux'
+    );
+    expect(personsFull('Ms. de Brakkenzoon signed the form.')).toContain('de Brakkenzoon');
+  });
+
+  it('starts a held-out surname on a particle after a role cue', () => {
+    expect(personsFull('Engineer de Hollvardsen reviewed the ticket.')).toContain(
+      'de Hollvardsen'
+    );
+    expect(personsFull('Account holder van Krimbleton was notified.')).toContain(
+      'van Krimbleton'
+    );
+  });
+
+  it('proves the surnames are held out (absent from the full DB)', () => {
+    const heldOut = ['vandermeerux', 'brakkenzoon', 'hollvardsen', 'krimbleton'];
+    for (const word of heldOut) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('does not fire when the particle leads into a structural noun', () => {
+    expect(personsFull('Dr. van der Department escalated this.')).toHaveLength(0);
+    expect(personsFull('Engineer de Service confirmed the order.')).toHaveLength(0);
+  });
+
+  it('does not start a name on a particle without a title or role cue', () => {
+    expect(personsFull('they van der Vandermeerux walked in.')).toHaveLength(0);
+  });
+});
+
 describe('false-positive guards', () => {
   it('does not flag lowercase common words', () => {
     expect(persons('She gave a frank and rose-tinted review.')).toHaveLength(0);

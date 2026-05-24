@@ -191,6 +191,24 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
   const dbHit = anyHit(source, tok);
 
   if (tok.script === 'Latin') {
+    // Title/role-anchored particle start: "Dr. van der Berg", "Ms. de Vries",
+    // "Engineer de Wilde". A title or role cue sits immediately before a particle
+    // that opens a (possibly multi-) particle run leading into a capitalized
+    // surname. The chain cannot otherwise begin on the lowercase particle, so the
+    // title/role boost is wasted and the name starts only at the bare surname —
+    // too weak to clear the threshold and dropped. nameContinuation requires a
+    // real capitalized name part after the run (not a structural/role/title word),
+    // so "Dr. de Service" / "owner van Department" do not fire. The particle is
+    // not itself credited as a DB hit; the surname it leads to is counted during
+    // chain extension.
+    if (
+      (titleBefore || roleBefore) &&
+      !isCapitalized(tok.text) &&
+      isParticle(tok.text) &&
+      nameContinuation(tokens, i, text)
+    ) {
+      return { titleBefore, roleBefore, dbHit: false };
+    }
     if (!isCapitalized(tok.text)) return null;
     // A bulk-only (ext) token at a sentence start, with no title/role to vouch
     // for it, is normally too weak to START a name chain: sentence-initial
