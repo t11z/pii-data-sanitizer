@@ -163,4 +163,15 @@ describe('partial-name coreference', () => {
     });
     expect(text).toBe('[PERSON] kam. [PERSON] rief an.');
   });
+
+  it('folds a possessive mention onto the full name (clitic trimmed)', () => {
+    const { text, mapping } = sanitize("Joost van der Berg kam. Joost's Bericht lag vor.", {
+      mode: 'pseudonymize',
+      nameSource,
+    });
+    // The possessive "Joost's" is recognized as "Joost" and folded; the "'s" stays.
+    expect(text).toBe("[PERSON_1] kam. [PERSON_1]'s Bericht lag vor.");
+    expect(mapping).toHaveLength(1);
+    expect(mapping[0]).toMatchObject({ placeholder: '[PERSON_1]', original: 'Joost van der Berg' });
+  });
 });
