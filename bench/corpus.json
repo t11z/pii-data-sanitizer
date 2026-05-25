@@ -45,7 +45,7 @@
   },
   {
     "text": "The adapter hardware id 00:1a:2b:3c:4d:5e was logged.",
-    "entities": []
+    "entities": [{ "type": "MAC", "text": "00:1a:2b:3c:4d:5e" }]
   },
   {
     "text": "Please call +49 30 1234567 tomorrow morning.",
@@ -336,6 +336,22 @@
   },
   {
     "text": "Ping üser@localhost from the shell.",
+    "entities": []
+  },
+  {
+    "text": "The access point reported MAC 00:1A:2B:3C:4D:5E overnight.",
+    "entities": [{ "type": "MAC", "text": "00:1A:2B:3C:4D:5E" }]
+  },
+  {
+    "text": "The NIC 00-1a-2b-3c-4d-5e dropped its link.",
+    "entities": [{ "type": "MAC", "text": "00-1a-2b-3c-4d-5e" }]
+  },
+  {
+    "text": "Switch port learned 001a.2b3c.4d5e this morning.",
+    "entities": [{ "type": "MAC", "text": "001a.2b3c.4d5e" }]
+  },
+  {
+    "text": "The build artifact 001A2B3C4D5E was uploaded.",
     "entities": []
   }
 ]

@@ -27,6 +27,7 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     IBAN: '🏦 IBAN',
     CREDIT_CARD: '💳 Card',
     IP: '🌐 IP',
+    MAC: '🔌 MAC',
     PERSON: '🧑 Name',
   };
 
