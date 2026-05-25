@@ -41,7 +41,6 @@ const DEVANAGARI_LANGS = ['hi', 'mr', 'ne', 'sa'];
 const HANGUL_LANGS = ['ko'];
 
 const NATIVE_LANGS = [...ARABIC_LANGS, ...HEBREW_LANGS, ...DEVANAGARI_LANGS, ...HANGUL_LANGS];
-const ALL_LANGS = [...LATIN_LANGS, ...NATIVE_LANGS];
 
 // Humans (Q5) by major Latin label language — fast, large romanized-name pool.
 const HUMAN_LATIN_LANGS = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl'];
@@ -87,7 +86,7 @@ const FAMILY_CLASS = 'wd:Q101352';
 // other scripts because it also absorbs romanized Korean and ASCII-folded
 // Vietnamese/African variants generated at ingest time (see add()).
 const CAPS: Record<string, number> = {
-  Latin: 80000,
+  Latin: 100000,
   Arabic: 20000,
   Hebrew: 10000,
   Devanagari: 20000,
@@ -234,24 +233,33 @@ async function run(label: string, sparql: string, split: boolean): Promise<void>
 }
 
 async function main(): Promise<void> {
-  console.log('Name items (given/family) per language…');
-  for (const lang of ALL_LANGS) {
+  // Order matters because the Latin bucket is capped: harvest the regional and
+  // native pools FIRST so under-represented regions (Korea, Vietnam, sub-Saharan
+  // Africa, …) get their slots, then let the large generic European pool fill the
+  // remainder. (Previously the European bulk saturated the Latin cap before the
+  // regional country queries ran, dropping Vietnamese/African names entirely.)
+  console.log('Native name items + alt-labels…');
+  for (const lang of NATIVE_LANGS) {
     await run(`given:${lang}`, givenQuery(lang), false);
-    // Family-name items (Q101352) only resolve cheaply for major Latin labels;
-    // a native-language family scan times out. Native family names instead come
-    // from the country-constrained human harvest below.
-    if (LATIN_LANGS.includes(lang)) await run(`family:${lang}`, familyQuery(lang), false);
+    await run(`alt:${lang}`, altLabelQuery(lang), true);
   }
-  console.log('Alt-labels for native scripts…');
-  for (const lang of NATIVE_LANGS) await run(`alt:${lang}`, altLabelQuery(lang), true);
-
-  console.log('Romanized people (Q5) by language…');
-  for (const lang of HUMAN_LATIN_LANGS) await run(`human:${lang}`, humanLatinQuery(lang), true);
 
   console.log('Regional people by country + language…');
   for (const [country, lang] of HUMAN_BY_COUNTRY) {
     await run(`human:${country}/${lang}`, humanCountryQuery(country, lang), true);
   }
+
+  console.log('Latin name items (given/family) per language…');
+  for (const lang of LATIN_LANGS) {
+    await run(`given:${lang}`, givenQuery(lang), false);
+    // Family-name items (Q101352) only resolve cheaply for major Latin labels;
+    // a native-language family scan times out. Native family names instead come
+    // from the country-constrained human harvest above.
+    await run(`family:${lang}`, familyQuery(lang), false);
+  }
+
+  console.log('Romanized people (Q5) by language…');
+  for (const lang of HUMAN_LATIN_LANGS) await run(`human:${lang}`, humanLatinQuery(lang), true);
 
   if (total() === 0) {
     console.error('No names ingested (network/endpoint issue). Aborting without writing.');
