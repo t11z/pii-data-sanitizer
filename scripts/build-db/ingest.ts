@@ -24,6 +24,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { detectScript } from '../../src/core/tokenize';
 import type { Script } from '../../src/core/types';
+import { romanizeHangul, asciiFold, SURNAME_OVERRIDES } from './romanize-hangul';
 
 const ENDPOINT = 'https://query.wikidata.org/sparql';
 const USER_AGENT = 'pii-data-sanitizer/0.1 (https://github.com/t11z/pii-data-sanitizer)';
@@ -37,15 +38,19 @@ const LATIN_LANGS = [
 const ARABIC_LANGS = ['ar', 'fa', 'ur', 'ps', 'ckb', 'sd'];
 const HEBREW_LANGS = ['he', 'yi'];
 const DEVANAGARI_LANGS = ['hi', 'mr', 'ne', 'sa'];
+const HANGUL_LANGS = ['ko'];
 
-const NATIVE_LANGS = [...ARABIC_LANGS, ...HEBREW_LANGS, ...DEVANAGARI_LANGS];
+const NATIVE_LANGS = [...ARABIC_LANGS, ...HEBREW_LANGS, ...DEVANAGARI_LANGS, ...HANGUL_LANGS];
 const ALL_LANGS = [...LATIN_LANGS, ...NATIVE_LANGS];
 
 // Humans (Q5) by major Latin label language — fast, large romanized-name pool.
 const HUMAN_LATIN_LANGS = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl'];
 
 // Regional humans by [countryQID, labelLang]. Country constrains the set so the
-// query is cheap; the label language picks native script or romanized (en).
+// query is cheap; the label language picks native script or romanized (en). This
+// is the reliable lever for regions whose names are sparse as dedicated name
+// items — including Korea (Hangul), Vietnam (Latin w/ diacritics), and
+// sub-Saharan Africa (mostly Latin). A bare `Q5 + native-label` query times out.
 const HUMAN_BY_COUNTRY: Array<[string, string]> = [
   ['wd:Q668', 'hi'], ['wd:Q668', 'mr'], ['wd:Q668', 'sa'], ['wd:Q668', 'en'], // India
   ['wd:Q837', 'ne'], ['wd:Q837', 'en'], // Nepal
@@ -58,18 +63,41 @@ const HUMAN_BY_COUNTRY: Array<[string, string]> = [
   ['wd:Q822', 'ar'], // Lebanon
   ['wd:Q878', 'ar'], // United Arab Emirates
   ['wd:Q801', 'he'], ['wd:Q801', 'en'], // Israel
+  // East Asia: Korean native (ko → Hangul) is romanized at ingest; Vietnamese
+  // (vi) is Latin with diacritics, ASCII-folded at ingest.
+  ['wd:Q884', 'ko'], ['wd:Q884', 'en'], // South Korea
+  ['wd:Q881', 'vi'], ['wd:Q881', 'en'], // Vietnam
+  // Sub-Saharan Africa: native labels are Latin script (Yoruba, Igbo, Hausa,
+  // Swahili, Zulu, Xhosa, Akan/Twi/Ewe, Shona, Wolof, Afrikaans) + romanized en.
+  ['wd:Q1033', 'yo'], ['wd:Q1033', 'ig'], ['wd:Q1033', 'ha'], ['wd:Q1033', 'en'], // Nigeria
+  ['wd:Q117', 'ak'], ['wd:Q117', 'tw'], ['wd:Q117', 'ee'], ['wd:Q117', 'en'], // Ghana
+  ['wd:Q114', 'sw'], ['wd:Q114', 'en'], // Kenya
+  ['wd:Q258', 'zu'], ['wd:Q258', 'xh'], ['wd:Q258', 'af'], ['wd:Q258', 'en'], // South Africa
+  ['wd:Q924', 'sw'], ['wd:Q924', 'en'], // Tanzania
+  ['wd:Q1036', 'sw'], ['wd:Q1036', 'en'], // Uganda
+  ['wd:Q115', 'am'], ['wd:Q115', 'en'], // Ethiopia
+  ['wd:Q954', 'sn'], ['wd:Q954', 'en'], // Zimbabwe
+  ['wd:Q1041', 'wo'], ['wd:Q1041', 'fr'], ['wd:Q1041', 'en'], // Senegal
 ];
 
 const GIVEN_CLASSES = ['wd:Q202444', 'wd:Q12308941', 'wd:Q11879590', 'wd:Q3409032'];
 const FAMILY_CLASS = 'wd:Q101352';
 
-// Per-script caps to keep the committed data bounded.
+// Per-script caps to keep the committed data bounded. Latin is roomier than the
+// other scripts because it also absorbs romanized Korean and ASCII-folded
+// Vietnamese/African variants generated at ingest time (see add()).
 const CAPS: Record<string, number> = {
-  Latin: 60000,
+  Latin: 80000,
   Arabic: 20000,
   Hebrew: 10000,
   Devanagari: 20000,
+  Hangul: 15000,
 };
+
+// Romanized/ASCII-folded variants shorter than this are dropped: 2-letter
+// transliterations (e.g. RR "na", "an") collide with ordinary words and would
+// add false positives. Native-script tokens keep the length-2 floor below.
+const MIN_VARIANT_LEN = 3;
 
 const LIMIT_NAME_ITEM = 8000;
 const LIMIT_ALT = 5000;
@@ -120,10 +148,26 @@ async function query(sparql: string): Promise<string[]> {
   return [];
 }
 
+/** Adds a single cleaned, lowercased token to a script bucket, honoring its cap. */
+function addToBucket(script: Script, name: string): void {
+  if (!CAPS[script] || !TOKEN_RE.test(name)) return;
+  let set = buckets.get(script);
+  if (!set) {
+    set = new Set();
+    buckets.set(script, set);
+  }
+  if (set.size < CAPS[script]) set.add(name);
+}
+
 /**
  * Adds harvested labels to the script buckets. `split` tokenizes multi-word
  * labels on whitespace (for human/full-name labels); name-item labels are
  * single tokens and only need parenthetical disambiguation stripped.
+ *
+ * Native Korean (Hangul) tokens are also self-transliterated to Latin (Revised
+ * Romanization + conventional surname overrides) so romanized text matches.
+ * Latin tokens with diacritics (Vietnamese, accented African) additionally get
+ * an ASCII-folded Latin variant. Both forms are kept.
  */
 function add(labels: string[], split: boolean): void {
   for (const raw of labels) {
@@ -134,12 +178,19 @@ function add(labels: string[], split: boolean): void {
       if (name.length < 2 || !TOKEN_RE.test(name)) continue;
       const script = detectScript(name);
       if (script === 'Han' || script === 'Other' || !CAPS[script]) continue;
-      let set = buckets.get(script);
-      if (!set) {
-        set = new Set();
-        buckets.set(script, set);
+
+      addToBucket(script, name);
+
+      if (script === 'Hangul') {
+        const roman = romanizeHangul(name);
+        if (roman.length >= MIN_VARIANT_LEN) addToBucket('Latin', roman);
+        for (const override of SURNAME_OVERRIDES[name] ?? []) {
+          if (override.length >= MIN_VARIANT_LEN) addToBucket('Latin', override);
+        }
+      } else if (script === 'Latin') {
+        const folded = asciiFold(name);
+        if (folded !== name && folded.length >= MIN_VARIANT_LEN) addToBucket('Latin', folded);
       }
-      if (set.size < CAPS[script]) set.add(name);
     }
   }
 }

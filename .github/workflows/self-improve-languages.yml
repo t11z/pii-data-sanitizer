@@ -37,4 +37,4 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          prompt: '/self-improve-languages ${{ github.event.inputs.focus }}'
+          prompt: '/self-improve-languages ${{ github.event.inputs.focus }} — research strategically and prefer extending the ingestion pipeline; open a PR only if it adds at least 1000 net-new names.'

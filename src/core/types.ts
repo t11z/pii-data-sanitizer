@@ -2,7 +2,7 @@ export type PiiType = 'EMAIL' | 'PHONE' | 'IBAN' | 'CREDIT_CARD' | 'IP' | 'PERSO
 
 export const ALL_PII_TYPES: PiiType[] = ['EMAIL', 'PHONE', 'IBAN', 'CREDIT_CARD', 'IP', 'PERSON'];
 
-export type Script = 'Latin' | 'Arabic' | 'Hebrew' | 'Devanagari' | 'Han' | 'Other';
+export type Script = 'Latin' | 'Arabic' | 'Hebrew' | 'Devanagari' | 'Han' | 'Hangul' | 'Other';
 
 export interface Token {
   text: string;

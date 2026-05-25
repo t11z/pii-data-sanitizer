@@ -89,7 +89,12 @@ function tierOf(source: NameSource, token: Token): Tier | null {
 }
 
 function isCaselessNameScript(token: Token): boolean {
-  return token.script === 'Arabic' || token.script === 'Hebrew' || token.script === 'Devanagari';
+  return (
+    token.script === 'Arabic' ||
+    token.script === 'Hebrew' ||
+    token.script === 'Devanagari' ||
+    token.script === 'Hangul'
+  );
 }
 
 /**
