@@ -353,5 +353,19 @@
   {
     "text": "The build artifact 001A2B3C4D5E was uploaded.",
     "entities": []
+  },
+  {
+    "text": "Notes from Michael Anderson are at https://x.example.com/u/michael.anderson now.",
+    "entities": [
+      { "type": "PERSON", "text": "Michael Anderson" },
+      { "type": "PERSON", "text": "michael.anderson" }
+    ]
+  },
+  {
+    "text": "Slides by Giulia Rossi live at https://x.example.com/u/g.rossi today.",
+    "entities": [
+      { "type": "PERSON", "text": "Giulia Rossi" },
+      { "type": "PERSON", "text": "g.rossi" }
+    ]
   }
 ]

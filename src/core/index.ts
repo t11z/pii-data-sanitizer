@@ -10,6 +10,7 @@ import { detectIps } from './detectors/structured/ip';
 import { detectMacs } from './detectors/structured/mac';
 import { detectNames } from './detectors/names';
 import { deriveNamesFromEmail } from './identity/emailNames';
+import { detectNameVariants } from './identity/nameVariants';
 import { withDerivedNames } from './identity/augmentedSource';
 import { resolveIdentities } from './identity/resolve';
 import { linkNameParts } from './identity/coref';
@@ -55,6 +56,12 @@ export function detect(text: string, options: DetectOptions = {}): Span[] {
     if (derived.length > 0) {
       spans.push(...detectNames(normalized, withDerivedNames(nameSource, derived), minConfidence));
     }
+
+    // Slug/handle spellings of a person already named in this text (e.g. the path
+    // "joost.vandenberg" once "Joost van den Berg" is known), anchored to the
+    // confirmed full name for precision.
+    const personSpans = spans.filter((s) => s.type === 'PERSON');
+    spans.push(...detectNameVariants(normalized, personSpans));
   }
 
   const filtered = spans.filter((s) => s.confidence >= minConfidence);
