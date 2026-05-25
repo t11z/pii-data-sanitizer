@@ -309,5 +309,13 @@
   {
     "text": "Engineer de Service confirmed the order.",
     "entities": []
+  },
+  {
+    "text": "System log entry at 2026-03-17 14:08:51 CET shows the retry.",
+    "entities": []
+  },
+  {
+    "text": "The incident started on 2026-03-17 and was resolved the next day.",
+    "entities": []
   }
 ]
