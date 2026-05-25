@@ -8,6 +8,9 @@ import { detectIbans } from './detectors/structured/iban';
 import { detectCreditCards } from './detectors/structured/creditCard';
 import { detectIps } from './detectors/structured/ip';
 import { detectNames } from './detectors/names';
+import { deriveNamesFromEmail } from './identity/emailNames';
+import { withDerivedNames } from './identity/augmentedSource';
+import { resolveIdentities } from './identity/resolve';
 import { ALL_PII_TYPES } from './types';
 import type { DetectOptions, PiiType, SanitizeOptions, SanitizeResult, Span } from './types';
 
@@ -35,6 +38,20 @@ export function detect(text: string, options: DetectOptions = {}): Span[] {
   }
   if (types.has('PERSON')) {
     spans.push(...detectNames(normalized, nameSource, minConfidence));
+
+    // Second pass: derive candidate names from emails in THIS text and re-run
+    // name detection with them added, so standalone mentions of the same person
+    // elsewhere are caught (e.g. "gmueller@..." → "Müller" later in the text).
+    // resolveOverlaps keeps the email span over any overlapping in-email name,
+    // so an email is never split into name spans.
+    const emailSpans = spans.filter((s) => s.type === 'EMAIL');
+    const sourceEmails = emailSpans.length > 0 ? emailSpans : detectEmails(normalized);
+    const derived = sourceEmails.flatMap((s) =>
+      deriveNamesFromEmail(s.text.slice(0, s.text.indexOf('@')), nameSource)
+    );
+    if (derived.length > 0) {
+      spans.push(...detectNames(normalized, withDerivedNames(nameSource, derived), minConfidence));
+    }
   }
 
   const filtered = spans.filter((s) => s.confidence >= minConfidence);
@@ -47,6 +64,11 @@ export function sanitize(text: string, options: SanitizeOptions = {}): SanitizeR
   const spans = detect(normalized, options);
   const mode = options.mode ?? 'redact';
   const { text: sanitized, mapping } = applySanitization(normalized, spans, mode);
+  // Identity grouping is only meaningful when placeholders are distinct.
+  if (mode === 'pseudonymize') {
+    const grouped = resolveIdentities(spans, mapping, normalized);
+    return { text: sanitized, spans, mapping: grouped.mapping, identities: grouped.identities };
+  }
   return { text: sanitized, spans, mapping };
 }
 

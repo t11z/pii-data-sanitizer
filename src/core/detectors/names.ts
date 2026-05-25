@@ -26,7 +26,7 @@ const COMBINING_MARKS = new RegExp('[\\u0300-\\u036f]', 'g');
  * and Devanagari matras are lexically meaningful, so folding them would corrupt
  * native-script lookups (see callers, gated on script === 'Latin').
  */
-function foldLatin(word: string): string {
+export function foldLatin(word: string): string {
   return word.normalize('NFD').replace(COMBINING_MARKS, '');
 }
 
@@ -44,7 +44,7 @@ function lookup(
   return false;
 }
 
-function givenHit(source: NameSource, token: string, script: Script): boolean {
+export function givenHit(source: NameSource, token: string, script: Script): boolean {
   const l = token.toLowerCase();
   const has = source.hasGiven.bind(source);
   if (lookup(has, l, script)) return true;
@@ -52,7 +52,7 @@ function givenHit(source: NameSource, token: string, script: Script): boolean {
   return false;
 }
 
-function familyHit(source: NameSource, token: string, script: Script): boolean {
+export function familyHit(source: NameSource, token: string, script: Script): boolean {
   const l = token.toLowerCase();
   const has = source.hasFamily.bind(source);
   if (lookup(has, l, script)) return true;

@@ -7,14 +7,15 @@ function buildPlaceholders(
   const mapping: MappingEntry[] = [];
   const counters = new Map<string, number>();
   const assigned = new Map<string, string>();
+  const seen = new Set<string>();
   const replacements: string[] = [];
 
   for (const span of spans) {
+    const key = `${span.type}:${span.text.toLowerCase()}`;
     let placeholder: string;
     if (mode === 'redact') {
       placeholder = `[${span.type}]`;
     } else {
-      const key = `${span.type}:${span.text.toLowerCase()}`;
       const existing = assigned.get(key);
       if (existing) {
         placeholder = existing;
@@ -26,7 +27,12 @@ function buildPlaceholders(
       }
     }
     replacements.push(placeholder);
-    mapping.push({ placeholder, original: span.text, type: span.type });
+    // One mapping row per distinct value: repeated occurrences must not produce
+    // duplicate rows, and in pseudonymize mode each placeholder appears once.
+    if (!seen.has(key)) {
+      seen.add(key);
+      mapping.push({ placeholder, original: span.text, type: span.type });
+    }
   }
 
   return { replacements, mapping };

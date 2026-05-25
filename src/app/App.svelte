@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte';
   import { runSanitize, onPackProgress, type SanitizeRun } from './sanitizerClient';
   import { ALL_PII_TYPES } from '../core';
-  import type { PiiType, SanitizeMode } from '../core';
+  import type { MappingEntry, PiiType, SanitizeMode } from '../core';
   import Privacy from './Privacy.svelte';
 
   function currentRoute(): 'home' | 'privacy' {
@@ -87,6 +87,24 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
       map.set(span.type, (map.get(span.type) ?? 0) + 1);
     }
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
+  });
+
+  const groupedMapping = $derived.by<{
+    groups: Array<{ label: string; rows: MappingEntry[] }>;
+    ungrouped: MappingEntry[];
+  }>(() => {
+    const mapping = run?.result.mapping ?? [];
+    const identities = run?.result.identities ?? [];
+    const byPlaceholder = new Map(mapping.map((m) => [m.placeholder, m]));
+    const groups = identities.map((idn) => ({
+      label: idn.label,
+      rows: idn.placeholders
+        .map((ph) => byPlaceholder.get(ph))
+        .filter((m): m is MappingEntry => m !== undefined),
+    }));
+    const grouped = new Set(identities.flatMap((idn) => idn.placeholders));
+    const ungrouped = mapping.filter((m) => !grouped.has(m.placeholder));
+    return { groups, ungrouped };
   });
 
   async function copyOutput() {
@@ -189,16 +207,32 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   {#if run && run.result.mapping.length > 0}
     <section class="pane">
       <h2>Mapping ({run.result.mapping.length})</h2>
-      <table>
-        <thead>
-          <tr><th>Placeholder</th><th>Original</th><th>Type</th></tr>
-        </thead>
-        <tbody>
-          {#each run.result.mapping as m, i (i)}
-            <tr><td><code>{m.placeholder}</code></td><td>{m.original}</td><td>{m.type}</td></tr>
-          {/each}
-        </tbody>
-      </table>
+      {#each groupedMapping.groups as g (g.label)}
+        <h3 class="identity">🧩 {g.label}</h3>
+        <table>
+          <thead>
+            <tr><th>Placeholder</th><th>Original</th><th>Type</th></tr>
+          </thead>
+          <tbody>
+            {#each g.rows as m (m.placeholder)}
+              <tr><td><code>{m.placeholder}</code></td><td>{m.original}</td><td>{m.type}</td></tr>
+            {/each}
+          </tbody>
+        </table>
+      {/each}
+      {#if groupedMapping.ungrouped.length > 0}
+        {#if groupedMapping.groups.length > 0}<h3 class="identity">Other</h3>{/if}
+        <table>
+          <thead>
+            <tr><th>Placeholder</th><th>Original</th><th>Type</th></tr>
+          </thead>
+          <tbody>
+            {#each groupedMapping.ungrouped as m (m.placeholder + '|' + m.original)}
+              <tr><td><code>{m.placeholder}</code></td><td>{m.original}</td><td>{m.type}</td></tr>
+            {/each}
+          </tbody>
+        </table>
+      {/if}
     </section>
   {/if}
 
@@ -366,6 +400,14 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     text-align: left;
     padding: 0.35rem 0.5rem;
     border-bottom: 1px solid var(--border);
+  }
+  h3.identity {
+    margin: 0.9rem 0 0.3rem;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  h3.identity:first-of-type {
+    margin-top: 0.3rem;
   }
   footer {
     margin-top: 2rem;
