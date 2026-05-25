@@ -20,6 +20,24 @@ describe('email detection', () => {
   it('ignores a bare @ without a domain', () => {
     expect(only('say @here now', 'EMAIL')).toHaveLength(0);
   });
+
+  it('captures a non-ASCII local part in full', () => {
+    // Held-out Unicode local parts (not the gap's "søren"): German umlaut and
+    // Spanish eñe. They match only because the local class is Unicode-aware, so
+    // this proves the heuristic generalizes across scripts, not a memorized value.
+    expect(only('Reach support at jörg.müller@beispiel.de soon', 'EMAIL')[0].text).toBe(
+      'jörg.müller@beispiel.de'
+    );
+    expect(only('Forward it to begoña@correo.es promptly', 'EMAIL')[0].text).toBe(
+      'begoña@correo.es'
+    );
+  });
+
+  it('does not loosen the domain requirement for Unicode handles', () => {
+    // A Unicode word before @ with no real .tld domain must not match.
+    expect(only('Café@home served lunch', 'EMAIL')).toHaveLength(0);
+    expect(only('Ping üser@localhost from the shell', 'EMAIL')).toHaveLength(0);
+  });
 });
 
 describe('IBAN detection', () => {

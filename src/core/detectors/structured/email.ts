@@ -1,7 +1,10 @@
 import type { Span } from '../../types';
 
+// Local part allows Unicode letters (\p{L}) so SMTPUTF8 / EAI addresses with
+// non-ASCII names (ä, ø, ñ, é, CJK, …) match in full instead of truncating at
+// the first non-ASCII byte. The domain stays ASCII; the \.tld anchor guards precision.
 const EMAIL_RE =
-  /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)+/g;
+  /[\p{L}0-9._%+-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]*[a-zA-Z0-9])?)+/gu;
 
 export function detectEmails(text: string): Span[] {
   const spans: Span[] = [];

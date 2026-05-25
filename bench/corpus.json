@@ -317,5 +317,25 @@
   {
     "text": "The incident started on 2026-03-17 and was resolved the next day.",
     "entities": []
+  },
+  {
+    "text": "Reach support at jörg.müller@beispiel.de soon.",
+    "entities": [{ "type": "EMAIL", "text": "jörg.müller@beispiel.de" }]
+  },
+  {
+    "text": "Forward the refund request to begoña@correo.es promptly.",
+    "entities": [{ "type": "EMAIL", "text": "begoña@correo.es" }]
+  },
+  {
+    "text": "The downtime notice went to ole.østby@nordpost.no overnight.",
+    "entities": [{ "type": "EMAIL", "text": "ole.østby@nordpost.no" }]
+  },
+  {
+    "text": "Café@home served lunch yesterday.",
+    "entities": []
+  },
+  {
+    "text": "Ping üser@localhost from the shell.",
+    "entities": []
   }
 ]
