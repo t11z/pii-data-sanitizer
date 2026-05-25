@@ -7,6 +7,7 @@ import { detectPhones } from './detectors/structured/phone';
 import { detectIbans } from './detectors/structured/iban';
 import { detectCreditCards } from './detectors/structured/creditCard';
 import { detectIps } from './detectors/structured/ip';
+import { detectMacs } from './detectors/structured/mac';
 import { detectNames } from './detectors/names';
 import { deriveNamesFromEmail } from './identity/emailNames';
 import { withDerivedNames } from './identity/augmentedSource';
@@ -21,6 +22,7 @@ const STRUCTURED: Record<string, (text: string) => Span[]> = {
   IBAN: detectIbans,
   CREDIT_CARD: detectCreditCards,
   IP: detectIps,
+  MAC: detectMacs,
 };
 
 // No names without packs: callers (worker/tests) inject a populated source.

@@ -149,6 +149,42 @@ describe('IP detection', () => {
   });
 });
 
+describe('MAC detection', () => {
+  it('detects a colon-separated MAC', () => {
+    const spans = only('device 00:1A:2B:3C:4D:5E joined', 'MAC');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('00:1A:2B:3C:4D:5E');
+  });
+
+  it('detects a hyphen-separated MAC', () => {
+    const spans = only('nic 00-1a-2b-3c-4d-5e online', 'MAC');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('00-1a-2b-3c-4d-5e');
+  });
+
+  it('detects a Cisco dot-notation MAC', () => {
+    const spans = only('switch port 001a.2b3c.4d5e up', 'MAC');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('001a.2b3c.4d5e');
+  });
+
+  it('rejects a MAC with mixed separators', () => {
+    expect(only('bad 00:1A-2B:3C:4D:5E here', 'MAC')).toHaveLength(0);
+  });
+
+  it('does not flag a bare 12-hex run without separators', () => {
+    expect(only('token 001A2B3C4D5E issued', 'MAC')).toHaveLength(0);
+  });
+
+  it('does not match inside a longer hex run', () => {
+    expect(only('hash ff00:1A:2B:3C:4D:5Eff value', 'MAC')).toHaveLength(0);
+  });
+
+  it('rejects a clock time that looks colon-separated', () => {
+    expect(only('meeting at 12:34:56 today', 'MAC')).toHaveLength(0);
+  });
+});
+
 describe('phone detection', () => {
   it('detects an international number', () => {
     const spans = only('Please call +49 30 1234567 tomorrow', 'PHONE');
