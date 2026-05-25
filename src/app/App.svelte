@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { runSanitize, onPackProgress, type SanitizeRun } from './sanitizerClient';
-  import { buildMappingView, keyOf } from './mappingView';
+  import { buildMappingView, keyOf, type ManualEntry } from './mappingView';
   import { extractText } from './readers';
   import { ALL_PII_TYPES } from '../core';
   import type { MappingEntry, PiiType, SanitizeMode } from '../core';
@@ -15,6 +15,27 @@
     const onHashChange = () => (route = currentRoute());
     window.addEventListener('hashchange', onHashChange);
     return () => window.removeEventListener('hashchange', onHashChange);
+  });
+
+  $effect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') dismissSelection();
+    };
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      if (!(e.target as HTMLElement).closest('.redact-chip')) dismissSelection();
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('mousedown', onDown);
+    window.addEventListener('touchstart', onDown);
+    window.addEventListener('scroll', dismissSelection, true);
+    window.addEventListener('resize', dismissSelection);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mousedown', onDown);
+      window.removeEventListener('touchstart', onDown);
+      window.removeEventListener('scroll', dismissSelection, true);
+      window.removeEventListener('resize', dismissSelection);
+    };
   });
 
   const SAMPLE = `Hi, this is Kai-Uwe von Braun. Reach me at kai-uwe@example.com
@@ -48,6 +69,8 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   let disabled = $state<Set<string>>(new Set());
   // Manual group assignment: keyOf(type, value) -> identity id, or null for ungrouped.
   let assignments = $state<Record<string, number | null>>({});
+  // Hand-added values covering missed detections (false negatives): replaced everywhere.
+  let manual = $state<ManualEntry[]>([]);
   let packs = $state<{
     loaded: number;
     total: number;
@@ -75,10 +98,12 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
 
   onDestroy(() => clearTimeout(timer));
 
-  type Segment = { text: string; type?: PiiType };
+  type Segment = { text: string; type?: PiiType; source?: string };
 
   const view = $derived(
-    run ? buildMappingView(run.normalized, run.result.spans, mode, disabled, assignments) : null
+    run
+      ? buildMappingView(run.normalized, run.result.spans, mode, disabled, assignments, manual)
+      : null
   );
 
   const segments = $derived.by<Segment[]>(() => {
@@ -89,12 +114,14 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     let cursor = 0;
     for (const span of spans) {
       if (span.start > cursor) out.push({ text: normalized.slice(cursor, span.start) });
-      out.push({ text: normalized.slice(span.start, span.end), type: span.type });
+      out.push({ text: normalized.slice(span.start, span.end), type: span.type, source: span.source });
       cursor = span.end;
     }
     if (cursor < normalized.length) out.push({ text: normalized.slice(cursor) });
     return out;
   });
+
+  const manualKeys = $derived(new Set(manual.map((m) => keyOf(m.type, m.value))));
 
   const counts = $derived.by<Array<[PiiType, number]>>(() => {
     const map = new Map<PiiType, number>();
@@ -104,7 +131,9 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
   });
 
-  const hasOverrides = $derived(disabled.size > 0 || Object.keys(assignments).length > 0);
+  const hasOverrides = $derived(
+    disabled.size > 0 || Object.keys(assignments).length > 0 || manual.length > 0
+  );
 
   function assignRow(type: PiiType, original: string, value: string) {
     assignments = { ...assignments, [keyOf(type, original)]: value === '' ? null : Number(value) };
@@ -118,9 +147,64 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     disabled = next;
   }
 
+  function addManual(type: PiiType, value: string) {
+    const v = value.trim();
+    if (!v) return;
+    const k = keyOf(type, v);
+    if (manual.some((m) => keyOf(m.type, m.value) === k)) return;
+    manual = [...manual, { type, value: v }];
+  }
+
+  function removeManual(type: PiiType, value: string) {
+    const k = keyOf(type, value);
+    manual = manual.filter((m) => keyOf(m.type, m.value) !== k);
+  }
+
   function resetOverrides() {
     assignments = {};
     disabled = new Set();
+    manual = [];
+  }
+
+  // --- Select-to-redact: a floating chip anchored to a text selection in the preview.
+  let selection = $state<{ text: string; type: PiiType; rect: DOMRect } | null>(null);
+  let manualValue = $state('');
+  let manualType = $state<PiiType>('PERSON');
+
+  function onPreviewSelect(event: Event) {
+    const preview = event.currentTarget as HTMLElement;
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
+      selection = null;
+      return;
+    }
+    const range = sel.getRangeAt(0);
+    if (!preview.contains(range.commonAncestorContainer)) {
+      selection = null;
+      return;
+    }
+    const text = sel.toString().trim();
+    if (!text) {
+      selection = null;
+      return;
+    }
+    selection = { text, type: 'PERSON', rect: range.getBoundingClientRect() };
+  }
+
+  function confirmSelection() {
+    if (!selection) return;
+    addManual(selection.type, selection.text);
+    window.getSelection()?.removeAllRanges();
+    selection = null;
+  }
+
+  function dismissSelection() {
+    selection = null;
+  }
+
+  function submitManualField() {
+    addManual(manualType, manualValue);
+    manualValue = '';
   }
 
   async function copyOutput() {
@@ -218,15 +302,46 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
           <span class="chip">{TYPE_LABELS[type]} {n}</span>
         {/each}
       </h2>
-      <div class="preview">
+      <div
+        class="preview"
+        role="textbox"
+        tabindex="0"
+        aria-label="Detected PII preview — select any missed value to redact it"
+        onmouseup={onPreviewSelect}
+        ontouchend={onPreviewSelect}
+      >
         {#each segments as seg, i (i)}
           {#if seg.type}
-            <mark class="pii" data-type={seg.type} title={seg.type}>{seg.text}</mark>
+            <mark
+              class="pii"
+              data-type={seg.type}
+              data-source={seg.source}
+              title={seg.source === 'manual' ? `${seg.type} (added manually)` : seg.type}
+              >{seg.text}</mark
+            >
           {:else}{seg.text}{/if}
         {/each}
       </div>
+      <p class="hint">💡 Missed something? Select it above to redact every occurrence.</p>
     </div>
   </section>
+
+  {#if selection}
+    <div
+      class="redact-chip"
+      style="left: {selection.rect.left + selection.rect.width / 2}px; top: {selection.rect.top}px;"
+      role="dialog"
+      aria-label="Redact selected value"
+    >
+      <span class="chip-text" title={selection.text}>“{selection.text}”</span>
+      <select bind:value={selection.type} aria-label="Type of the selected value">
+        {#each ALL_PII_TYPES as type (type)}
+          <option value={type}>{TYPE_LABELS[type]}</option>
+        {/each}
+      </select>
+      <button class="chip-add" onclick={confirmSelection}>➕ Redact all</button>
+    </div>
+  {/if}
 
   <section class="pane output">
     <h2>
@@ -250,9 +365,10 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
       </thead>
       <tbody>
         {#each rows as m (m.placeholder + '|' + m.original)}
+          {@const isManual = manualKeys.has(keyOf(m.type, m.original))}
           <tr>
             <td><code>{m.placeholder}</code></td>
-            <td>{m.original}</td>
+            <td>{m.original}{#if isManual}<span class="badge" title="Added manually">✋ manual</span>{/if}</td>
             <td>{m.type}</td>
             {#if showGroup && view}
               <td>
@@ -274,11 +390,19 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
               </td>
             {/if}
             <td class="row-action">
-              <button
-                class="link"
-                title="Keep as-is — don't replace this value in the output (false positive)"
-                onclick={() => toggleDisabled(m.type, m.original, true)}>✕ Keep original</button
-              >
+              {#if isManual}
+                <button
+                  class="link"
+                  title="Remove this manual entry — stop replacing this value"
+                  onclick={() => removeManual(m.type, m.original)}>🗑 Remove</button
+                >
+              {:else}
+                <button
+                  class="link"
+                  title="Keep as-is — don't replace this value in the output (false positive)"
+                  onclick={() => toggleDisabled(m.type, m.original, true)}>✕ Keep original</button
+                >
+              {/if}
             </td>
           </tr>
         {/each}
@@ -286,7 +410,7 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     </table>
   {/snippet}
 
-  {#if view && (view.rows.length > 0 || view.removed.length > 0)}
+  {#if view && (view.rows.length > 0 || view.removed.length > 0 || manual.length > 0)}
     <section class="pane">
       <h2>
         Mapping ({view.rows.length})
@@ -296,6 +420,27 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
           >
         {/if}
       </h2>
+      <form
+        class="manual-add"
+        onsubmit={(e) => {
+          e.preventDefault();
+          submitManualField();
+        }}
+      >
+        <span class="manual-label">Missed a value?</span>
+        <input
+          type="text"
+          bind:value={manualValue}
+          placeholder="Type a value to redact everywhere…"
+          aria-label="Value to redact"
+        />
+        <select bind:value={manualType} aria-label="Type of the value to redact">
+          {#each ALL_PII_TYPES as type (type)}
+            <option value={type}>{TYPE_LABELS[type]}</option>
+          {/each}
+        </select>
+        <button type="submit" disabled={!manualValue.trim()}>+ Add</button>
+      </form>
       {#each view.groups as g (g.id)}
         <h3 class="identity">🧩 {g.label}</h3>
         {@render rowsTable(g.rows)}
@@ -479,6 +624,87 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     border: 1px solid var(--hl-border);
     border-radius: 4px;
     padding: 0 2px;
+  }
+  mark.pii[data-source='manual'] {
+    background: var(--accent-soft);
+    border-color: var(--accent);
+    border-style: dashed;
+  }
+  .hint {
+    margin: 0.4rem 0 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .redact-chip {
+    position: fixed;
+    transform: translate(-50%, calc(-100% - 8px));
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.45rem;
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    border-radius: 10px;
+    box-shadow: 0 6px 20px rgb(0 0 0 / 0.35);
+  }
+  .redact-chip .chip-text {
+    max-width: 10rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .redact-chip select {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.15rem 0.3rem;
+    font-size: 0.8rem;
+  }
+  .redact-chip .chip-add {
+    white-space: nowrap;
+  }
+  .badge {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0 0.4rem;
+    font-size: 0.7rem;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+  }
+  .manual-add {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+  }
+  .manual-add .manual-label {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .manual-add input[type='text'] {
+    flex: 1 1 12rem;
+    min-width: 8rem;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.85rem;
+  }
+  .manual-add select {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.25rem 0.3rem;
+    font-size: 0.8rem;
   }
   .chip {
     font-size: 0.75rem;

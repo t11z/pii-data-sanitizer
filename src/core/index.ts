@@ -90,6 +90,7 @@ export function sanitize(text: string, options: SanitizeOptions = {}): SanitizeR
 }
 
 export { normalize } from './normalize';
+export { resolveOverlaps } from './resolve';
 export { applySanitization } from './sanitize';
 export { resolveIdentities } from './identity/resolve';
 export { linkNameParts } from './identity/coref';
