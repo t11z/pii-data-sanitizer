@@ -1,8 +1,42 @@
-import { applySanitization, linkNameParts, resolveIdentities } from '../core';
+import { applySanitization, linkNameParts, normalize, resolveIdentities, resolveOverlaps } from '../core';
 import type { Identity, MappingEntry, PiiType, SanitizeMode, Span } from '../core';
 
 /** Stable per-value key — matches the placeholder/identity keying in the core. */
 export const keyOf = (type: PiiType, text: string): string => `${type}:${text.toLowerCase()}`;
+
+/** A value the user added by hand to cover a missed detection (false negative). */
+export interface ManualEntry {
+  type: PiiType;
+  value: string;
+}
+
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Synthesizes spans for hand-added values, matching every occurrence in the
+ * normalized text. Matches are boundary-aware (not flanked by a letter or digit)
+ * so "Sam" never matches inside "Samuel"; internal punctuation is literal, so
+ * IPs/emails still match. Spans carry full confidence so they win overlaps.
+ */
+export function manualSpans(normalized: string, entries: readonly ManualEntry[]): Span[] {
+  const spans: Span[] = [];
+  for (const entry of entries) {
+    const value = normalize(entry.value).trim();
+    if (!value) continue;
+    const re = new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(value)}(?![\\p{L}\\p{N}])`, 'giu');
+    for (const m of normalized.matchAll(re)) {
+      spans.push({
+        start: m.index,
+        end: m.index + m[0].length,
+        type: entry.type,
+        text: m[0],
+        confidence: 1,
+        source: 'manual',
+      });
+    }
+  }
+  return spans;
+}
 
 export interface RemovedRow {
   key: string;
@@ -47,9 +81,17 @@ export function buildMappingView(
   allSpans: Span[],
   mode: SanitizeMode,
   disabled: ReadonlySet<string>,
-  assignments: Readonly<Record<string, number | null>>
+  assignments: Readonly<Record<string, number | null>>,
+  manual: readonly ManualEntry[] = []
 ): MappingView {
-  const activeSpans = allSpans.filter((s) => !disabled.has(keyOf(s.type, s.text)));
+  // Fold hand-added values into the detected spans before anything else, so they
+  // flow through the exact same pipeline (folding, numbering, grouping). Their
+  // confidence (1) wins any overlap with a weaker detection.
+  const merged =
+    manual.length > 0
+      ? resolveOverlaps([...allSpans, ...manualSpans(normalized, manual)])
+      : allSpans;
+  const activeSpans = merged.filter((s) => !disabled.has(keyOf(s.type, s.text)));
 
   // Fold partial name mentions ("Klaus" → "Klaus Hartmann") onto the full name's
   // placeholder, exactly as the core's sanitize() does. Computed after the
@@ -87,7 +129,7 @@ export function buildMappingView(
 
   // Removed (kept-as-original) values, deduplicated per key.
   const removedMap = new Map<string, RemovedRow>();
-  for (const s of allSpans) {
+  for (const s of merged) {
     const k = keyOf(s.type, s.text);
     if (disabled.has(k) && !removedMap.has(k)) {
       removedMap.set(k, { key: k, type: s.type, original: s.text });
