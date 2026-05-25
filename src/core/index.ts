@@ -11,6 +11,7 @@ import { detectNames } from './detectors/names';
 import { deriveNamesFromEmail } from './identity/emailNames';
 import { withDerivedNames } from './identity/augmentedSource';
 import { resolveIdentities } from './identity/resolve';
+import { linkNameParts } from './identity/coref';
 import { ALL_PII_TYPES } from './types';
 import type { DetectOptions, PiiType, SanitizeOptions, SanitizeResult, Span } from './types';
 
@@ -63,8 +64,10 @@ export function sanitize(text: string, options: SanitizeOptions = {}): SanitizeR
   const normalized = normalize(text);
   const spans = detect(normalized, options);
   const mode = options.mode ?? 'redact';
-  const { text: sanitized, mapping } = applySanitization(normalized, spans, mode);
-  // Identity grouping is only meaningful when placeholders are distinct.
+  // Fold partial name mentions onto the full name they corefer with, so one
+  // person gets one placeholder. Only meaningful when placeholders are distinct.
+  const personLinks = mode === 'pseudonymize' ? linkNameParts(spans) : new Map();
+  const { text: sanitized, mapping } = applySanitization(normalized, spans, mode, personLinks);
   if (mode === 'pseudonymize') {
     const grouped = resolveIdentities(spans, mapping, normalized);
     return { text: sanitized, spans, mapping: grouped.mapping, identities: grouped.identities };

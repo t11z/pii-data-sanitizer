@@ -11,7 +11,7 @@ const STRUCTURED: ReadonlySet<PiiType> = new Set<PiiType>(['PHONE', 'IBAN', 'IP'
  * with the "mueller" that appears in an email local part — the common case that a
  * plain diacritic fold ("muller") would miss. Other accents fold away normally.
  */
-function normName(s: string): string {
+export function normName(s: string): string {
   return s
     .normalize('NFC')
     .toLowerCase()

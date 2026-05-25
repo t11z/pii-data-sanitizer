@@ -8,7 +8,7 @@ import { deriveNamesFromEmail } from './emailNames';
 // below threshold on their own, which is exactly what email corroboration fixes.
 function source(): PackNameSource {
   const s = new PackNameSource();
-  s.addWords(['guenther', 'gunther', 'klaus', 'hans', 'maria', 'anna', 'müller'], {
+  s.addWords(['guenther', 'gunther', 'klaus', 'hans', 'maria', 'anna', 'müller', 'joost', 'berg'], {
     script: 'Latin',
     tier: 'core',
   });
@@ -92,10 +92,10 @@ describe('identity grouping', () => {
   });
 
   it('links an umlaut name to its ASCII (ue) email form', () => {
-    const { identities } = sanitize(
-      'Günther Müller wrote in; reach gmueller@example.com today.',
-      { mode: 'pseudonymize', nameSource }
-    );
+    const { identities } = sanitize('Günther Müller wrote in; reach gmueller@example.com today.', {
+      mode: 'pseudonymize',
+      nameSource,
+    });
     expect(identities).toHaveLength(1);
     expect(new Set(identities![0].placeholders)).toEqual(new Set(['[PERSON_1]', '[EMAIL_1]']));
   });
@@ -114,5 +114,53 @@ describe('identity grouping', () => {
       nameSource,
     });
     expect(identities).toBeUndefined();
+  });
+});
+
+describe('partial-name coreference', () => {
+  it('folds a bare first name onto the full name it corefers with', () => {
+    const { text, mapping } = sanitize('Joost van der Berg kam. Joost rief an.', {
+      mode: 'pseudonymize',
+      nameSource,
+    });
+    expect(text).toBe('[PERSON_1] kam. [PERSON_1] rief an.');
+    expect(mapping).toHaveLength(1);
+    expect(mapping[0]).toMatchObject({ placeholder: '[PERSON_1]', original: 'Joost van der Berg' });
+  });
+
+  it('folds a title-led surname onto the full name', () => {
+    const { text, mapping } = sanitize('Joost van der Berg kam. Mr. van der Berg ging.', {
+      mode: 'pseudonymize',
+      nameSource,
+    });
+    expect(text).toBe('[PERSON_1] kam. Mr. [PERSON_1] ging.');
+    expect(mapping).toHaveLength(1);
+    expect(mapping[0]).toMatchObject({ placeholder: '[PERSON_1]', original: 'Joost van der Berg' });
+  });
+
+  it('keeps the full name as the mapping original even when the partial comes first', () => {
+    const { text, mapping } = sanitize('Joost rief an. Joost van der Berg kam.', {
+      mode: 'pseudonymize',
+      nameSource,
+    });
+    expect(text).toBe('[PERSON_1] rief an. [PERSON_1] kam.');
+    expect(mapping[0]).toMatchObject({ placeholder: '[PERSON_1]', original: 'Joost van der Berg' });
+  });
+
+  it('does not fold an ambiguous first name shared by two identities', () => {
+    const { text } = sanitize('Joost van der Berg und Joost Müller kamen. Joost rief an.', {
+      mode: 'pseudonymize',
+      nameSource,
+    });
+    // "Joost" fits both names, so it stays on its own placeholder.
+    expect(text).toBe('[PERSON_1] und [PERSON_2] kamen. [PERSON_3] rief an.');
+  });
+
+  it('leaves partials in redact mode untouched', () => {
+    const { text } = sanitize('Joost van der Berg kam. Joost rief an.', {
+      mode: 'redact',
+      nameSource,
+    });
+    expect(text).toBe('[PERSON] kam. [PERSON] rief an.');
   });
 });

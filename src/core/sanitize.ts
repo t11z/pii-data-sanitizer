@@ -1,8 +1,10 @@
 import type { MappingEntry, SanitizeMode, Span } from './types';
+import type { PersonLink } from './identity/coref';
 
 function buildPlaceholders(
   spans: Span[],
-  mode: SanitizeMode
+  mode: SanitizeMode,
+  personLinks: Map<string, PersonLink>
 ): { replacements: string[]; mapping: MappingEntry[] } {
   const mapping: MappingEntry[] = [];
   const counters = new Map<string, number>();
@@ -11,7 +13,11 @@ function buildPlaceholders(
   const replacements: string[] = [];
 
   for (const span of spans) {
-    const key = `${span.type}:${span.text.toLowerCase()}`;
+    // A partial person mention ("Joost", "Mr. van der Berg") folds onto the full
+    // name it corefers with, so both share one placeholder and one mapping row.
+    const link = span.type === 'PERSON' ? personLinks.get(span.text.toLowerCase()) : undefined;
+    const key = `${span.type}:${link ? link.key : span.text.toLowerCase()}`;
+    const original = link ? link.original : span.text;
     let placeholder: string;
     if (mode === 'redact') {
       placeholder = `[${span.type}]`;
@@ -31,7 +37,7 @@ function buildPlaceholders(
     // duplicate rows, and in pseudonymize mode each placeholder appears once.
     if (!seen.has(key)) {
       seen.add(key);
-      mapping.push({ placeholder, original: span.text, type: span.type });
+      mapping.push({ placeholder, original, type: span.type });
     }
   }
 
@@ -47,10 +53,11 @@ function buildPlaceholders(
 export function applySanitization(
   text: string,
   spans: Span[],
-  mode: SanitizeMode
+  mode: SanitizeMode,
+  personLinks: Map<string, PersonLink> = new Map()
 ): { text: string; mapping: MappingEntry[] } {
   const ordered = [...spans].sort((a, b) => a.start - b.start);
-  const { replacements, mapping } = buildPlaceholders(ordered, mode);
+  const { replacements, mapping } = buildPlaceholders(ordered, mode, personLinks);
 
   let out = '';
   let cursor = 0;
