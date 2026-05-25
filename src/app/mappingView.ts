@@ -1,4 +1,4 @@
-import { applySanitization, resolveIdentities } from '../core';
+import { applySanitization, linkNameParts, resolveIdentities } from '../core';
 import type { Identity, MappingEntry, PiiType, SanitizeMode, Span } from '../core';
 
 /** Stable per-value key — matches the placeholder/identity keying in the core. */
@@ -38,8 +38,9 @@ export interface MappingView {
  *  - `assignments`: manual group membership (id, or null for ungrouped).
  *
  * With empty overrides this reproduces the worker's result exactly, since it runs
- * the same pure core functions (`applySanitization`, `resolveIdentities`) on the
- * same spans.
+ * the same pure core functions (`linkNameParts`, `applySanitization`,
+ * `resolveIdentities`) on the same spans — including the partial-name folding
+ * that gives a bare first name the same placeholder as its full name.
  */
 export function buildMappingView(
   normalized: string,
@@ -50,7 +51,11 @@ export function buildMappingView(
 ): MappingView {
   const activeSpans = allSpans.filter((s) => !disabled.has(keyOf(s.type, s.text)));
 
-  const { text, mapping } = applySanitization(normalized, activeSpans, mode);
+  // Fold partial name mentions ("Klaus" → "Klaus Hartmann") onto the full name's
+  // placeholder, exactly as the core's sanitize() does. Computed after the
+  // `disabled` filter so a kept-as-original full name correctly stops folding.
+  const personLinks = mode === 'pseudonymize' ? linkNameParts(activeSpans) : new Map();
+  const { text, mapping } = applySanitization(normalized, activeSpans, mode, personLinks);
 
   let rows: MappingEntry[] = mapping;
   let identities: Identity[] = [];

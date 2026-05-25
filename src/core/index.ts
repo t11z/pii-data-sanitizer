@@ -78,6 +78,7 @@ export function sanitize(text: string, options: SanitizeOptions = {}): SanitizeR
 export { normalize } from './normalize';
 export { applySanitization } from './sanitize';
 export { resolveIdentities } from './identity/resolve';
+export { linkNameParts } from './identity/coref';
 export { tokenize, detectScript } from './tokenize';
 export { BloomFilter } from './db/bloom';
 export { PackNameSource } from './db/packSource';
