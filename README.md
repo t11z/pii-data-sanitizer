@@ -119,9 +119,8 @@ especially welcome — open an issue if you're unsure where to start. 💜
 
 ## ☁️ Deploying
 
-Hosting is a static CDN (Firebase Hosting) and is **disabled by default** — there
-is no public instance until a maintainer enables it. Workflows: `deploy.yml` (live
-deploy on `main`) and `deploy-preview.yml` (per-PR preview channels).
+Workflows: `deploy.yml` (live deploy on `main`) and `deploy-preview.yml` 
+(per-PR preview channels).
 
 Full setup (Firebase project, repo variables/secrets, going live) is in
 [`docs/deployment.md`](docs/deployment.md).
