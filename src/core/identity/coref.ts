@@ -1,5 +1,7 @@
 import type { Span } from '../types';
 import { normName } from './resolve';
+import { foldLatin } from '../detectors/names';
+import { isParticle } from '../context/particles';
 
 /** Where a partial mention should be folded: the canonical placeholder key and a display original. */
 export interface PersonLink {
@@ -30,6 +32,37 @@ function isSuffix(part: string[], full: string[]): boolean {
 /** A partial sits at the start (given name) or end (surname) of a fuller name. */
 function partOf(part: string[], full: string[]): boolean {
   return isPrefix(part, full) || isSuffix(part, full);
+}
+
+/**
+ * Glued/separated slug spellings a full name maps to ("Joost van den Berg" →
+ * joostvandenberg, vandenbergjoost, jvandenberg, joostberg, …). Both the ASCII
+ * digraph ("mueller") and the plain fold ("muller") are produced. Used to fold a
+ * single-token mention recovered from a URL onto the person it spells out.
+ */
+function gluedKeys(original: string): Set<string> {
+  const keys = new Set<string>();
+  const raw = original
+    .split(/\s+/)
+    .map((t) => t.replace(/[^\p{L}\p{N}-]/gu, ''))
+    .filter(Boolean);
+  for (const norm of [(t: string) => normName(t), (t: string) => foldLatin(t.toLowerCase())]) {
+    const parts = raw.map((t) => norm(t).replace(/-/g, '')).filter(Boolean);
+    if (parts.length < 2) continue;
+    const given = parts[0];
+    if (given.length < 2) continue;
+    const rest = parts.slice(1);
+    for (const fam of [rest.join(''), rest.filter((t) => !isParticle(t)).join('')]) {
+      if (fam.length < 2) continue;
+      keys.add(given + fam);
+      keys.add(fam + given);
+      if (fam.length >= 4) {
+        keys.add(given[0] + fam);
+        keys.add(fam + given[0]);
+      }
+    }
+  }
+  return keys;
 }
 
 interface Entry {
@@ -75,5 +108,19 @@ export function linkNameParts(spans: Span[]): Map<string, PersonLink> {
       links.set(lc, { key: mlc, original: me.original });
     }
   }
+
+  // Second pass: a glued single-token mention from a URL/slug ("joost.vandenberg",
+  // "jvandenberg") folds onto the unique full name it spells out, so it shares the
+  // person's placeholder instead of getting its own.
+  const gluedCache = new Map<string, Set<string>>();
+  for (const [mlc, me] of maximal) gluedCache.set(mlc, gluedKeys(me.original));
+  for (const [lc, e] of distinct) {
+    if (links.has(lc) || e.tokens.length !== 1) continue;
+    const g = e.tokens[0].replace(/-/g, '');
+    if (g.length < 5) continue;
+    const hits = maximal.filter(([mlc]) => mlc !== lc && gluedCache.get(mlc)!.has(g));
+    if (hits.length === 1) links.set(lc, { key: hits[0][0], original: hits[0][1].original });
+  }
+
   return links;
 }
