@@ -23,6 +23,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { detectScript } from '../../src/core/tokenize';
+import { isNonNameWord } from '../../src/core/context/roleWords';
 import type { Script } from '../../src/core/types';
 import { romanizeHangul, asciiFold, SURNAME_OVERRIDES } from './romanize-hangul';
 
@@ -147,9 +148,12 @@ async function query(sparql: string): Promise<string[]> {
   return [];
 }
 
-/** Adds a single cleaned, lowercased token to a script bucket, honoring its cap. */
+/** Adds a single cleaned, lowercased token to a script bucket, honoring its cap.
+ * Tokens the engine treats as structural non-name words (e.g. "service", "team")
+ * are skipped: bulk human labels contain such words, and ingesting them as names
+ * makes phrases like "Customer Service Team" detect as a person. */
 function addToBucket(script: Script, name: string): void {
-  if (!CAPS[script] || !TOKEN_RE.test(name)) return;
+  if (!CAPS[script] || !TOKEN_RE.test(name) || isNonNameWord(name)) return;
   let set = buckets.get(script);
   if (!set) {
     set = new Set();

@@ -14,6 +14,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
+import { isNonNameWord } from '../../src/core/context/roleWords';
 
 const URL = 'https://www2.census.gov/topics/genealogy/2010surnames/names.zip';
 const USER_AGENT = 'pii-data-sanitizer/0.1 (https://github.com/t11z/pii-data-sanitizer)';
@@ -46,6 +47,9 @@ async function main(): Promise<void> {
       // Rows are sorted by rank; the first column is the surname.
       const field = line.split(',')[0]?.trim().toLowerCase();
       if (!field || field.length < 2 || !TOKEN_RE.test(field)) continue; // skips "all other names"
+      // Drop surnames the engine treats as structural non-name words (e.g.
+      // "service", "team") so phrases like "Customer Service Team" don't detect.
+      if (isNonNameWord(field)) continue;
       if (seen.has(field)) continue;
       seen.add(field);
       names.push(field);

@@ -337,5 +337,37 @@
   {
     "text": "Ping üser@localhost from the shell.",
     "entities": []
+  },
+  {
+    "text": "Analyst Linh Nguyen approved the claim.",
+    "entities": [{ "type": "PERSON", "text": "Linh Nguyen" }]
+  },
+  {
+    "text": "The invoice was reviewed by Tran Hoa yesterday.",
+    "entities": [{ "type": "PERSON", "text": "Tran Hoa" }]
+  },
+  {
+    "text": "Engineer Sipho Dlamini resolved the incident.",
+    "entities": [{ "type": "PERSON", "text": "Sipho Dlamini" }]
+  },
+  {
+    "text": "The report by Ngozi Okonkwo was filed.",
+    "entities": [{ "type": "PERSON", "text": "Ngozi Okonkwo" }]
+  },
+  {
+    "text": "Report filed by Otieno Kariuki today.",
+    "entities": [{ "type": "PERSON", "text": "Otieno Kariuki" }]
+  },
+  {
+    "text": "Please contact Kofi Mensah about the shipment.",
+    "entities": [{ "type": "PERSON", "text": "Kofi Mensah" }]
+  },
+  {
+    "text": "Please contact 김민준 about the shipment.",
+    "entities": [{ "type": "PERSON", "text": "김민준" }]
+  },
+  {
+    "text": "The case was handled by Kim Min-jun.",
+    "entities": [{ "type": "PERSON", "text": "Kim Min-jun" }]
   }
 ]
