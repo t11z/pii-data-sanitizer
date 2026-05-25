@@ -353,5 +353,25 @@
   {
     "text": "The build artifact 001A2B3C4D5E was uploaded.",
     "entities": []
+  },
+  {
+    "text": "Join the call at https://bergstrom.webex.com/meet/joost.vandenberg today.",
+    "entities": [{ "type": "PERSON", "text": "joost.vandenberg" }]
+  },
+  {
+    "text": "Reviewer profile is at https://corp.example.com/u/d.schneider for context.",
+    "entities": [{ "type": "PERSON", "text": "d.schneider" }]
+  },
+  {
+    "text": "The dashboard lives at https://mail.google.com/inbox now.",
+    "entities": []
+  },
+  {
+    "text": "Our office page is https://los.angeles.example.com for visitors.",
+    "entities": []
+  },
+  {
+    "text": "Check the vendor at https://morgan.com before signing.",
+    "entities": []
   }
 ]
