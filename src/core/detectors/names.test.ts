@@ -39,6 +39,23 @@ describe('particle chains across scripts (transliterated)', () => {
   });
 });
 
+describe('Korean (Hangul) names', () => {
+  const hangulSource = new PackNameSource();
+  hangulSource.addWords(['김민준', '서연', '민준'], { script: 'Hangul', tier: 'core' });
+  const koPersons = (text: string) =>
+    detect(text, { nameSource: hangulSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects a Hangul name present in the database', () => {
+    expect(koPersons('Please contact 김민준 about the shipment.')).toContain('김민준');
+  });
+
+  it('does not flag an unknown Hangul token without context', () => {
+    expect(koPersons('Please contact 홍길동 about it.')).not.toContain('홍길동');
+  });
+});
+
 describe('context-based detection (generalizes beyond the DB)', () => {
   // All names below are deliberately ABSENT from the name database, so these only
   // pass via the title/role/particle heuristics — never via dictionary lookup.
