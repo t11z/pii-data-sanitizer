@@ -19,6 +19,13 @@
     as soon as you close or reload the page. Nothing is written to disk, cookies, or local storage.
   </p>
 
+  <h2>📄 Opening files (PDF, DOCX, …)</h2>
+  <p>
+    When you open a file, it is read and parsed <strong>entirely in your browser</strong>. PDFs are
+    handled by a bundled, same-origin copy of pdf.js and DOCX files are unzipped locally — the file
+    is never uploaded. Only the extracted text enters the analysis, exactly as if you had pasted it.
+  </p>
+
   <h2>🚫 What never leaves your device</h2>
   <ul>
     <li>The text you analyze.</li>
