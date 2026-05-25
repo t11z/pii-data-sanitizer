@@ -31,6 +31,24 @@ describe('pseudonymization', () => {
     });
     expect(text).toBe('[PERSON_1] met [PERSON_2].');
   });
+
+  it('lists each placeholder only once despite repeated occurrences', () => {
+    const { mapping } = sanitize('John Smith called. Later John Smith left.', {
+      mode: 'pseudonymize',
+      nameSource,
+    });
+    expect(mapping).toHaveLength(1);
+    expect(mapping.map((m) => m.placeholder)).toEqual(['[PERSON_1]']);
+  });
+
+  it('keeps one row per distinct value when placeholders repeat in redact mode', () => {
+    const { mapping } = sanitize('Mail jane@example.com and jane@example.com again.', {
+      mode: 'redact',
+      nameSource,
+    });
+    expect(mapping).toHaveLength(1);
+    expect(mapping[0]).toMatchObject({ placeholder: '[EMAIL]', original: 'jane@example.com' });
+  });
 });
 
 describe('offset integrity', () => {
