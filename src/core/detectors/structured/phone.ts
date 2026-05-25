@@ -6,6 +6,13 @@ const PHONE_RE = /(?<![\w+])\+?\d[\d().\-/ ]{5,}\d(?![\w])/g;
 const ID_CHAR = /[A-Za-z0-9_-]/;
 const LETTER = /[A-Za-z]/;
 
+// ISO-8601 date or the leading date-plus-hour of a timestamp. The candidate
+// regex stops at ':' (not a separator), so a timestamp like
+// "2026-03-17 14:08:51" surfaces as the candidate "2026-03-17 14" — a date,
+// not a phone. No real phone number starts with a YYYY-MM-DD block, so dropping
+// these is safe for genuine numbers.
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}(?:[ T]\d{1,2}(?::\d{2}){0,2})?$/;
+
 /**
  * True when the digit run is fused — across hyphens or underscores — to letters,
  * i.e. it is part of a structured reference (order #, ticket, invoice, serial,
@@ -37,6 +44,8 @@ export function detectPhones(text: string): Span[] {
     const start = match.index + (value.length - value.trimStart().length);
     const trimmed = value.trim();
     const end = start + trimmed.length;
+    // Skip ISO dates / timestamps (e.g. "2026-03-17" or "2026-03-17 14").
+    if (ISO_DATE.test(trimmed)) continue;
     // Skip digit runs embedded in an alphanumeric identifier (order/ticket/
     // invoice/serial numbers like "ORD-2025-001847-X") — not phone numbers.
     if (fusedToLetters(text, start, end)) continue;

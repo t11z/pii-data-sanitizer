@@ -152,6 +152,16 @@ describe('phone detection', () => {
     expect(only('Ticket CASE-2024-99812 escalated.', 'PHONE')).toHaveLength(0);
   });
 
+  it('does not flag an ISO timestamp as a phone number', () => {
+    expect(
+      only('System log entry at 2026-03-17 14:08:51 CET shows the retry.', 'PHONE')
+    ).toHaveLength(0);
+    expect(
+      only('The incident started on 2026-03-17 and was resolved later.', 'PHONE')
+    ).toHaveLength(0);
+    expect(only('Logged at 2026-03-17 09:15 UTC for review.', 'PHONE')).toHaveLength(0);
+  });
+
   it('keeps a real phone in a line that also has an order number', () => {
     const spans = only(
       'Order #ORD-2025-001847-X needs review; call +39 02 1234 5678 today.',
