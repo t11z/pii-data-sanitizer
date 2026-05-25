@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detect } from '../index';
+import { detect, sanitize } from '../index';
 import { PackNameSource } from '../db/packSource';
 import { deriveNamesFromEmail } from './emailNames';
 
@@ -8,7 +8,7 @@ import { deriveNamesFromEmail } from './emailNames';
 // below threshold on their own, which is exactly what email corroboration fixes.
 function source(): PackNameSource {
   const s = new PackNameSource();
-  s.addWords(['guenther', 'klaus', 'hans', 'maria', 'anna', 'müller'], {
+  s.addWords(['guenther', 'gunther', 'klaus', 'hans', 'maria', 'anna', 'müller'], {
     script: 'Latin',
     tier: 'core',
   });
@@ -72,5 +72,47 @@ describe('email-seeded second pass', () => {
   it('never splits an email into separate name spans', () => {
     // The email span (0.99) wins overlap resolution over any in-email name.
     expect(persons('Write to guenther.mueller@example.com soon.')).toEqual([]);
+  });
+});
+
+describe('identity grouping', () => {
+  it('links name, email and a same-line phone into one identity', () => {
+    const { mapping, identities } = sanitize(
+      'Guenther Mueller wrote in; reach gmueller@example.com or +49 30 1234567 today.',
+      { mode: 'pseudonymize', nameSource }
+    );
+    expect(identities).toHaveLength(1);
+    const group = identities![0];
+    expect(group.label).toBe('Guenther Mueller');
+    expect(new Set(group.placeholders)).toEqual(new Set(['[PERSON_1]', '[EMAIL_1]', '[PHONE_1]']));
+    // The grouped attributes keep their distinct placeholders.
+    for (const m of mapping) {
+      if (group.placeholders.includes(m.placeholder)) expect(m.identityId).toBe(1);
+    }
+  });
+
+  it('links an umlaut name to its ASCII (ue) email form', () => {
+    const { identities } = sanitize(
+      'Günther Müller wrote in; reach gmueller@example.com today.',
+      { mode: 'pseudonymize', nameSource }
+    );
+    expect(identities).toHaveLength(1);
+    expect(new Set(identities![0].placeholders)).toEqual(new Set(['[PERSON_1]', '[EMAIL_1]']));
+  });
+
+  it('does not link an email that carries a different name', () => {
+    const { identities } = sanitize('Anna Klaus met gmueller@example.com.', {
+      mode: 'pseudonymize',
+      nameSource,
+    });
+    expect(identities).toEqual([]);
+  });
+
+  it('omits identities in redact mode', () => {
+    const { identities } = sanitize('Guenther Mueller at gmueller@example.com.', {
+      mode: 'redact',
+      nameSource,
+    });
+    expect(identities).toBeUndefined();
   });
 });

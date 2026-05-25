@@ -65,10 +65,23 @@ export interface MappingEntry {
   placeholder: string;
   original: string;
   type: PiiType;
+  /** Id of the identity this attribute belongs to, when it was linked to one. */
+  identityId?: number;
+}
+
+/** A person whose attributes (name, email, phone, …) were linked together. */
+export interface Identity {
+  id: number;
+  /** Display name for the group (the detected person name, or an email local part). */
+  label: string;
+  /** Placeholders of the attributes grouped under this identity. */
+  placeholders: string[];
 }
 
 export interface SanitizeResult {
   text: string;
   spans: Span[];
   mapping: MappingEntry[];
+  /** Linked identities (pseudonymize mode only). */
+  identities?: Identity[];
 }

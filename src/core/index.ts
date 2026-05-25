@@ -10,6 +10,7 @@ import { detectIps } from './detectors/structured/ip';
 import { detectNames } from './detectors/names';
 import { deriveNamesFromEmail } from './identity/emailNames';
 import { withDerivedNames } from './identity/augmentedSource';
+import { resolveIdentities } from './identity/resolve';
 import { ALL_PII_TYPES } from './types';
 import type { DetectOptions, PiiType, SanitizeOptions, SanitizeResult, Span } from './types';
 
@@ -63,6 +64,11 @@ export function sanitize(text: string, options: SanitizeOptions = {}): SanitizeR
   const spans = detect(normalized, options);
   const mode = options.mode ?? 'redact';
   const { text: sanitized, mapping } = applySanitization(normalized, spans, mode);
+  // Identity grouping is only meaningful when placeholders are distinct.
+  if (mode === 'pseudonymize') {
+    const grouped = resolveIdentities(spans, mapping, normalized);
+    return { text: sanitized, spans, mapping: grouped.mapping, identities: grouped.identities };
+  }
   return { text: sanitized, spans, mapping };
 }
 
