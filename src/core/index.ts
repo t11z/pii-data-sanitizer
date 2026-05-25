@@ -9,6 +9,7 @@ import { detectCreditCards } from './detectors/structured/creditCard';
 import { detectIps } from './detectors/structured/ip';
 import { detectMacs } from './detectors/structured/mac';
 import { detectNames } from './detectors/names';
+import { detectNamesInUrls } from './detectors/structured/urlNames';
 import { deriveNamesFromEmail } from './identity/emailNames';
 import { detectNameVariants } from './identity/nameVariants';
 import { withDerivedNames } from './identity/augmentedSource';
@@ -62,6 +63,10 @@ export function detect(text: string, options: DetectOptions = {}): Span[] {
     // confirmed full name for precision.
     const personSpans = spans.filter((s) => s.type === 'PERSON');
     spans.push(...detectNameVariants(normalized, personSpans));
+
+    // Names embedded in URL paths ("https://host/meet/joost.vandenberg"), found by
+    // a conservative DB-gated scan that requires two corroborating name parts.
+    spans.push(...detectNamesInUrls(normalized, nameSource));
   }
 
   const filtered = spans.filter((s) => s.confidence >= minConfidence);
