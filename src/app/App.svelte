@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import { runSanitize, onPackProgress, type SanitizeRun } from './sanitizerClient';
+  import { buildMappingView, keyOf } from './mappingView';
   import { ALL_PII_TYPES } from '../core';
   import type { MappingEntry, PiiType, SanitizeMode } from '../core';
   import Privacy from './Privacy.svelte';
@@ -37,6 +38,12 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   );
   let run = $state<SanitizeRun | null>(null);
   let copied = $state(false);
+
+  // Manual overrides on top of the worker's detection. They live only in memory.
+  // Values flagged as false positives: kept as-is in the output (not replaced).
+  let disabled = $state<Set<string>>(new Set());
+  // Manual group assignment: keyOf(type, value) -> identity id, or null for ungrouped.
+  let assignments = $state<Record<string, number | null>>({});
   let packs = $state<{
     loaded: number;
     total: number;
@@ -66,10 +73,14 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
 
   type Segment = { text: string; type?: PiiType };
 
+  const view = $derived(
+    run ? buildMappingView(run.normalized, run.result.spans, mode, disabled, assignments) : null
+  );
+
   const segments = $derived.by<Segment[]>(() => {
-    if (!run) return [{ text: input }];
-    const { normalized, result } = run;
-    const spans = [...result.spans].sort((a, b) => a.start - b.start);
+    if (!run || !view) return [{ text: input }];
+    const normalized = run.normalized;
+    const spans = [...view.activeSpans].sort((a, b) => a.start - b.start);
     const out: Segment[] = [];
     let cursor = 0;
     for (const span of spans) {
@@ -83,33 +94,34 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
 
   const counts = $derived.by<Array<[PiiType, number]>>(() => {
     const map = new Map<PiiType, number>();
-    for (const span of run?.result.spans ?? []) {
+    for (const span of view?.activeSpans ?? []) {
       map.set(span.type, (map.get(span.type) ?? 0) + 1);
     }
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
   });
 
-  const groupedMapping = $derived.by<{
-    groups: Array<{ label: string; rows: MappingEntry[] }>;
-    ungrouped: MappingEntry[];
-  }>(() => {
-    const mapping = run?.result.mapping ?? [];
-    const identities = run?.result.identities ?? [];
-    const byPlaceholder = new Map(mapping.map((m) => [m.placeholder, m]));
-    const groups = identities.map((idn) => ({
-      label: idn.label,
-      rows: idn.placeholders
-        .map((ph) => byPlaceholder.get(ph))
-        .filter((m): m is MappingEntry => m !== undefined),
-    }));
-    const grouped = new Set(identities.flatMap((idn) => idn.placeholders));
-    const ungrouped = mapping.filter((m) => !grouped.has(m.placeholder));
-    return { groups, ungrouped };
-  });
+  const hasOverrides = $derived(disabled.size > 0 || Object.keys(assignments).length > 0);
+
+  function assignRow(type: PiiType, original: string, value: string) {
+    assignments = { ...assignments, [keyOf(type, original)]: value === '' ? null : Number(value) };
+  }
+
+  function toggleDisabled(type: PiiType, original: string, off: boolean) {
+    const next = new Set(disabled);
+    const k = keyOf(type, original);
+    if (off) next.add(k);
+    else next.delete(k);
+    disabled = next;
+  }
+
+  function resetOverrides() {
+    assignments = {};
+    disabled = new Set();
+  }
 
   async function copyOutput() {
-    if (!run) return;
-    await navigator.clipboard.writeText(run.result.text);
+    if (!view) return;
+    await navigator.clipboard.writeText(view.text);
     copied = true;
     setTimeout(() => (copied = false), 1500);
   }
@@ -199,36 +211,98 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   <section class="pane output">
     <h2>
       Sanitized output
-      <button onclick={copyOutput} disabled={!run}>{copied ? '✅ Copied' : '📋 Copy'}</button>
+      <button onclick={copyOutput} disabled={!view}>{copied ? '✅ Copied' : '📋 Copy'}</button>
     </h2>
-    <pre>{run?.result.text ?? ''}</pre>
+    <pre>{view?.text ?? ''}</pre>
   </section>
 
-  {#if run && run.result.mapping.length > 0}
+  {#snippet rowsTable(rows: MappingEntry[])}
+    {@const showGroup = (view?.identities.length ?? 0) > 0}
+    <table>
+      <thead>
+        <tr>
+          <th>Placeholder</th>
+          <th>Original</th>
+          <th>Type</th>
+          {#if showGroup}<th>Group</th>{/if}
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each rows as m (m.placeholder + '|' + m.original)}
+          <tr>
+            <td><code>{m.placeholder}</code></td>
+            <td>{m.original}</td>
+            <td>{m.type}</td>
+            {#if showGroup && view}
+              <td>
+                <select
+                  class="group-select"
+                  aria-label="Assign {m.original} to an identity"
+                  onchange={(e) => assignRow(m.type, m.original, e.currentTarget.value)}
+                >
+                  {#each view.identities as idn (idn.id)}
+                    <option
+                      value={String(idn.id)}
+                      selected={view.memberOf.get(m.placeholder) === idn.id}>{idn.label}</option
+                    >
+                  {/each}
+                  <option value="" selected={view.memberOf.get(m.placeholder) === undefined}
+                    >— Ungrouped —</option
+                  >
+                </select>
+              </td>
+            {/if}
+            <td class="row-action">
+              <button
+                class="link"
+                title="Keep as-is — don't replace this value in the output (false positive)"
+                onclick={() => toggleDisabled(m.type, m.original, true)}>✕ Keep original</button
+              >
+            </td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  {/snippet}
+
+  {#if view && (view.rows.length > 0 || view.removed.length > 0)}
     <section class="pane">
-      <h2>Mapping ({run.result.mapping.length})</h2>
-      {#each groupedMapping.groups as g (g.label)}
+      <h2>
+        Mapping ({view.rows.length})
+        {#if hasOverrides}
+          <button class="link reset" onclick={resetOverrides} title="Undo all manual changes"
+            >↺ Reset</button
+          >
+        {/if}
+      </h2>
+      {#each view.groups as g (g.id)}
         <h3 class="identity">🧩 {g.label}</h3>
-        <table>
-          <thead>
-            <tr><th>Placeholder</th><th>Original</th><th>Type</th></tr>
-          </thead>
-          <tbody>
-            {#each g.rows as m (m.placeholder)}
-              <tr><td><code>{m.placeholder}</code></td><td>{m.original}</td><td>{m.type}</td></tr>
-            {/each}
-          </tbody>
-        </table>
+        {@render rowsTable(g.rows)}
       {/each}
-      {#if groupedMapping.ungrouped.length > 0}
-        {#if groupedMapping.groups.length > 0}<h3 class="identity">Other</h3>{/if}
+      {#if view.ungrouped.length > 0}
+        {#if view.groups.length > 0}<h3 class="identity">Other</h3>{/if}
+        {@render rowsTable(view.ungrouped)}
+      {/if}
+      {#if view.removed.length > 0}
+        <h3 class="identity">Kept as original (not replaced)</h3>
         <table>
           <thead>
-            <tr><th>Placeholder</th><th>Original</th><th>Type</th></tr>
+            <tr><th>Original</th><th>Type</th><th></th></tr>
           </thead>
           <tbody>
-            {#each groupedMapping.ungrouped as m (m.placeholder + '|' + m.original)}
-              <tr><td><code>{m.placeholder}</code></td><td>{m.original}</td><td>{m.type}</td></tr>
+            {#each view.removed as r (r.key)}
+              <tr class="removed">
+                <td>{r.original}</td>
+                <td>{r.type}</td>
+                <td class="row-action">
+                  <button
+                    class="link"
+                    title="Replace this value again"
+                    onclick={() => toggleDisabled(r.type, r.original, false)}>↩ Restore</button
+                  >
+                </td>
+              </tr>
             {/each}
           </tbody>
         </table>
@@ -400,6 +474,39 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     text-align: left;
     padding: 0.35rem 0.5rem;
     border-bottom: 1px solid var(--border);
+  }
+  .group-select {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.15rem 0.3rem;
+    font-size: 0.8rem;
+    max-width: 14rem;
+  }
+  button.link {
+    background: none;
+    border: none;
+    color: var(--accent);
+    padding: 0.1rem 0.3rem;
+    font-size: 0.8rem;
+    cursor: pointer;
+  }
+  button.link:hover {
+    text-decoration: underline;
+  }
+  button.link.reset {
+    margin-left: auto;
+  }
+  .row-action {
+    text-align: right;
+    white-space: nowrap;
+  }
+  tr.removed td {
+    color: var(--muted);
+  }
+  tr.removed td:first-child {
+    text-decoration: line-through;
   }
   h3.identity {
     margin: 0.9rem 0 0.3rem;
