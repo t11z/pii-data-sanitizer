@@ -16,6 +16,10 @@
     "entities": [{ "type": "IP", "text": "192.168.1.254" }]
   },
   {
+    "text": "The access point reported MAC 00:1A:2B:3C:4D:5E overnight.",
+    "entities": [{ "type": "MAC", "text": "00:1A:2B:3C:4D:5E" }]
+  },
+  {
     "text": "The meeting with Kai-Uwe von Braun is confirmed.",
     "entities": [{ "type": "PERSON", "text": "Kai-Uwe von Braun" }]
   },

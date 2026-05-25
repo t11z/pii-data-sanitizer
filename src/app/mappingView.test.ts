@@ -79,6 +79,18 @@ describe('buildMappingView', () => {
     expect(v.ungrouped.some((r) => r.original === 'Bob')).toBe(true);
   });
 
+  it('folds a bare first name onto the full name it corefers with', () => {
+    // "Joost van der Berg kam. Joost rief an." — the bare "Joost" must share the
+    // full name's placeholder and produce no separate row.
+    const text = 'Joost van der Berg kam. Joost rief an.';
+    const spans: Span[] = [span('PERSON', 'Joost van der Berg', 0), span('PERSON', 'Joost', 24)];
+    const v = buildMappingView(text, spans, 'pseudonymize', new Set(), {});
+    expect(v.text).toBe('[PERSON_1] kam. [PERSON_1] rief an.');
+    expect(v.rows).toHaveLength(1);
+    expect(v.rows[0]).toMatchObject({ placeholder: '[PERSON_1]', original: 'Joost van der Berg' });
+    expect(v.rows.some((r) => r.original === 'Joost')).toBe(false);
+  });
+
   it('produces no identities in redact mode but still reports removed values', () => {
     const disabled = new Set([keyOf('PERSON', 'Bob')]);
     const v = buildMappingView(TEXT, SPANS, 'redact', disabled, {});

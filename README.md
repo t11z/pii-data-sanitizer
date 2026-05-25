@@ -28,7 +28,8 @@ itself never sees your data on any server.
 A layered heuristic engine (`src/core`):
 
 1. **Structured PII** — high-precision detectors with checksums:
-   📧 email · 📞 phone · 🏦 IBAN (mod-97) · 💳 credit card (Luhn) · 🌐 IPv4/IPv6.
+   📧 email · 📞 phone · 🏦 IBAN (mod-97) · 💳 credit card (Luhn) · 🌐 IPv4/IPv6 ·
+   🔌 MAC address.
 2. **Names** — a script-aware tokenizer + a multilingual name database
    (Bloom-filter packs) + **context** (titles, nobiliary/patronymic particles,
    capitalization, position) combined into a transparent **confidence score**.

@@ -1,6 +1,14 @@
-export type PiiType = 'EMAIL' | 'PHONE' | 'IBAN' | 'CREDIT_CARD' | 'IP' | 'PERSON';
+export type PiiType = 'EMAIL' | 'PHONE' | 'IBAN' | 'CREDIT_CARD' | 'IP' | 'MAC' | 'PERSON';
 
-export const ALL_PII_TYPES: PiiType[] = ['EMAIL', 'PHONE', 'IBAN', 'CREDIT_CARD', 'IP', 'PERSON'];
+export const ALL_PII_TYPES: PiiType[] = [
+  'EMAIL',
+  'PHONE',
+  'IBAN',
+  'CREDIT_CARD',
+  'IP',
+  'MAC',
+  'PERSON',
+];
 
 export type Script = 'Latin' | 'Arabic' | 'Hebrew' | 'Devanagari' | 'Han' | 'Hangul' | 'Other';
 

@@ -7,8 +7,11 @@ import { detectPhones } from './detectors/structured/phone';
 import { detectIbans } from './detectors/structured/iban';
 import { detectCreditCards } from './detectors/structured/creditCard';
 import { detectIps } from './detectors/structured/ip';
+import { detectMacs } from './detectors/structured/mac';
 import { detectNames } from './detectors/names';
+import { detectNamesInUrls } from './detectors/structured/urlNames';
 import { deriveNamesFromEmail } from './identity/emailNames';
+import { detectNameVariants } from './identity/nameVariants';
 import { withDerivedNames } from './identity/augmentedSource';
 import { resolveIdentities } from './identity/resolve';
 import { linkNameParts } from './identity/coref';
@@ -21,6 +24,7 @@ const STRUCTURED: Record<string, (text: string) => Span[]> = {
   IBAN: detectIbans,
   CREDIT_CARD: detectCreditCards,
   IP: detectIps,
+  MAC: detectMacs,
 };
 
 // No names without packs: callers (worker/tests) inject a populated source.
@@ -53,6 +57,16 @@ export function detect(text: string, options: DetectOptions = {}): Span[] {
     if (derived.length > 0) {
       spans.push(...detectNames(normalized, withDerivedNames(nameSource, derived), minConfidence));
     }
+
+    // Slug/handle spellings of a person already named in this text (e.g. the path
+    // "joost.vandenberg" once "Joost van den Berg" is known), anchored to the
+    // confirmed full name for precision.
+    const personSpans = spans.filter((s) => s.type === 'PERSON');
+    spans.push(...detectNameVariants(normalized, personSpans));
+
+    // Names embedded in URL paths ("https://host/meet/joost.vandenberg"), found by
+    // a conservative DB-gated scan that requires two corroborating name parts.
+    spans.push(...detectNamesInUrls(normalized, nameSource));
   }
 
   const filtered = spans.filter((s) => s.confidence >= minConfidence);
@@ -78,6 +92,7 @@ export function sanitize(text: string, options: SanitizeOptions = {}): SanitizeR
 export { normalize } from './normalize';
 export { applySanitization } from './sanitize';
 export { resolveIdentities } from './identity/resolve';
+export { linkNameParts } from './identity/coref';
 export { tokenize, detectScript } from './tokenize';
 export { BloomFilter } from './db/bloom';
 export { PackNameSource } from './db/packSource';
