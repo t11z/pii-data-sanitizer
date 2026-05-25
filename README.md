@@ -22,6 +22,9 @@ itself never sees your data on any server.
 - No backend, no database, no analytics. Firebase is used **only** as a static
   CDN. A strict Content-Security-Policy blocks outbound connections.
 - The name database ships as compact, read-only assets — nothing is uploaded.
+- File inputs are parsed locally too: paste text, or open `.txt`, `.csv`,
+  `.json`, `.docx`, and `.pdf` files — PDFs/DOCX are decoded in-browser (bundled
+  pdf.js + local unzip), so the file never leaves your device.
 
 ## 🧠 How it works
 

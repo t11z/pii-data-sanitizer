@@ -2,6 +2,7 @@
   import { onDestroy } from 'svelte';
   import { runSanitize, onPackProgress, type SanitizeRun } from './sanitizerClient';
   import { buildMappingView, keyOf } from './mappingView';
+  import { extractText } from './readers';
   import { ALL_PII_TYPES } from '../core';
   import type { MappingEntry, PiiType, SanitizeMode } from '../core';
   import Privacy from './Privacy.svelte';
@@ -39,6 +40,8 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   );
   let run = $state<SanitizeRun | null>(null);
   let copied = $state(false);
+  let fileLoading = $state(false);
+  let fileError = $state('');
 
   // Manual overrides on top of the worker's detection. They live only in memory.
   // Values flagged as false positives: kept as-is in the output (not replaced).
@@ -135,10 +138,20 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     input = '';
   }
 
-  function onFile(event: Event) {
-    const file = (event.target as HTMLInputElement).files?.[0];
+  async function onFile(event: Event) {
+    const el = event.target as HTMLInputElement;
+    const file = el.files?.[0];
     if (!file) return;
-    void file.text().then((t) => (input = t));
+    fileError = '';
+    fileLoading = true;
+    try {
+      input = await extractText(file);
+    } catch (err) {
+      fileError = err instanceof Error ? err.message : 'Could not read this file.';
+    } finally {
+      fileLoading = false;
+      el.value = ''; // allow re-selecting the same file
+    }
   }
 </script>
 
@@ -181,8 +194,14 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
       <button onclick={loadSample}>Sample</button>
       <button onclick={clearAll}>Clear</button>
       <label class="file"
-        >📁 Open .txt<input type="file" accept=".txt,text/plain" onchange={onFile} /></label
+        >📁 {fileLoading ? 'Reading…' : 'Open file'}<input
+          type="file"
+          accept=".txt,.csv,.json,.docx,.pdf,text/plain,text/csv,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
+          disabled={fileLoading}
+          onchange={onFile}
+        /></label
       >
+      {#if fileError}<span class="file-error" role="alert">{fileError}</span>{/if}
     </div>
   </section>
 
@@ -388,6 +407,11 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   }
   .file input {
     display: none;
+  }
+  .file-error {
+    color: #b00020;
+    font-size: 0.8rem;
+    align-self: center;
   }
   .panes {
     display: grid;
