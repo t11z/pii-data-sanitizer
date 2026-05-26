@@ -419,5 +419,21 @@
       { "type": "PERSON", "text": "Giulia Rossi" },
       { "type": "PERSON", "text": "g.rossi" }
     ]
+  },
+  {
+    "text": "Confirmed IBAN CZ6508 0000 1234 5678 9012 34 today.",
+    "entities": []
+  },
+  {
+    "text": "Requested IBAN PT50 0001 0051 0505 0105 0105 for the refund.",
+    "entities": []
+  },
+  {
+    "text": "Asset XR250-A escalation pending review.",
+    "entities": []
+  },
+  {
+    "text": "Customer Marcus Wilson called about case 1234 today.",
+    "entities": [{ "type": "PERSON", "text": "Marcus Wilson" }]
   }
 ]

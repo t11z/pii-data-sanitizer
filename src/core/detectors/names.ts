@@ -126,6 +126,20 @@ function nameLike(token: Token, source: NameSource, allowUnknownCap: boolean): b
 // Horizontal whitespace (space, tab, NBSP, ...) but never a line break: name
 // parts may be joined by spaces, not across newlines.
 const SINGLE_GAP = /^[^\S\n\r]+$/;
+/**
+ * A token whose final character is directly followed in the source text by a
+ * decimal digit is part of a structured identifier ("CZ6508", "PT50", "XR250",
+ * "EU2025-0123"), not a human name. The tokenizer splits the letter prefix off
+ * the digit run, throwing away that adjacency cue — this restores it. Human
+ * names in real prose are not written fused to digits without whitespace, so
+ * the guard generalizes far beyond IBAN/BIC/SWIFT (it also blocks model
+ * numbers, ticker symbols, and any letter-then-digit identifier prefix from
+ * starting or extending a name chain).
+ */
+function adjoinsDigit(token: Token, text: string): boolean {
+  const next = text.charCodeAt(token.end);
+  return next >= 48 && next <= 57;
+}
 // Whitespace plus an optional abbreviation dot, so "Dr. Smith" (the common form)
 // gets the title boost — not just "Dr Smith". Never spans a line break.
 const TITLE_GAP = /^[^\S\n\r]*\.?[^\S\n\r]*$/;
@@ -174,12 +188,16 @@ function nameContinuation(tokens: Token[], i: number, text: string): boolean {
   if (!next) return false;
   if (!SINGLE_GAP.test(text.slice(tokens[j].end, next.start))) return false;
   if (next.script !== 'Latin' || !isCapitalized(next.text)) return false;
+  if (adjoinsDigit(next, text)) return false;
   return !isNonNameWord(next.text) && !isRoleWord(next.text) && !isTitle(next.text);
 }
 
 function nameStart(tokens: Token[], i: number, source: NameSource, text: string): StartInfo | null {
   const tok = tokens[i];
   if (tok.script === 'Han' || tok.script === 'Other') return null;
+  // Structured-identifier prefix fused with a digit run ("XR250", "CZ6508"):
+  // never a person name, even if it happens to match the dictionary.
+  if (adjoinsDigit(tok, text)) return null;
 
   let titleBefore = false;
   let roleBefore = false;
@@ -293,6 +311,7 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
           // particle run ("van der Department", "de la Invoice") must not become a
           // name part.
           if (!hit && isNonNameWord(after.text)) break;
+          if (adjoinsDigit(after, text)) break;
           if (hit) {
             dbHits++;
             tiers.push(tierOf(source, after));
@@ -309,6 +328,7 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
         // Don't extend an unknown (non-DB) capitalized token that is a structural
         // noun — keeps "Customer Service Team" from chaining into a fake name.
         if (!hit && isNonNameWord(next.text)) break;
+        if (adjoinsDigit(next, text)) break;
         if (hit) {
           dbHits++;
           tiers.push(tierOf(source, next));
