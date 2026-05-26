@@ -59,6 +59,22 @@ npm run build:db   # generate the name packs
 npm run dev        # open the printed localhost URL
 ```
 
+### No Node / npm? Use the prebuilt bundle
+
+Each tagged release ships a fully static bundle on the project's
+[GitHub Releases page](https://github.com/t11z/pii-data-sanitizer/releases).
+Download `pii-data-sanitizer-<version>.zip`, unpack it, and serve the folder
+with any static HTTP server — for example:
+
+```bash
+python3 -m http.server 8080
+# then open http://localhost:8080
+```
+
+See `RUN_LOCALLY.md` inside the bundle for Docker / `npx serve` variants. The
+release workflow that produces these bundles is `.github/workflows/release.yml`
+(triggered by pushing a `v*` tag or via *Run workflow*).
+
 Other scripts:
 
 ```bash
