@@ -1,0 +1,134 @@
+name: Release prebuilt bundle
+
+# Builds the static, zero-knowledge web app and publishes the resulting
+# `dist/` directory as a downloadable bundle on a GitHub Release, so users
+# can run the sanitizer locally without needing Node.js or npm.
+#
+# Triggers:
+#   - Pushing a tag like `v1.2.3` → release named after the tag.
+#   - Manual `workflow_dispatch` with a `tag` input → creates / updates a
+#     release for that tag on the dispatched ref.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.1.0). Created on the dispatched ref if it does not exist yet.'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Resolve release tag
+        id: meta
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ inputs.tag }}"
+          else
+            tag="${GITHUB_REF_NAME}"
+          fi
+          # Strip a leading "v" for the version slug used in filenames.
+          version="${tag#v}"
+          echo "tag=$tag"         >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "bundle=pii-data-sanitizer-${version}" >> "$GITHUB_OUTPUT"
+
+      - run: npm ci
+      - run: npm run build:db
+      - run: npm run build
+
+      - name: Package the static bundle
+        run: |
+          set -euo pipefail
+          bundle="${{ steps.meta.outputs.bundle }}"
+          staging="$(mktemp -d)/$bundle"
+          mkdir -p "$staging"
+          cp -R dist/. "$staging/"
+          cp LICENSE "$staging/LICENSE"
+          cat > "$staging/RUN_LOCALLY.md" <<'EOF'
+          # Run the PII Data Sanitizer locally
+
+          This bundle is a fully static, zero-knowledge build of the PII
+          Data Sanitizer. Detection runs entirely in your browser; nothing
+          is uploaded anywhere.
+
+          ## Quickstart
+
+          You need *any* static HTTP server (opening `index.html` via
+          `file://` will not work — the app uses ES modules, a Web Worker
+          and fetches the Bloom-filter name packs over HTTP).
+
+          ### Option A — Python (preinstalled on macOS / Linux)
+
+              python3 -m http.server 8080
+
+          Then open <http://localhost:8080> in your browser.
+
+          ### Option B — Node (if you happen to have it)
+
+              npx --yes serve -l 8080 .
+
+          ### Option C — Docker / nginx
+
+              docker run --rm -p 8080:80 -v "$PWD":/usr/share/nginx/html:ro nginx:alpine
+
+          ## Notes
+
+          - The bundle includes the name packs, the Web Worker and the
+            in-browser PDF / DOCX parsers — no further downloads needed.
+          - The `firebase.json` in the source repo ships a strict
+            Content-Security-Policy. Static servers like the ones above do
+            not set those headers, but the app does not depend on them to
+            function locally.
+          - Source code & docs: https://github.com/t11z/pii-data-sanitizer
+          EOF
+
+          mkdir -p out
+          (cd "$(dirname "$staging")" && zip -qr "${GITHUB_WORKSPACE}/out/${bundle}.zip" "$bundle")
+          tar -czf "out/${bundle}.tar.gz" -C "$(dirname "$staging")" "$bundle"
+
+          (cd out && sha256sum "${bundle}.zip" "${bundle}.tar.gz" > "${bundle}.sha256")
+          ls -l out
+
+      - name: Create / update GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.meta.outputs.tag }}
+          name: ${{ steps.meta.outputs.tag }}
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          body: |
+            Prebuilt, static bundle of the PII Data Sanitizer — run it
+            locally without Node.js or npm.
+
+            **How to use**
+
+            1. Download `pii-data-sanitizer-${{ steps.meta.outputs.version }}.zip`
+               (or the `.tar.gz`) and unpack it.
+            2. Serve the unpacked directory with any static HTTP server,
+               e.g. `python3 -m http.server 8080`.
+            3. Open <http://localhost:8080> — all detection happens
+               in-browser, nothing is uploaded.
+
+            See `RUN_LOCALLY.md` inside the bundle for more options
+            (Node `serve`, Docker / nginx) and verify downloads against
+            `pii-data-sanitizer-${{ steps.meta.outputs.version }}.sha256`.
+          files: |
+            out/pii-data-sanitizer-${{ steps.meta.outputs.version }}.zip
+            out/pii-data-sanitizer-${{ steps.meta.outputs.version }}.tar.gz
+            out/pii-data-sanitizer-${{ steps.meta.outputs.version }}.sha256
