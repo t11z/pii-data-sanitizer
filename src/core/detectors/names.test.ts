@@ -405,6 +405,41 @@ describe('clause-opening name after a colon/sentence boundary', () => {
     expect(personsFull('Service Desk closed the ticket quickly.')).toHaveLength(0);
   });
 
+  it('does not chain an ext given name onto a digit-adjacent identifier prefix', () => {
+    // Real production bug: "IBAN" is an ext-tier given name (Basque "Iban"); a
+    // typo'd / invalid-checksum IBAN like "CZ6508 0000 1234 ..." leaves the
+    // structured detector silent, and the name detector then chained "IBAN" + a
+    // capitalized 2-letter country code into a fake PERSON ("IBAN CZ"). The
+    // generalizing fix: a Latin name candidate fused (no whitespace) to a
+    // following digit run is a structured-identifier fragment, not a name part.
+    // Held-out: the country codes below are NOT in the full committed
+    // dictionary, so detection rides on the digit-adjacency heuristic, not on
+    // membership.
+    // First word is chosen to NOT itself be a dictionary hit, so the test
+    // isolates the digit-adjacency lever — no other anchor pathway perturbs it.
+    expect(personsFull('Confirmed IBAN CZ6508 0000 1234 5678 9012 34.')).toHaveLength(0);
+    expect(personsFull('Requested IBAN PT50 0001 0051 0505 0105 0105 today.')).toHaveLength(0);
+    // Generalizes beyond IBANs: any letter-prefix fused to digits ("XR250",
+    // "QZ7841") cannot anchor or extend a name chain, regardless of vocabulary.
+    expect(personsFull('Asset XR250-A escalation pending.')).toHaveLength(0);
+    expect(personsFull('Reference QZ7841 is invoice QZ7842-0001.')).toHaveLength(0);
+  });
+
+  it('proves the digit-adjacency guard does not memorize the country codes', () => {
+    // If any of these land in the DB later, re-point at fresh held-outs.
+    for (const word of ['cz', 'pt', 'gb', 'qz', 'xr']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('precision: real names near digits with whitespace are still detected', () => {
+    // The guard only fires on fused letter-then-digit; whitespace is enough to
+    // make a token a real word again.
+    expect(personsFull('Customer Marcus Wilson called 5 times.')).toContain('Marcus Wilson');
+    expect(personsFull('Dr Smith reviewed case 1234 today.')).toContain('Dr Smith');
+  });
+
   it('mechanism: an ext-only given anchors at sentence start only when corroborated', () => {
     // Fully controlled fixture: "korvan" is ext-only, "zelbrith" never added.
     const tiered = new PackNameSource();
