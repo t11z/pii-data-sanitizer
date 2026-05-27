@@ -51,6 +51,29 @@ describe('IBAN detection', () => {
     const spans = only('Transfer to DE89 3704 0044 0532 0130 00 today', 'IBAN');
     expect(spans).toHaveLength(1);
   });
+
+  it('detects an IBAN printed with a space between country code and check digits', () => {
+    // Held-out valid IBANs (Wikipedia reference values, distinct from the
+    // DE89… case already covered). Each is printed with the very common
+    // "CC dd …" formatting where a space sits between the 2-letter country
+    // code and the 2-digit check, which the original regex rejected.
+    expect(only('Wire to BE 68 5390 0754 7034 today', 'IBAN')[0].text).toBe(
+      'BE 68 5390 0754 7034'
+    );
+    expect(only('IBAN: IT 60 X054 2811 1010 0000 0123 456 ok.', 'IBAN')[0].text).toBe(
+      'IT 60 X054 2811 1010 0000 0123 456'
+    );
+    expect(only('Use NL 91 ABNA 0417 1643 00 please.', 'IBAN')[0].text).toBe(
+      'NL 91 ABNA 0417 1643 00'
+    );
+  });
+
+  it('does not flag a country-code-shaped run that fails mod-97', () => {
+    // Precision guard: arbitrary "XX dd …" strings whose checksum is wrong
+    // must stay silent — the looser regex must not leak FPs.
+    expect(only('Send to BE 68 5390 0754 7035 today', 'IBAN')).toHaveLength(0);
+    expect(only('IBAN AB 12 3456 7890 1234 5678 9012 here', 'IBAN')).toHaveLength(0);
+  });
 });
 
 describe('credit card detection', () => {

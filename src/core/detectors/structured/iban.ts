@@ -1,6 +1,10 @@
 import type { Span } from '../../types';
 
-const IBAN_RE = /\b[A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]){10,30}\b/g;
+// The country code and check digits may be separated by a single space when
+// IBANs are printed in pairs (e.g. "IT 60 X054 ...", "DE 89 3704 ..."). The
+// mod-97 check below still gates whether a match is reported, so the looser
+// pattern cannot leak random "XX 12 …" strings as IBANs.
+const IBAN_RE = /\b[A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30}\b/g;
 
 /** ISO 7064 mod-97-10 check: a valid IBAN yields a remainder of 1. */
 export function isValidIban(raw: string): boolean {
