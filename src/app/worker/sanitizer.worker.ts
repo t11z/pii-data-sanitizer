@@ -1,10 +1,18 @@
 import { sanitize, normalize, tokenize, PackNameSource, PackLoader } from '../../core';
-import type { SanitizeOptions, SanitizeResult, Script } from '../../core';
+import type { SanitizeOptions, SanitizeResult, Script, Span } from '../../core';
+import { analyzeWithOllama } from '../llm/ollama';
+
+export interface LlmRequest {
+  baseUrl: string;
+  model: string;
+}
 
 interface Request {
   id: number;
   text: string;
   options: SanitizeOptions;
+  /** When present, run the optional Ollama second layer and merge its findings. */
+  llm?: LlmRequest;
 }
 
 export interface WorkerResult {
@@ -53,7 +61,7 @@ function ensureEager(): Promise<void> {
 let backgroundStarted = false;
 
 self.onmessage = async (event: MessageEvent<Request>) => {
-  const { id, text, options } = event.data;
+  const { id, text, options, llm } = event.data;
   const normalized = normalize(text);
 
   await ensureEager();
@@ -66,7 +74,16 @@ self.onmessage = async (event: MessageEvent<Request>) => {
     // Ignore load failures; fall back to whatever is already loaded.
   }
 
-  const result = sanitize(normalized, { ...options, nameSource: source });
+  // Optional LLM second layer (recall boost). Runs on the normalized text so the
+  // verbatim offsets it produces line up with the heuristic spans. analyzeWithOllama
+  // never throws — any failure yields no extra spans, so we fall back cleanly to
+  // heuristics only.
+  let extraSpans: Span[] | undefined;
+  if (llm) {
+    extraSpans = await analyzeWithOllama(normalized, { baseUrl: llm.baseUrl, model: llm.model });
+  }
+
+  const result = sanitize(normalized, { ...options, nameSource: source, extraSpans });
   const msg: WorkerResult = { id, result, normalized };
   (self as unknown as Worker).postMessage(msg);
 

@@ -20,7 +20,9 @@ itself never sees your data on any server.
 
 - All detection and replacement happens in the browser (in a Web Worker).
 - No backend, no database, no analytics. Firebase is used **only** as a static
-  CDN. A strict Content-Security-Policy blocks outbound connections.
+  CDN. A strict Content-Security-Policy blocks outbound connections — the only
+  exception is an opt-in connection to a **local** Ollama (see below), which
+  stays on your own machine.
 - The name database ships as compact, read-only assets — nothing is uploaded.
 - File inputs are parsed locally too: paste text, or open `.txt`, `.csv`,
   `.json`, `.docx`, and `.pdf` files — PDFs/DOCX are decoded in-browser (bundled
@@ -42,6 +44,40 @@ A layered heuristic engine (`src/core`):
 3. **Resolution & sanitization** — overlaps are resolved by confidence, then
    matches are either 🏷️ **redacted** (`[EMAIL]`) or 🔁 **pseudonymized**
    (stable `[PERSON_1]`, structure-preserving — ideal for LLM input).
+
+## 🤝 Optional: local LLM second layer (Ollama)
+
+The heuristic engine is the default and works fully offline. As an **optional**
+second layer you can point the app at a **local [Ollama](https://ollama.com)**
+server — it runs a recall-boost pass that flags extra PII the heuristics miss.
+Its findings are merged with the heuristic spans (overlap resolution still
+prefers the stronger detector).
+
+It is off by default and **only appears in the UI once a reachable Ollama is
+detected** — open the `⚙︎ LLM` panel, and the enable toggle + model picker show
+up only after a successful probe. We deliberately do **not** offer cloud LLM
+providers: that would send your text to a third party and break the "your data,
+your sovereignty" promise. If you want a cloud model, you can put it behind your
+own Ollama yourself.
+
+Enable it:
+
+```bash
+ollama serve              # start the local server (default :11434)
+ollama pull llama3.2      # pull any model you like
+```
+
+- **Privacy:** your text is sent **only to your own Ollama**, never to us or any
+  cloud. Local inference keeps the zero-knowledge story intact.
+- **CORS:** Ollama rejects cross-origin browser requests by default. To use the
+  layer from a *served* page, start Ollama with the page's origin allowed, e.g.
+  `OLLAMA_ORIGINS=http://localhost:5173 ollama serve` (dev) or your hosted
+  origin in production. `OLLAMA_ORIGINS=*` works but is permissive.
+- **CSP:** the site's Content-Security-Policy allows `connect-src` to
+  `http://localhost:11434` / `http://127.0.0.1:11434` so the probe and analysis
+  can reach a local Ollama; everything else stays blocked.
+- **Reliability:** if Ollama is unreachable mid-session or returns bad output,
+  the app falls back cleanly to heuristics only.
 
 ## 🌍 Languages (v1)
 

@@ -69,6 +69,13 @@ export function detect(text: string, options: DetectOptions = {}): Span[] {
     spans.push(...detectNamesInUrls(normalized, nameSource));
   }
 
+  // Externally-produced spans (e.g. the optional LLM second layer). Filtered by
+  // type and confidence like everything else; resolveOverlaps dedupes against
+  // and prefers higher-confidence/longer heuristic spans where they overlap.
+  if (options.extraSpans?.length) {
+    spans.push(...options.extraSpans.filter((s) => types.has(s.type)));
+  }
+
   const filtered = spans.filter((s) => s.confidence >= minConfidence);
   return resolveOverlaps(filtered);
 }
