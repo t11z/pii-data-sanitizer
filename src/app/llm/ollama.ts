@@ -15,8 +15,14 @@ const VALID_TYPES = new Set<PiiType>(ALL_PII_TYPES);
 
 /** Confidence assigned to LLM-found spans when the caller doesn't override it. */
 export const DEFAULT_LLM_CONFIDENCE = 0.6;
+/**
+ * Context window requested from the model. Raised above the common 4k default so
+ * more of the input fits; inputs beyond this are truncated by Ollama (the UI warns
+ * about that). Token estimate elsewhere uses ~4 chars/token against this value.
+ */
+export const LLM_NUM_CTX = 8192;
 const PROBE_TIMEOUT_MS = 2500;
-const ANALYZE_TIMEOUT_MS = 60_000;
+const ANALYZE_TIMEOUT_MS = 120_000;
 
 export interface OllamaProbe {
   ok: boolean;
@@ -28,6 +34,8 @@ export interface AnalyzeOptions {
   model: string;
   /** Confidence to stamp on LLM-found spans. Defaults to DEFAULT_LLM_CONFIDENCE. */
   confidence?: number;
+  /** Context window to request. Defaults to LLM_NUM_CTX. */
+  numCtx?: number;
   signal?: AbortSignal;
 }
 
@@ -184,7 +192,7 @@ export async function analyzeWithOllama(text: string, opts: AnalyzeOptions): Pro
         prompt: text,
         stream: false,
         format: 'json',
-        options: { temperature: 0 },
+        options: { temperature: 0, num_ctx: opts.numCtx ?? LLM_NUM_CTX },
       }),
     });
     if (!res.ok) return [];

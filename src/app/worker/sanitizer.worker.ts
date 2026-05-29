@@ -59,6 +59,9 @@ function ensureEager(): Promise<void> {
 }
 
 let backgroundStarted = false;
+// In-flight LLM call, so a newer request can abort the previous one (the heavy
+// part is the model inference — aborting frees the GPU instead of stacking calls).
+let llmAbort: AbortController | null = null;
 
 self.onmessage = async (event: MessageEvent<Request>) => {
   const { id, text, options, llm } = event.data;
@@ -76,11 +79,19 @@ self.onmessage = async (event: MessageEvent<Request>) => {
 
   // Optional LLM second layer (recall boost). Runs on the normalized text so the
   // verbatim offsets it produces line up with the heuristic spans. analyzeWithOllama
-  // never throws — any failure yields no extra spans, so we fall back cleanly to
-  // heuristics only.
+  // never throws — any failure (including abort) yields no extra spans, so we fall
+  // back cleanly to heuristics only.
   let extraSpans: Span[] | undefined;
   if (llm) {
-    extraSpans = await analyzeWithOllama(normalized, { baseUrl: llm.baseUrl, model: llm.model });
+    llmAbort?.abort(); // supersede any older LLM call still running
+    const ctrl = new AbortController();
+    llmAbort = ctrl;
+    extraSpans = await analyzeWithOllama(normalized, {
+      baseUrl: llm.baseUrl,
+      model: llm.model,
+      signal: ctrl.signal,
+    });
+    if (llmAbort === ctrl) llmAbort = null;
   }
 
   const result = sanitize(normalized, { ...options, nameSource: source, extraSpans });

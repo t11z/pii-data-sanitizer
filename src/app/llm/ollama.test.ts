@@ -5,6 +5,7 @@ import {
   probeOllama,
   analyzeWithOllama,
   DEFAULT_LLM_CONFIDENCE,
+  LLM_NUM_CTX,
 } from './ollama';
 
 afterEach(() => {
@@ -146,6 +147,21 @@ describe('analyzeWithOllama', () => {
       source: 'llm',
       confidence: DEFAULT_LLM_CONFIDENCE,
     });
+  });
+
+  it('requests a larger context window (num_ctx) and disables streaming', async () => {
+    let body: Record<string, unknown> = {};
+    mockFetch((_url, init) => {
+      body = JSON.parse(String(init?.body));
+      return new Response(JSON.stringify({ response: '{"findings":[]}' }), { status: 200 });
+    });
+    await analyzeWithOllama('Hi Jane Doe', {
+      baseUrl: 'http://localhost:11434',
+      model: 'llama3.2',
+    });
+    expect(body.stream).toBe(false);
+    expect(body.format).toBe('json');
+    expect((body.options as { num_ctx?: number }).num_ctx).toBe(LLM_NUM_CTX);
   });
 
   it('honors a custom confidence', async () => {

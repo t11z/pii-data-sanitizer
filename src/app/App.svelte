@@ -6,7 +6,7 @@
   import { ALL_PII_TYPES } from '../core';
   import type { MappingEntry, PiiType, SanitizeMode } from '../core';
   import { loadLlmSettings, saveLlmSettings, type LlmSettings } from './llm/settings';
-  import { probeOllama } from './llm/ollama';
+  import { probeOllama, LLM_NUM_CTX } from './llm/ollama';
   import Privacy from './Privacy.svelte';
 
   function currentRoute(): 'home' | 'privacy' {
@@ -123,7 +123,22 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     saveLlmSettings({ enabled: llm.enabled, baseUrl: llm.baseUrl, model: llm.model });
   });
 
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  // Two-phase analysis: heuristics render instantly; the (slower) LLM pass is
+  // debounced longer, runs in parallel, and merges its findings in when ready —
+  // so the preview never freezes waiting on the model.
+  let heurTimer: ReturnType<typeof setTimeout> | undefined;
+  let llmTimer: ReturnType<typeof setTimeout> | undefined;
+  let llmRunning = $state(false);
+  let gen = 0; // latest input generation; guards drop stale async results
+  let shownGen = -1; // generation of the result currently shown
+  let shownLlm = false; // whether the shown result already includes the LLM pass
+
+  const HEUR_DEBOUNCE_MS = 100;
+  const LLM_DEBOUNCE_MS = 1000;
+
+  // Rough token estimate (~4 chars/token). Inputs beyond the model's context get
+  // truncated by Ollama, so the LLM won't see the tail — warn about it.
+  const llmContextWarning = $derived(llmActive && input.length / 4 > LLM_NUM_CTX);
 
   $effect(() => {
     const text = input;
@@ -132,17 +147,43 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
       minConfidence,
       types: ALL_PII_TYPES.filter((t) => enabled[t]),
     };
-    const llmReq = llmActive ? { baseUrl: llm.baseUrl, model: llmModel } : undefined;
-    clearTimeout(timer);
-    timer = setTimeout(() => {
-      void runSanitize(text, options, llmReq).then((r) => {
+    const wantLlm = llmActive;
+    const llmReq = wantLlm ? { baseUrl: llm.baseUrl, model: llmModel } : undefined;
+    const myGen = ++gen;
+
+    // Phase 1 — fast heuristics. Never blocks on the LLM.
+    clearTimeout(heurTimer);
+    heurTimer = setTimeout(() => {
+      void runSanitize(text, options).then((r) => {
+        if (myGen !== gen) return; // superseded by newer input
+        if (shownGen === myGen && shownLlm) return; // don't downgrade a merged result
         run = r;
+        shownGen = myGen;
+        shownLlm = false;
       });
-    }, 100);
+    }, HEUR_DEBOUNCE_MS);
+
+    // Phase 2 — optional LLM recall boost. Longer debounce, merges in async.
+    clearTimeout(llmTimer);
+    if (wantLlm) {
+      llmTimer = setTimeout(() => {
+        llmRunning = true;
+        void runSanitize(text, options, llmReq).then((r) => {
+          if (myGen !== gen) return; // superseded
+          run = r;
+          shownGen = myGen;
+          shownLlm = true;
+          llmRunning = false;
+        });
+      }, LLM_DEBOUNCE_MS);
+    } else {
+      llmRunning = false;
+    }
   });
 
   onDestroy(() => {
-    clearTimeout(timer);
+    clearTimeout(heurTimer);
+    clearTimeout(llmTimer);
     clearTimeout(probeTimer);
   });
 
@@ -426,7 +467,18 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
         {#each counts as [type, n] (type)}
           <span class="chip">{TYPE_LABELS[type]} {n}</span>
         {/each}
+        {#if llmRunning}
+          <span class="chip llm-running" title="The local LLM is running a second pass"
+            >🧠 LLM analyzing…</span
+          >
+        {/if}
       </h2>
+      {#if llmContextWarning}
+        <p class="llm-warn" role="status">
+          ⚠️ Long input — the LLM only sees roughly the first {LLM_NUM_CTX.toLocaleString()} tokens, so
+          PII further down may be caught by the heuristics only.
+        </p>
+      {/if}
       <div
         class="preview"
         role="textbox"
@@ -769,6 +821,27 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     color: var(--accent);
     border-color: var(--accent);
     background: var(--accent-soft);
+  }
+  .chip.llm-running {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    animation: llm-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes llm-pulse {
+    50% {
+      opacity: 0.5;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .chip.llm-running {
+      animation: none;
+    }
+  }
+  .llm-warn {
+    margin: 0 0 0.5rem;
+    color: var(--muted);
+    font-size: 0.8rem;
   }
   .llm-toggle.active {
     border-color: var(--accent);
