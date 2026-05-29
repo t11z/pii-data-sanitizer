@@ -90,6 +90,38 @@ describe('credit card detection', () => {
   it('does not flag a random non-Luhn number', () => {
     expect(only('order 1234 5678 9012 3456', 'CREDIT_CARD')).toHaveLength(0);
   });
+
+  it('rejects 0-prefixed Luhn-valid digit runs (ISO 7812 MII 0 is not a card)', () => {
+    // The FP from the gap report: 16 zeros pass Luhn (sum=0), but MII 0 is
+    // reserved by ISO/IEC 7812-1 and never issued by a payment network.
+    expect(only('placeholder 0000 0000 0000 0000 today', 'CREDIT_CARD')).toHaveLength(0);
+    // Held-out 0-prefixed Luhn-valid PAN (not the all-zeros string) proves the
+    // guard is structural, not a memorized value — this string passes Luhn but
+    // must still be rejected because MII 0 is reserved by ISO 7812.
+    expect(only('template 0123 4567 8901 2347 row', 'CREDIT_CARD')).toHaveLength(0);
+    // Positive guard: a 0-prefixed PAN inside a longer IBAN context (the actual
+    // shape that triggered the gap) must stay silent.
+    expect(
+      only(
+        'Billing update: IBAN BR15 0000 0000 0000 0000 0000 0000 C 00 set for review.',
+        'CREDIT_CARD'
+      )
+    ).toHaveLength(0);
+  });
+
+  it('still detects real-network PANs with a non-zero MII', () => {
+    // Held-out Luhn-valid PANs across MIIs 3/4/5/6, distinct from the existing
+    // 4111… case, confirm the new guard only filters the 0-prefix class.
+    expect(only('Card: 5500 0000 0000 0004', 'CREDIT_CARD')[0].text).toBe(
+      '5500 0000 0000 0004'
+    );
+    expect(only('Card: 3782 822463 10005', 'CREDIT_CARD')[0].text).toBe(
+      '3782 822463 10005'
+    );
+    expect(only('Card: 6011 0009 9013 9424', 'CREDIT_CARD')[0].text).toBe(
+      '6011 0009 9013 9424'
+    );
+  });
 });
 
 describe('IP detection', () => {

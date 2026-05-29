@@ -26,6 +26,11 @@ export function detectCreditCards(text: string): Span[] {
     const digits = value.replace(/[ -]/g, '');
     if (digits.length < 13 || digits.length > 19) continue;
     if (!isValidLuhn(digits)) continue;
+    // ISO/IEC 7812-1 reserves MII 0 for ISO/TC 68 — no consumer payment network
+    // (Visa, Mastercard, Amex, Discover, JCB, Diners, UnionPay, Maestro) issues
+    // PANs starting with 0. A 0-prefixed Luhn-valid run (e.g. 16 zeros inside a
+    // long structured token) is therefore never a card.
+    if (digits[0] === '0') continue;
     // Require grouping or a known length to avoid flagging long plain integers.
     const grouped = /[ -]/.test(value);
     if (!grouped && digits.length !== 15 && digits.length !== 16) continue;

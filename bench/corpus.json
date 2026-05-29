@@ -483,5 +483,25 @@
   {
     "text": "Bad mask 10.0.0.0/64 was logged but the operator typo'd.",
     "entities": [{ "type": "IP", "text": "10.0.0.0" }]
+  },
+  {
+    "text": "Placeholder block 0000 0000 0000 0000 in the template, not a real card.",
+    "entities": []
+  },
+  {
+    "text": "Internal stub PAN 0123 4567 8901 2347 used in fixtures only.",
+    "entities": []
+  },
+  {
+    "text": "Billing update: IBAN BR15 0000 0000 0000 0000 0000 0000 C 00 set for review.",
+    "entities": []
+  },
+  {
+    "text": "Backup card 5500 0000 0000 0004 stored on file.",
+    "entities": [{ "type": "CREDIT_CARD", "text": "5500 0000 0000 0004" }]
+  },
+  {
+    "text": "Corporate Amex 3782 822463 10005 charged the deposit.",
+    "entities": [{ "type": "CREDIT_CARD", "text": "3782 822463 10005" }]
   }
 ]
