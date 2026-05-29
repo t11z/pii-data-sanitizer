@@ -75,6 +75,35 @@ generalizes rather than memorizing the synthetic feed.
 also runs `npm run lint`, `npm run check`, `npm test`, and `npm run build`. A
 self-improvement PR can only be merged once all of these are green.
 
+## Case study: a real gap → fix cycle
+
+The loop is not a demo — it ships. A worked example from the discovery layer
+([PR #54](https://github.com/t11z/pii-data-sanitizer/pull/54)):
+
+1. **Gap surfaced.** The daily synthetic feed included a SOC-style alert:
+   `… unauthorized access from 2600:1700::/32 …`. The evaluator reported the IP both
+   as a **false negative** (the full `2600:1700::/32` was missed) and a **false
+   positive** (a truncated `2600:1700::` was emitted) — one span producing two errors.
+2. **Root cause.** `IPV4_RE` / `IPV6_CANDIDATE_RE` in
+   `src/core/detectors/structured/ip.ts` had no CIDR handling, so the match stopped at
+   the address body and dropped the `/N` mask — even though CIDR is the canonical form
+   in firewall, router, and SOC logs.
+3. **Generalizing fix.** A shared `CIDR_SUFFIX` was appended to both regexes plus a
+   `splitCidr()` helper that validates the prefix length against the family maximum
+   (32 / 128). The rule is purely **structural** — no vocabulary, no dictionary — so it
+   applies to every CIDR-tagged address, not just the one in the feed.
+4. **Held-out proof + gate.** Regression cases used RFC documentation ranges
+   (`198.51.100.0/24`, `2001:db8:1234::/48`) and zone-id forms (`fe80::1%eth0/64`), with
+   negative guards for out-of-range masks. On the synthetic feed, IP F1 went **76.9% →
+   92.3%** (recall 83.3% → 100%) while the corpus and proven gates stayed at 100%.
+
+A second example ([PR #52](https://github.com/t11z/pii-data-sanitizer/pull/52)) traced a
+lone credit-card false positive (`0000 0000 0000 0000`, which trivially passes Luhn) to a
+missing MII check, and fixed it by rejecting `0`-prefixed PANs per ISO/IEC 7812 — again a
+standards-grounded rule, not a memorized BIN list.
+
+Both PRs are labeled `self-improvement` and were merged only after all gates were green.
+
 ## Setup
 
 Add a `CLAUDE_CODE_OAUTH_TOKEN` repository secret for the scheduled workflows
