@@ -60,6 +60,13 @@ export interface DetectOptions {
   minConfidence?: number;
   /** Name membership oracle. Defaults to an empty source (no PERSON matches). */
   nameSource?: NameSource;
+  /**
+   * Externally-produced spans to merge in before overlap resolution. Detector-
+   * agnostic: used by the optional LLM second layer (offsets relative to the
+   * NFC-normalized text). Subject to the same confidence filter and overlap
+   * resolution as heuristic spans. Defaults to none.
+   */
+  extraSpans?: Span[];
 }
 
 export type SanitizeMode = 'redact' | 'pseudonymize';

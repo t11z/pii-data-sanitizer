@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, untrack } from 'svelte';
   import { runSanitize, onPackProgress, type SanitizeRun } from './sanitizerClient';
   import { buildMappingView, keyOf, type ManualEntry } from './mappingView';
   import { extractText } from './readers';
   import { ALL_PII_TYPES } from '../core';
   import type { MappingEntry, PiiType, SanitizeMode } from '../core';
+  import { loadLlmSettings, saveLlmSettings, type LlmSettings } from './llm/settings';
+  import { probeOllama, LLM_NUM_CTX } from './llm/ollama';
   import Privacy from './Privacy.svelte';
 
   function currentRoute(): 'home' | 'privacy' {
@@ -79,7 +81,64 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   } | null>(null);
   onPackProgress((p) => (packs = p));
 
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  // --- Optional Ollama second layer (LLM recall boost). Off by default; the
+  // enable/model controls only surface once a local Ollama server is reachable.
+  let llm = $state<LlmSettings>(loadLlmSettings());
+  let llmOpen = $state(false);
+  let llmProbed = $state(false);
+  let llmAvailable = $state(false);
+  let llmModels = $state<string[]>([]);
+  let probeTimer: ReturnType<typeof setTimeout> | undefined;
+
+  // Effective model: the user's choice, falling back to the first installed one.
+  const llmModel = $derived(llm.model || llmModels[0] || '');
+  // Whether the LLM layer actually runs: reachable, enabled, and a model exists.
+  const llmActive = $derived(llmAvailable && llm.enabled && !!llmModel);
+
+  // Probe Ollama only once the user opens the LLM panel — and re-probe (debounced)
+  // when the base URL changes while it's open. Crucially we never touch the network
+  // on page load: reaching a local server otherwise triggers the browser's "access
+  // local network devices" prompt on the hosted (HTTPS) site, which looks alarming.
+  // Failures (offline / CORS / CSP) simply leave the option hidden.
+  $effect(() => {
+    if (!llmOpen) return; // no local-network access until the user asks for it
+    const baseUrl = llm.baseUrl;
+    clearTimeout(probeTimer);
+    llmProbed = false;
+    probeTimer = setTimeout(() => {
+      void probeOllama(baseUrl).then((res) => {
+        llmAvailable = res.ok;
+        llmModels = res.models;
+        llmProbed = true;
+        // Default the model to the first installed one if none is chosen yet.
+        if (res.ok && res.models.length > 0 && !untrack(() => llm.model)) {
+          llm.model = res.models[0];
+        }
+      });
+    }, 300);
+  });
+
+  // Persist settings whenever they change.
+  $effect(() => {
+    saveLlmSettings({ enabled: llm.enabled, baseUrl: llm.baseUrl, model: llm.model });
+  });
+
+  // Two-phase analysis: heuristics render instantly; the (slower) LLM pass is
+  // debounced longer, runs in parallel, and merges its findings in when ready —
+  // so the preview never freezes waiting on the model.
+  let heurTimer: ReturnType<typeof setTimeout> | undefined;
+  let llmTimer: ReturnType<typeof setTimeout> | undefined;
+  let llmRunning = $state(false);
+  let gen = 0; // latest input generation; guards drop stale async results
+  let shownGen = -1; // generation of the result currently shown
+  let shownLlm = false; // whether the shown result already includes the LLM pass
+
+  const HEUR_DEBOUNCE_MS = 100;
+  const LLM_DEBOUNCE_MS = 1000;
+
+  // Rough token estimate (~4 chars/token). Inputs beyond the model's context get
+  // truncated by Ollama, so the LLM won't see the tail — warn about it.
+  const llmContextWarning = $derived(llmActive && input.length / 4 > LLM_NUM_CTX);
 
   $effect(() => {
     const text = input;
@@ -88,15 +147,45 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
       minConfidence,
       types: ALL_PII_TYPES.filter((t) => enabled[t]),
     };
-    clearTimeout(timer);
-    timer = setTimeout(() => {
+    const wantLlm = llmActive;
+    const llmReq = wantLlm ? { baseUrl: llm.baseUrl, model: llmModel } : undefined;
+    const myGen = ++gen;
+
+    // Phase 1 — fast heuristics. Never blocks on the LLM.
+    clearTimeout(heurTimer);
+    heurTimer = setTimeout(() => {
       void runSanitize(text, options).then((r) => {
+        if (myGen !== gen) return; // superseded by newer input
+        if (shownGen === myGen && shownLlm) return; // don't downgrade a merged result
         run = r;
+        shownGen = myGen;
+        shownLlm = false;
       });
-    }, 100);
+    }, HEUR_DEBOUNCE_MS);
+
+    // Phase 2 — optional LLM recall boost. Longer debounce, merges in async.
+    clearTimeout(llmTimer);
+    if (wantLlm) {
+      llmTimer = setTimeout(() => {
+        llmRunning = true;
+        void runSanitize(text, options, llmReq).then((r) => {
+          if (myGen !== gen) return; // superseded
+          run = r;
+          shownGen = myGen;
+          shownLlm = true;
+          llmRunning = false;
+        });
+      }, LLM_DEBOUNCE_MS);
+    } else {
+      llmRunning = false;
+    }
   });
 
-  onDestroy(() => clearTimeout(timer));
+  onDestroy(() => {
+    clearTimeout(heurTimer);
+    clearTimeout(llmTimer);
+    clearTimeout(probeTimer);
+  });
 
   type Segment = { text: string; type?: PiiType; source?: string };
 
@@ -114,7 +203,11 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     let cursor = 0;
     for (const span of spans) {
       if (span.start > cursor) out.push({ text: normalized.slice(cursor, span.start) });
-      out.push({ text: normalized.slice(span.start, span.end), type: span.type, source: span.source });
+      out.push({
+        text: normalized.slice(span.start, span.end),
+        type: span.type,
+        source: span.source,
+      });
       cursor = span.end;
     }
     if (cursor < normalized.length) out.push({ text: normalized.slice(cursor) });
@@ -274,6 +367,13 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
       <input type="range" min="0" max="1" step="0.05" bind:value={minConfidence} />
     </div>
 
+    {#if llmActive}
+      <div class="control">
+        <span class="label">Layers</span>
+        <span class="chip llm-on">🧠 LLM second layer · {llmModel}</span>
+      </div>
+    {/if}
+
     <div class="control actions">
       <button onclick={loadSample}>Sample</button>
       <button onclick={clearAll}>Clear</button>
@@ -285,9 +385,75 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
           onchange={onFile}
         /></label
       >
+      <button
+        class="llm-toggle"
+        class:active={llmActive}
+        class:pending={llm.enabled && !llmActive}
+        aria-expanded={llmOpen}
+        title={llmActive
+          ? 'LLM second layer active (local Ollama)'
+          : llm.enabled
+            ? 'LLM second layer enabled — open to connect to your local Ollama'
+            : 'Optional local LLM (Ollama) second layer'}
+        onclick={() => (llmOpen = !llmOpen)}>⚙︎ LLM</button
+      >
       {#if fileError}<span class="file-error" role="alert">{fileError}</span>{/if}
     </div>
   </section>
+
+  {#if llmOpen}
+    <section class="pane llm-panel">
+      <h2>🧠 LLM second layer (Ollama) — optional</h2>
+      <p class="llm-note">
+        A local <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a> server can
+        act as a second pass that flags extra PII the heuristics miss. Your text is sent
+        <strong>only to your own Ollama</strong> — never to us or any cloud. Off by default, and no connection
+        is attempted until you open this panel.
+      </p>
+
+      <div class="llm-row">
+        <label class="llm-field">
+          Server URL
+          <input
+            type="text"
+            bind:value={llm.baseUrl}
+            spellcheck="false"
+            placeholder="http://localhost:11434"
+          />
+        </label>
+        <span class="llm-status" class:ok={llmAvailable} class:bad={llmProbed && !llmAvailable}>
+          {#if !llmProbed}⏳ Checking…
+          {:else if llmAvailable}✅ Connected ({llmModels.length} model{llmModels.length === 1
+              ? ''
+              : 's'})
+          {:else}⚠️ Not reachable{/if}
+        </span>
+      </div>
+
+      {#if llmAvailable}
+        <div class="llm-row">
+          <label class="llm-field">
+            Model
+            <select bind:value={llm.model}>
+              {#each llmModels as m (m)}
+                <option value={m}>{m}</option>
+              {/each}
+            </select>
+          </label>
+          <label class="llm-enable">
+            <input type="checkbox" bind:checked={llm.enabled} />
+            Use as second layer
+          </label>
+        </div>
+      {:else if llmProbed}
+        <p class="llm-help">
+          Start Ollama with <code>ollama serve</code> and pull a model (e.g.
+          <code>ollama pull llama3.2</code>). For the hosted site, allow this origin via
+          <code>OLLAMA_ORIGINS</code>.
+        </p>
+      {/if}
+    </section>
+  {/if}
 
   <section class="panes">
     <div class="pane">
@@ -301,7 +467,18 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
         {#each counts as [type, n] (type)}
           <span class="chip">{TYPE_LABELS[type]} {n}</span>
         {/each}
+        {#if llmRunning}
+          <span class="chip llm-running" title="The local LLM is running a second pass"
+            >🧠 LLM analyzing…</span
+          >
+        {/if}
       </h2>
+      {#if llmContextWarning}
+        <p class="llm-warn" role="status">
+          ⚠️ Long input — the LLM only sees roughly the first {LLM_NUM_CTX.toLocaleString()} tokens, so
+          PII further down may be caught by the heuristics only.
+        </p>
+      {/if}
       <div
         class="preview"
         role="textbox"
@@ -316,8 +493,11 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
               class="pii"
               data-type={seg.type}
               data-source={seg.source}
-              title={seg.source === 'manual' ? `${seg.type} (added manually)` : seg.type}
-              >{seg.text}</mark
+              title={seg.source === 'manual'
+                ? `${seg.type} (added manually)`
+                : seg.source === 'llm'
+                  ? `${seg.type} (found by LLM)`
+                  : seg.type}>{seg.text}</mark
             >
           {:else}{seg.text}{/if}
         {/each}
@@ -368,7 +548,10 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
           {@const isManual = manualKeys.has(keyOf(m.type, m.original))}
           <tr>
             <td><code>{m.placeholder}</code></td>
-            <td>{m.original}{#if isManual}<span class="badge" title="Added manually">✋ manual</span>{/if}</td>
+            <td
+              >{m.original}{#if isManual}<span class="badge" title="Added manually">✋ manual</span
+                >{/if}</td
+            >
             <td>{m.type}</td>
             {#if showGroup && view}
               <td>
@@ -629,6 +812,93 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     background: var(--accent-soft);
     border-color: var(--accent);
     border-style: dashed;
+  }
+  mark.pii[data-source='llm'] {
+    border-style: dotted;
+    border-width: 2px;
+  }
+  .chip.llm-on {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+  }
+  .chip.llm-running {
+    color: var(--accent);
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    animation: llm-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes llm-pulse {
+    50% {
+      opacity: 0.5;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .chip.llm-running {
+      animation: none;
+    }
+  }
+  .llm-warn {
+    margin: 0 0 0.5rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+  }
+  .llm-toggle.active {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .llm-toggle.pending {
+    border-style: dashed;
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .llm-panel .llm-note,
+  .llm-panel .llm-help {
+    margin: 0 0 0.75rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+  }
+  .llm-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 1rem;
+    margin-bottom: 0.6rem;
+  }
+  .llm-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .llm-field input[type='text'],
+  .llm-field select {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.35rem 0.5rem;
+    font-size: 0.85rem;
+    min-width: 14rem;
+  }
+  .llm-enable {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+  }
+  .llm-status {
+    font-size: 0.85rem;
+    color: var(--muted);
+    align-self: center;
+  }
+  .llm-status.ok {
+    color: var(--accent);
+  }
+  .llm-status.bad {
+    color: #b00020;
   }
   .hint {
     margin: 0.4rem 0 0;

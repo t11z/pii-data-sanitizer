@@ -1,5 +1,5 @@
 import type { SanitizeOptions } from '../core';
-import type { WorkerResult, WorkerResponse } from './worker/sanitizer.worker';
+import type { WorkerResult, WorkerResponse, LlmRequest } from './worker/sanitizer.worker';
 
 export type SanitizeRun = Omit<WorkerResult, 'id'>;
 export interface PackProgress {
@@ -46,12 +46,19 @@ function getWorker(): Worker {
   return worker;
 }
 
-/** Runs detection + sanitization off the main thread. */
-export function runSanitize(text: string, options: SanitizeOptions): Promise<SanitizeRun> {
+/**
+ * Runs detection + sanitization off the main thread. When `llm` is provided, the
+ * worker also runs the optional Ollama second layer and merges its findings.
+ */
+export function runSanitize(
+  text: string,
+  options: SanitizeOptions,
+  llm?: LlmRequest
+): Promise<SanitizeRun> {
   const w = getWorker();
   const id = ++seq;
   return new Promise((resolve) => {
     pending.set(id, resolve);
-    w.postMessage({ id, text, options });
+    w.postMessage({ id, text, options, llm });
   });
 }

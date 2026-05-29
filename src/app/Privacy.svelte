@@ -41,12 +41,26 @@
     your text uploaded. The name packs are generic dictionaries; they contain no information about you.
   </p>
 
+  <h2>🧠 Optional local LLM layer (Ollama)</h2>
+  <p>
+    You can optionally enable a second detection pass powered by a
+    <strong>local <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a></strong>
+    server running on your own machine. It is <strong>off by default</strong> and only appears once
+    a local Ollama is detected. When enabled, your text is sent
+    <strong>only to your own Ollama</strong>
+    — never to us or any cloud provider. We deliberately do not offer hosted/cloud LLMs, because that
+    would send your text to a third party. The choice — and the data — stay with you.
+  </p>
+
   <h2>🛡️ Enforced by a strict Content-Security-Policy</h2>
   <p>
     The site ships a Content-Security-Policy that only permits connections to its own origin (<code
       >connect-src 'self'</code
-    >) and forbids embedding, inline scripts from third parties, and outbound calls to analytics or
-    trackers. There is <strong>no analytics, no tracking, and no third-party scripts</strong>.
+    >) plus, for the optional layer above, a <strong>local</strong> Ollama (<code
+      >http://localhost:11434</code
+    >). It forbids embedding, inline scripts from third parties, and outbound calls to analytics or
+    trackers. There is
+    <strong>no analytics, no tracking, and no third-party scripts</strong>.
   </p>
 
   <h2>✅ Don't trust — verify</h2>
