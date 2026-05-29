@@ -202,6 +202,57 @@ describe('IP detection', () => {
   it('rejects an embedded IPv4 with an out-of-range octet', () => {
     expect(only('weird ::ffff:999.1.1.1 bad', 'IP')).toHaveLength(0);
   });
+
+  it('captures an IPv4 CIDR suffix as part of the span', () => {
+    // Held-out reserved-doc ranges (RFC 5737), absent from any dictionary
+    // because IP detection is purely structural — these prove the suffix
+    // capture is general, not memorized.
+    expect(only('Firewall blocks 198.51.100.0/24 from the perimeter', 'IP')[0].text).toBe(
+      '198.51.100.0/24'
+    );
+    expect(only('Single host 203.0.113.42/32 only', 'IP')[0].text).toBe('203.0.113.42/32');
+  });
+
+  it('captures an IPv6 CIDR suffix as part of the span', () => {
+    expect(only('Customer access from 2600:1700::/32 today', 'IP')[0].text).toBe('2600:1700::/32');
+    expect(only('SOC alert flagged 2001:db8:1234::/48 overnight', 'IP')[0].text).toBe(
+      '2001:db8:1234::/48'
+    );
+  });
+
+  it('captures CIDR after an IPv6 zone identifier', () => {
+    expect(only('Edge node fe80::1%eth0/64 came online', 'IP')[0].text).toBe('fe80::1%eth0/64');
+  });
+
+  it('captures CIDR after an IPv4-mapped IPv6 address', () => {
+    expect(only('Tunnel ::ffff:198.51.100.7/120 ok', 'IP')[0].text).toBe('::ffff:198.51.100.7/120');
+  });
+
+  it('rejects an IPv4 CIDR with prefix length > 32 (falls back to the bare address)', () => {
+    // Precision guard: a malformed mask must not be reported as part of the
+    // span, but the bare valid IP should still be detected so recall is
+    // preserved on the address itself.
+    expect(only('Bad mask 10.0.0.0/64 was logged', 'IP').map((s) => s.text)).toEqual(['10.0.0.0']);
+  });
+
+  it('rejects an IPv6 CIDR with prefix length > 128 (falls back to the bare address)', () => {
+    expect(only('Operator typed 2001:db8::/200 by mistake', 'IP').map((s) => s.text)).toEqual([
+      '2001:db8::',
+    ]);
+  });
+
+  it('does not match a standalone /N mask with no address', () => {
+    expect(only('Documentation says the subnet mask /24 is default', 'IP')).toHaveLength(0);
+  });
+
+  it('does not extend an IPv4 into a URL path that starts with letters', () => {
+    // The `/N` suffix requires digits, so `/admin` is left for the URL — the
+    // address span stops at the IP. This protects precision when an IP is
+    // followed by a slash-delimited URL path.
+    expect(only('Visit the runbook at 192.168.1.1/admin/login for details', 'IP')[0].text).toBe(
+      '192.168.1.1'
+    );
+  });
 });
 
 describe('MAC detection', () => {

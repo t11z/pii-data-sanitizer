@@ -457,6 +457,34 @@
     "entities": []
   },
   {
+    "text": "Firewall rule blocks 198.51.100.0/24 from the perimeter.",
+    "entities": [{ "type": "IP", "text": "198.51.100.0/24" }]
+  },
+  {
+    "text": "The SOC alert flagged 2001:db8:1234::/48 overnight.",
+    "entities": [{ "type": "IP", "text": "2001:db8:1234::/48" }]
+  },
+  {
+    "text": "Edge node fe80::1%eth0/64 came back online.",
+    "entities": [{ "type": "IP", "text": "fe80::1%eth0/64" }]
+  },
+  {
+    "text": "Customer reported access from 2600:1700::/32 this morning.",
+    "entities": [{ "type": "IP", "text": "2600:1700::/32" }]
+  },
+  {
+    "text": "Documentation says the subnet mask /24 is the default.",
+    "entities": []
+  },
+  {
+    "text": "Visit the runbook at 192.168.1.1/admin/login for details.",
+    "entities": [{ "type": "IP", "text": "192.168.1.1" }]
+  },
+  {
+    "text": "Bad mask 10.0.0.0/64 was logged but the operator typo'd.",
+    "entities": [{ "type": "IP", "text": "10.0.0.0" }]
+  },
+  {
     "text": "Placeholder block 0000 0000 0000 0000 in the template, not a real card.",
     "entities": []
   },
