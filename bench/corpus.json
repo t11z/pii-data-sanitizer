@@ -503,5 +503,33 @@
   {
     "text": "Corporate Amex 3782 822463 10005 charged the deposit.",
     "entities": [{ "type": "CREDIT_CARD", "text": "3782 822463 10005" }]
+  },
+  {
+    "text": "New hire SSN 234-56-7890 was added to payroll.",
+    "entities": [{ "type": "NATIONAL_ID", "text": "234-56-7890" }]
+  },
+  {
+    "text": "German tax ID 65929970489 is on the invoice.",
+    "entities": [{ "type": "NATIONAL_ID", "text": "65929970489" }]
+  },
+  {
+    "text": "Traveler passport number L898902C3 was logged at the gate.",
+    "entities": [{ "type": "PASSPORT", "text": "L898902C3" }]
+  },
+  {
+    "text": "Patient date of birth: 1972-11-30 recorded in the chart.",
+    "entities": [{ "type": "DATE_OF_BIRTH", "text": "1972-11-30" }]
+  },
+  {
+    "text": "Kunde, geboren am 04.07.1968, meldete sich erneut.",
+    "entities": [{ "type": "DATE_OF_BIRTH", "text": "04.07.1968" }]
+  },
+  {
+    "text": "The server logged 192.168.0.10 at 2024-03-01 without incident.",
+    "entities": [{ "type": "IP", "text": "192.168.0.10" }]
+  },
+  {
+    "text": "Internal ref AB123456 has no passport cue nearby.",
+    "entities": []
   }
 ]

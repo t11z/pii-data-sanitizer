@@ -52,6 +52,9 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     CREDIT_CARD: '💳 Card',
     IP: '🌐 IP',
     MAC: '🔌 MAC',
+    NATIONAL_ID: '🪪 National ID',
+    PASSPORT: '📘 Passport',
+    DATE_OF_BIRTH: '🎂 DOB',
     PERSON: '🧑 Name',
   };
 

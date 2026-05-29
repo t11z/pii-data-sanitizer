@@ -4,7 +4,7 @@
 
 Packs generated: 2026-05-29T19:35:37.350Z
 
-- **PII types detected:** 7 (EMAIL, PHONE, IBAN, CREDIT_CARD, IP, MAC, PERSON)
+- **PII types detected:** 10 (EMAIL, PHONE, IBAN, CREDIT_CARD, IP, MAC, NATIONAL_ID, PASSPORT, DATE_OF_BIRTH, PERSON)
 - **Names in the database:** 186,898 across 6 packs
 - **Scripts covered:** 5 (Latin, Arabic, Hebrew, Devanagari, Hangul)
 - **Total pack size:** 447,933 bytes (compact Bloom filters, shipped read-only)

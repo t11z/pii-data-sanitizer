@@ -339,3 +339,84 @@ describe('credit card beats phone on overlap', () => {
     expect(spans[0].type).toBe('CREDIT_CARD');
   });
 });
+
+describe('national id detection', () => {
+  it('detects a dashed US SSN with valid allocation', () => {
+    const spans = only('Employee SSN: 123-45-6789 on file.', 'NATIONAL_ID');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('123-45-6789');
+  });
+
+  it('wins over PHONE on the same SSN span', () => {
+    // The 9-digit run could read as a phone (conf 0.6); the SSN (0.92) outranks it,
+    // so overlap resolution leaves no PHONE span behind.
+    expect(only('SSN 123-45-6789 recorded.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('rejects never-assigned SSN areas/groups/serials', () => {
+    expect(only('000-12-3456', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('666-44-1234', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('900-11-2222', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('123-00-6789', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('123-45-0000', 'NATIONAL_ID')).toHaveLength(0);
+  });
+
+  it('does not claim a bare 9-digit run as an SSN', () => {
+    expect(only('Reference 123456789 attached.', 'NATIONAL_ID')).toHaveLength(0);
+  });
+
+  it('detects a German tax ID by structure + ISO 7064 checksum', () => {
+    // Held-out valid Steuer-IDs (structure: one digit repeated, MOD 11,10 check digit).
+    expect(only('Steuer-ID 86095742719 confirmed.', 'NATIONAL_ID')[0].text).toBe('86095742719');
+    expect(only('IdNr 47036892816 hinterlegt.', 'NATIONAL_ID')[0].text).toBe('47036892816');
+  });
+
+  it('rejects an 11-digit run with a wrong tax-ID check digit', () => {
+    expect(only('Number 86095742718 is not an ID.', 'NATIONAL_ID')).toHaveLength(0);
+  });
+
+  it('rejects an 11-digit run that fails the tax-ID structure', () => {
+    // Phone-like run: several digits repeat, so the "exactly one repeated" rule fails.
+    expect(only('Call 49301234567 for support.', 'NATIONAL_ID')).toHaveLength(0);
+  });
+});
+
+describe('passport detection (cue-gated)', () => {
+  it('detects a passport number after an English cue', () => {
+    expect(only('Passport No: X1234567 issued.', 'PASSPORT')[0].text).toBe('X1234567');
+  });
+
+  it('detects a passport number after a German cue', () => {
+    expect(only('Reisepass C01X00T47 vorgelegt.', 'PASSPORT')[0].text).toBe('C01X00T47');
+  });
+
+  it('does not flag an alphanumeric token without a passport cue', () => {
+    expect(only('Reference X1234567 attached.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  it('does not flag a following word with no digit as a number', () => {
+    expect(only('Passport please bring it tomorrow.', 'PASSPORT')).toHaveLength(0);
+  });
+});
+
+describe('date of birth detection (cue-gated)', () => {
+  it('detects an ISO date after a DOB cue', () => {
+    expect(only('DOB: 1985-03-17 noted.', 'DATE_OF_BIRTH')[0].text).toBe('1985-03-17');
+  });
+
+  it('detects a numeric date after "born on"', () => {
+    expect(only('born on 17.03.1985 in Berlin.', 'DATE_OF_BIRTH')[0].text).toBe('17.03.1985');
+  });
+
+  it('detects an English month-name date', () => {
+    expect(only('Date of birth March 5, 1990.', 'DATE_OF_BIRTH')[0].text).toBe('March 5, 1990');
+  });
+
+  it('detects a German month-name date', () => {
+    expect(only('Geburtsdatum: 12. März 1985.', 'DATE_OF_BIRTH')[0].text).toBe('12. März 1985');
+  });
+
+  it('does not flag an incidental date with no birth cue', () => {
+    expect(only('The incident on 2024-01-15 was reviewed.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
+});

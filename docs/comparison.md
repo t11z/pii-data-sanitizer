@@ -35,10 +35,13 @@ generated table in [`comparison-report.md`](comparison-report.md); regenerate wi
 | CREDIT_CARD | 100.0%         | 100.0%      |
 | EMAIL       | 100.0%         | 100.0%      |
 | IBAN        | 100.0%         | 40.0%       |
-| IP          | 100.0%         | 28.6%       |
+| IP          | 100.0%         | 33.3%       |
 | PERSON      | 100.0%         | 76.2%       |
-| PHONE       | 100.0%         | 44.4%       |
-| **Overall** | **100.0%**     | **67.9%**   |
+| PHONE       | 100.0%         | 36.4%       |
+| **Overall** | **100.0%**     | **67.5%**   |
+
+(The newly added `NATIONAL_ID`, `PASSPORT`, and `DATE_OF_BIRTH` types are project-specific
+and outside this comparison's shared, both-tools-can-produce scope.)
 
 ## How to read it
 
@@ -47,11 +50,11 @@ generated table in [`comparison-report.md`](comparison-report.md); regenerate wi
 - **IBAN**: Presidio misses spaced/printed IBAN formats present in the corpus (recall
   25%). This project added explicit handling for the common print styles (e.g. a space
   after the country code) behind the mod-97 checksum.
-- **IP**: Presidio's recall and precision are both low here — it over-flags version-number
-  and dotted-decimal shapes and under-detects IPv6/CIDR forms, where this engine validates
-  against RFC 4291 and captures the CIDR suffix as one span.
+- **IP**: Presidio's recall and precision are both low here (P 31%, R 36%) — it over-flags
+  version-number and dotted-decimal shapes and under-detects IPv6/CIDR forms, where this
+  engine validates against RFC 4291 and captures the CIDR suffix as one span.
 - **Phone**: Presidio detects the numbers (recall 100%) but also over-flags other digit
-  runs (precision ~29%). This project keeps phone confidence deliberately low and guards
+  runs (precision ~22%). This project keeps phone confidence deliberately low and guards
   against ISO dates / identifiers, trading some recall for precision.
 - **Person**: the corpus is multilingual (transliterated Arabic/Hebrew/Indic, particle
   chains). Presidio's English NER misses many of these and splits some particle names;

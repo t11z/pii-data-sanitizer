@@ -1,6 +1,6 @@
 {
   "name": "pii-data-sanitizer",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Zero-knowledge, browser-only PII detection & sanitization with a heuristic engine and a multilingual name database.",
   "type": "module",
   "license": "MIT",

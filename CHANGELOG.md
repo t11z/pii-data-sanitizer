@@ -10,7 +10,18 @@ Releases ship a prebuilt, static bundle on the
 ## [Unreleased]
 
 ### Added
-- `CHANGELOG.md` and a prominent live-demo link + release badge in the README.
+- **Three new PII types**, all gated for precision (no new false positives on the corpus,
+  proven suite still exact):
+  - `NATIONAL_ID` — US Social Security Numbers (dashed form, validated against the SSA
+    area/group/serial allocation rules) and German tax IDs (Steuer-IdNr, validated by the
+    BZSt structural rule + ISO 7064 MOD 11,10 check digit).
+  - `PASSPORT` — cue-gated (e.g. after "Passport No" / "Reisepass"): a 6–9 character
+    uppercase alphanumeric number containing at least one digit.
+  - `DATE_OF_BIRTH` — cue-gated (e.g. "DOB:", "born on", "Geburtsdatum"), so incidental
+    dates/timestamps are not flagged. Supports ISO, numeric, and English/German
+    month-name date formats.
+- `CHANGELOG.md` and a prominent live-demo link + release badge in the README, plus
+  `ARCHITECTURE.md`, evaluation/comparison docs, and a generated metrics snapshot.
 
 ## [2.0.0] — 2026-05-29
 
