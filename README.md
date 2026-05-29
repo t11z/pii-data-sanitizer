@@ -53,9 +53,11 @@ server — it runs a recall-boost pass that flags extra PII the heuristics miss.
 Its findings are merged with the heuristic spans (overlap resolution still
 prefers the stronger detector).
 
-It is off by default and **only appears in the UI once a reachable Ollama is
-detected** — open the `⚙︎ LLM` panel, and the enable toggle + model picker show
-up only after a successful probe. We deliberately do **not** offer cloud LLM
+It is off by default. **No connection is attempted on page load** — the app only
+probes for Ollama once you open the `⚙︎ LLM` panel, so the hosted (HTTPS) site
+never triggers the browser's "access local network devices" prompt unprompted.
+Inside the panel, the enable toggle + model picker show up only after a
+successful probe. We deliberately do **not** offer cloud LLM
 providers: that would send your text to a third party and break the "your data,
 your sovereignty" promise. If you want a cloud model, you can put it behind your
 own Ollama yourself.

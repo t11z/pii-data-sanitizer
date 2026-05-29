@@ -95,11 +95,16 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   // Whether the LLM layer actually runs: reachable, enabled, and a model exists.
   const llmActive = $derived(llmAvailable && llm.enabled && !!llmModel);
 
-  // Probe Ollama on mount and whenever the base URL changes (debounced). Failures
-  // (offline / CORS / CSP) simply leave the option hidden.
+  // Probe Ollama only once the user opens the LLM panel — and re-probe (debounced)
+  // when the base URL changes while it's open. Crucially we never touch the network
+  // on page load: reaching a local server otherwise triggers the browser's "access
+  // local network devices" prompt on the hosted (HTTPS) site, which looks alarming.
+  // Failures (offline / CORS / CSP) simply leave the option hidden.
   $effect(() => {
+    if (!llmOpen) return; // no local-network access until the user asks for it
     const baseUrl = llm.baseUrl;
     clearTimeout(probeTimer);
+    llmProbed = false;
     probeTimer = setTimeout(() => {
       void probeOllama(baseUrl).then((res) => {
         llmAvailable = res.ok;
@@ -342,8 +347,13 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
       <button
         class="llm-toggle"
         class:active={llmActive}
+        class:pending={llm.enabled && !llmActive}
         aria-expanded={llmOpen}
-        title="Optional local LLM (Ollama) second layer"
+        title={llmActive
+          ? 'LLM second layer active (local Ollama)'
+          : llm.enabled
+            ? 'LLM second layer enabled — open to connect to your local Ollama'
+            : 'Optional local LLM (Ollama) second layer'}
         onclick={() => (llmOpen = !llmOpen)}>⚙︎ LLM</button
       >
       {#if fileError}<span class="file-error" role="alert">{fileError}</span>{/if}
@@ -356,7 +366,8 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
       <p class="llm-note">
         A local <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a> server can
         act as a second pass that flags extra PII the heuristics miss. Your text is sent
-        <strong>only to your own Ollama</strong> — never to us or any cloud. Off by default.
+        <strong>only to your own Ollama</strong> — never to us or any cloud. Off by default, and no connection
+        is attempted until you open this panel.
       </p>
 
       <div class="llm-row">
@@ -762,6 +773,11 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   .llm-toggle.active {
     border-color: var(--accent);
     background: var(--accent-soft);
+    color: var(--accent);
+  }
+  .llm-toggle.pending {
+    border-style: dashed;
+    border-color: var(--accent);
     color: var(--accent);
   }
   .llm-panel .llm-note,
