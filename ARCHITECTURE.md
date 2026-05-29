@@ -49,10 +49,20 @@ the `STRUCTURED` map in `index.ts`:
 | `CREDIT_CARD` | Luhn + ISO 7812 MII guard (no `0`-prefix)         | ~0.95      |
 | `IP`          | RFC 4291 validation, IPv4/IPv6, CIDR suffix       | ~0.9       |
 | `MAC`         | 6 octets, colon/dash separated                    | ~0.9       |
+| `NATIONAL_ID` | US SSN allocation rules; German tax-ID ISO 7064   | ~0.9       |
+| `PASSPORT`    | cue-gated ("Passport No …"), 6–9 alnum + a digit  | ~0.8       |
+| `DATE_OF_BIRTH`| cue-gated ("DOB:", "born on", "Geburtsdatum")    | ~0.85      |
 | `PHONE`       | 7–15 digits, guards against ISO dates / IDs       | ~0.6       |
 
 Phone is deliberately low-confidence: bare digit runs are ambiguous, so it relies on
 formatting/prefix signals and the confidence threshold rather than over-claiming.
+
+Two detectors are **cue-gated** rather than checksum-gated: a passport number or a date
+is only flagged when an explicit cue precedes it (e.g. `Passport No`, `DOB:`, `born on`,
+`Geburtsdatum`). This keeps precision high in text full of incidental dates and codes —
+a plain `2024-01-15` timestamp is not a date of birth unless the text says so. Where a
+national ID's digit run overlaps a phone match, overlap resolution keeps the
+higher-confidence ID.
 
 **Name detection** (`src/core/detectors/names.ts`) is the sophisticated part:
 

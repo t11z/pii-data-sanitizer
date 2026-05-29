@@ -7,10 +7,21 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Releases ship a prebuilt, static bundle on the
 [GitHub Releases page](https://github.com/t11z/pii-data-sanitizer/releases).
 
-## [Unreleased]
+## [2.1.0] — 2026-05-29
 
 ### Added
-- `CHANGELOG.md` and a prominent live-demo link + release badge in the README.
+- **Three new PII types**, all gated for precision (no new false positives on the corpus,
+  proven suite still exact):
+  - `NATIONAL_ID` — US Social Security Numbers (dashed form, validated against the SSA
+    area/group/serial allocation rules) and German tax IDs (Steuer-IdNr, validated by the
+    BZSt structural rule + ISO 7064 MOD 11,10 check digit).
+  - `PASSPORT` — cue-gated (e.g. after "Passport No" / "Reisepass"): a 6–9 character
+    uppercase alphanumeric number containing at least one digit.
+  - `DATE_OF_BIRTH` — cue-gated (e.g. "DOB:", "born on", "Geburtsdatum"), so incidental
+    dates/timestamps are not flagged. Supports ISO, numeric, and English/German
+    month-name date formats.
+- `CHANGELOG.md` and a prominent live-demo link + release badge in the README, plus
+  `ARCHITECTURE.md`, evaluation/comparison docs, and a generated metrics snapshot.
 
 ## [2.0.0] — 2026-05-29
 
@@ -68,7 +79,7 @@ Initial public release of the browser-only, zero-knowledge PII sanitizer.
   analysis → generalizing fix PR; language expansion; refinement), strictly
   additive/corrective and gated by tests + the benchmark before any human merge.
 
-[Unreleased]: https://github.com/t11z/pii-data-sanitizer/compare/v2.0.0...HEAD
+[2.1.0]: https://github.com/t11z/pii-data-sanitizer/compare/v2.0.0...v2.1.0
 [2.0.0]: https://github.com/t11z/pii-data-sanitizer/compare/v1.0.1...v2.0.0
 [1.0.1]: https://github.com/t11z/pii-data-sanitizer/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/t11z/pii-data-sanitizer/releases/tag/v1.0.0

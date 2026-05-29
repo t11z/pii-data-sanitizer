@@ -1,4 +1,14 @@
-export type PiiType = 'EMAIL' | 'PHONE' | 'IBAN' | 'CREDIT_CARD' | 'IP' | 'MAC' | 'PERSON';
+export type PiiType =
+  | 'EMAIL'
+  | 'PHONE'
+  | 'IBAN'
+  | 'CREDIT_CARD'
+  | 'IP'
+  | 'MAC'
+  | 'NATIONAL_ID'
+  | 'PASSPORT'
+  | 'DATE_OF_BIRTH'
+  | 'PERSON';
 
 export const ALL_PII_TYPES: PiiType[] = [
   'EMAIL',
@@ -7,6 +17,9 @@ export const ALL_PII_TYPES: PiiType[] = [
   'CREDIT_CARD',
   'IP',
   'MAC',
+  'NATIONAL_ID',
+  'PASSPORT',
+  'DATE_OF_BIRTH',
   'PERSON',
 ];
 

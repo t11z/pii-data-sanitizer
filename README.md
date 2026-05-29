@@ -38,9 +38,10 @@ itself never sees your data on any server.
 
 A layered heuristic engine (`src/core`):
 
-1. **Structured PII** — high-precision detectors with checksums:
+1. **Structured PII** — high-precision detectors gated by checksums or context:
    📧 email · 📞 phone · 🏦 IBAN (mod-97) · 💳 credit card (Luhn) · 🌐 IPv4/IPv6 ·
-   🔌 MAC address.
+   🔌 MAC · 🪪 national ID (US SSN allocation rules, German tax-ID ISO 7064) ·
+   📘 passport and 🎂 date of birth (cue-gated, e.g. after "Passport No" / "DOB").
 2. **Names** — a script-aware tokenizer + a multilingual name database
    (Bloom-filter packs) + **context** (titles, nobiliary/patronymic particles,
    capitalization, position) combined into a transparent **confidence score**.
