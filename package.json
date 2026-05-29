@@ -1,6 +1,6 @@
 {
   "name": "pii-data-sanitizer",
-  "version": "0.1.0",
+  "version": "2.0.0",
   "description": "Zero-knowledge, browser-only PII detection & sanitization with a heuristic engine and a multilingual name database.",
   "type": "module",
   "license": "MIT",
@@ -30,6 +30,7 @@
     "format:write": "prettier --write .",
     "bench": "tsx bench/run.ts",
     "bench:coverage": "tsx scripts/self-improve/evaluate-coverage.ts",
+    "metrics": "tsx scripts/report-metrics.ts",
     "ingest": "tsx scripts/build-db/ingest.ts",
     "ingest:census": "tsx scripts/build-db/ingest-census.ts",
     "build:db": "tsx scripts/build-db/build.ts"

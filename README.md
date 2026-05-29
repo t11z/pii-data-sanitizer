@@ -4,8 +4,14 @@
 > Zero-knowledge by design: your text never leaves your device. No servers, no
 > storage, no tracking.
 
+### ▶︎ [**Try the live demo**](https://pii-data-sanitizer.web.app/) — paste text, watch PII disappear. Nothing is uploaded.
+
+[![Live demo](https://img.shields.io/badge/demo-pii--data--sanitizer.web.app-2ea44f)](https://pii-data-sanitizer.web.app/)
 [![CI](https://github.com/t11z/pii-data-sanitizer/actions/workflows/ci.yml/badge.svg)](https://github.com/t11z/pii-data-sanitizer/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/t11z/pii-data-sanitizer?sort=semver)](https://github.com/t11z/pii-data-sanitizer/releases)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
+
+[![PII Data Sanitizer — detection, pseudonymized output, and identity-grouped mapping](docs/assets/demo.png)](https://pii-data-sanitizer.web.app/)
 
 ---
 
@@ -44,6 +50,17 @@ A layered heuristic engine (`src/core`):
 3. **Resolution & sanitization** — overlaps are resolved by confidence, then
    matches are either 🏷️ **redacted** (`[EMAIL]`) or 🔁 **pseudonymized**
    (stable `[PERSON_1]`, structure-preserving — ideal for LLM input).
+
+For the full pipeline, the scoring model, and the Bloom-pack database, see
+[`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+## 📊 Accuracy
+
+Detection is measured per PII type with precision/recall/F1 against a labeled corpus,
+behind two CI gates (a locked *proven* suite + an F1 baseline). The methodology, the
+honest caveats about what the numbers mean, and a same-corpus comparison against
+**Microsoft Presidio** are documented in [`docs/evaluation.md`](docs/evaluation.md) and
+[`docs/comparison.md`](docs/comparison.md).
 
 ## 🤝 Optional: local LLM second layer (Ollama)
 
@@ -153,12 +170,19 @@ native scripts on demand) — see `src/app/worker/sanitizer.worker.ts`.
 
 ## 🤖 Self-improving
 
-A multi-layer loop (language **expansion** + accuracy **refinement**) runs Claude
-Code on a schedule, opening PRs that add names or fix inaccuracies. It is strictly
-**additive/corrective**, never touches already-proven detections, and everything
-is gated by tests + a benchmark before a human merges. Both layers are also
-available as slash commands (`/self-improve-languages`, `/self-improve-refine`).
-See [`docs/self-improve.md`](docs/self-improve.md).
+The name database already covers **~187k names across 5 scripts**
+([live snapshot](docs/metrics.md)) — and it grows on its own. A multi-layer loop
+runs Claude Code on a schedule, opening PRs that **expand** the dictionary,
+**refine** false positives/negatives, and **discover** coverage gaps then ship a
+*generalizing* heuristic fix (never a name dump). It is strictly
+**additive/corrective**, never touches already-proven detections, and everything is
+gated by tests + the benchmark before a human merges.
+
+Merged examples: [#54](https://github.com/t11z/pii-data-sanitizer/pull/54) (IPv6 CIDR),
+[#52](https://github.com/t11z/pii-data-sanitizer/pull/52) (ISO 7812 credit-card guard),
+[#48](https://github.com/t11z/pii-data-sanitizer/pull/48) (digit-adjacent name guard).
+See [`docs/self-improve.md`](docs/self-improve.md) for the full loop and a worked
+case study.
 
 ## 🤝 Contributing
 
@@ -182,6 +206,12 @@ Workflows: `deploy.yml` (live deploy on `main`) and `deploy-preview.yml`
 
 Full setup (Firebase project, repo variables/secrets, going live) is in
 [`docs/deployment.md`](docs/deployment.md).
+
+## 📦 Releases & changelog
+
+Tagged releases ship a prebuilt static bundle on the
+[Releases page](https://github.com/t11z/pii-data-sanitizer/releases). Notable changes per
+version are tracked in [`CHANGELOG.md`](CHANGELOG.md).
 
 ## 📄 License
 
