@@ -190,7 +190,7 @@ case study.
 **Contributions are very welcome!** This project gets better the more names,
 languages, and edge cases the community brings.
 
-- 🌍 **Add names / a language** → extend `src/core/db/embeddedData.ts` (or add a
+- 🌍 **Add names / a language** → extend `scripts/build-db/sources.ts` (or add a
   source in `scripts/build-db/build.ts`) using **permissively licensed** data.
 - 🐛 **Fix a miss or false positive** → add a case to `bench/corpus.json` and a
   test, then make it green.

@@ -37,7 +37,7 @@ and explain why.
 
 | You want to…              | Edit…                                              |
 | ------------------------- | -------------------------------------------------- |
-| Add names / a language    | `src/core/db/embeddedData.ts`, `scripts/build-db/` |
+| Add names / a language    | `scripts/build-db/sources.ts`, `scripts/build-db/` |
 | Add titles / particles    | `src/core/context/`                                |
 | Reduce false positives    | `src/core/context/commonWords.ts`, `scoring.ts`    |
 | Add a structured PII type | `src/core/detectors/structured/`                   |
