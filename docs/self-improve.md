@@ -114,3 +114,21 @@ simply don't authenticate; a maintainer can also trigger them manually via
 The discovery workflow additionally needs `issues: write` permission (already set
 in `self-improve-coverage.yml`) so it can create and label the issue. It reuses the
 same `CLAUDE_CODE_OAUTH_TOKEN` — no extra secret is required.
+
+## Security review
+
+`security-review.yml` runs an AI security review modelled on
+[`anthropics/claude-code-security-review`](https://github.com/anthropics/claude-code-security-review),
+but driven through `anthropics/claude-code-action@v1` so it authenticates with the
+**same `CLAUDE_CODE_OAUTH_TOKEN` secret** and bills against a Pro/Max subscription
+instead of an Anthropic API key. (The official action only accepts an API key, set as
+`ANTHROPIC_API_KEY`, which takes precedence over the OAuth token — so it cannot bill a
+subscription without forking it.) The review logic lives in the `/security-review`
+slash command (`.claude/commands/security-review.md`).
+
+It runs on every pull request (commenting HIGH/MEDIUM findings on the PR) and weekly
+on a schedule plus on-demand via **workflow_dispatch** (a full-repo scan that opens a
+`security`-labeled issue only when there are findings). Like the self-improve
+workflows it only comments / opens issues — it never edits code or merges. Secrets are
+unavailable to workflows triggered by pull requests from forks, so fork PRs are not
+reviewed automatically.

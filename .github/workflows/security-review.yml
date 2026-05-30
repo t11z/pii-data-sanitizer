@@ -1,0 +1,69 @@
+name: Security Review
+
+# AI-powered security review, modelled on anthropics/claude-code-security-review
+# but driven through anthropics/claude-code-action@v1 so it authenticates with a
+# Claude Code OAuth token (CLAUDE_CODE_OAUTH_TOKEN) and bills against a Pro/Max
+# subscription instead of an Anthropic API key. The official action only accepts
+# an API key (set as ANTHROPIC_API_KEY, which takes precedence over the OAuth
+# token), so it cannot bill a subscription without a fork.
+#
+# Behaviour and guardrails live in the /security-review slash command
+# (.claude/commands/security-review.md) so CI and local runs stay identical.
+#
+# Reuses the existing CLAUDE_CODE_OAUTH_TOKEN repo secret (generate with
+# `claude setup-token`) — no extra secret is required. Comments on PRs / opens
+# issues only — it never edits code or merges.
+
+on:
+  pull_request:
+  schedule:
+    - cron: '0 7 * * 1' # weekly, Monday 07:00 UTC — full-repo scan
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Reviews the diff of an open pull request and comments findings on the PR.
+  pr-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      id-token: write # required by anthropics/claude-code-action@v1 (OIDC token)
+    concurrency:
+      group: security-review-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so the diff against the base branch is available
+      - name: Run /security-review on the PR diff
+        uses: anthropics/claude-code-action@v1
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: '/security-review'
+
+  # Weekly (and on-demand) full-repository scan that opens a labeled issue on findings.
+  full-scan:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write # required by anthropics/claude-code-action@v1 (OIDC token)
+    concurrency:
+      group: security-review-full
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history so the --full scan can inspect recent commits
+      - name: Run /security-review --full on the whole repo
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: '/security-review --full'
