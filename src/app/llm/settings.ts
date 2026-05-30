@@ -6,6 +6,8 @@
  * static files only; this keeps the "your data, your sovereignty" story intact.
  */
 
+import { isLoopbackUrl } from './ollama';
+
 export interface LlmSettings {
   enabled: boolean;
   baseUrl: string;
@@ -27,8 +29,10 @@ export function loadLlmSettings(): LlmSettings {
     const parsed = JSON.parse(raw) as Partial<LlmSettings>;
     return {
       enabled: typeof parsed.enabled === 'boolean' ? parsed.enabled : DEFAULT_LLM_SETTINGS.enabled,
+      // Loopback-only: a persisted non-local baseUrl (e.g. tampered storage) is
+      // discarded in favour of the default, so it never reaches the network layer.
       baseUrl:
-        typeof parsed.baseUrl === 'string' && parsed.baseUrl.trim()
+        typeof parsed.baseUrl === 'string' && isLoopbackUrl(parsed.baseUrl.trim())
           ? parsed.baseUrl.trim()
           : DEFAULT_LLM_SETTINGS.baseUrl,
       model: typeof parsed.model === 'string' ? parsed.model : DEFAULT_LLM_SETTINGS.model,

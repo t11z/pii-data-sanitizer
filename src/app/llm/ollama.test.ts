@@ -4,6 +4,7 @@ import {
   findingsToSpans,
   probeOllama,
   analyzeWithOllama,
+  isLoopbackUrl,
   DEFAULT_LLM_CONFIDENCE,
   LLM_NUM_CTX,
 } from './ollama';
@@ -98,7 +99,35 @@ describe('findingsToSpans', () => {
   });
 });
 
+describe('isLoopbackUrl', () => {
+  it('accepts loopback hosts', () => {
+    expect(isLoopbackUrl('http://localhost:11434')).toBe(true);
+    expect(isLoopbackUrl('http://127.0.0.1:11434')).toBe(true);
+    expect(isLoopbackUrl('http://[::1]:11434')).toBe(true);
+    expect(isLoopbackUrl('https://localhost')).toBe(true);
+    expect(isLoopbackUrl('http://localhost:11434/')).toBe(true);
+  });
+
+  it('rejects non-loopback hosts, non-http schemes, and garbage', () => {
+    expect(isLoopbackUrl('http://evil.com:11434')).toBe(false);
+    expect(isLoopbackUrl('http://192.168.1.5:11434')).toBe(false); // LAN is not loopback
+    expect(isLoopbackUrl('http://localhost.evil.com')).toBe(false);
+    expect(isLoopbackUrl('file:///etc/passwd')).toBe(false);
+    expect(isLoopbackUrl('ftp://localhost')).toBe(false);
+    expect(isLoopbackUrl('not a url')).toBe(false);
+    expect(isLoopbackUrl('')).toBe(false);
+  });
+});
+
 describe('probeOllama', () => {
+  it('rejects a non-loopback baseUrl without calling fetch', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy as unknown as typeof fetch);
+    expect(await probeOllama('http://evil.com:11434')).toEqual({ ok: false, models: [] });
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+
   it('returns models when the server responds', async () => {
     mockFetch(
       () =>
@@ -195,6 +224,15 @@ describe('analyzeWithOllama', () => {
     vi.stubGlobal('fetch', fetchSpy as unknown as typeof fetch);
     expect(
       await analyzeWithOllama('   ', { baseUrl: 'http://localhost:11434', model: 'm' })
+    ).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('refuses to send user text to a non-loopback host (no fetch)', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy as unknown as typeof fetch);
+    expect(
+      await analyzeWithOllama('Hi Jane Doe', { baseUrl: 'http://evil.com:11434', model: 'm' })
     ).toEqual([]);
     expect(fetchSpy).not.toHaveBeenCalled();
   });

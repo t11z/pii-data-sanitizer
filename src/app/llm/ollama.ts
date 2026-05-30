@@ -56,6 +56,27 @@ function joinUrl(baseUrl: string, path: string): string {
   return baseUrl.replace(/\/+$/, '') + path;
 }
 
+/**
+ * Whether `baseUrl` points at the local loopback interface. The zero-knowledge
+ * promise allows talking to a *local* Ollama only; we enforce that here in code so
+ * the guarantee holds in every deployment — not just on Firebase, whose CSP also
+ * pins connect-src to loopback. A non-loopback URL (or an unparseable / non-HTTP
+ * one) is rejected, so user text is never sent to a remote host. LAN/remote Ollama
+ * is intentionally unsupported to keep inference on the user's own machine.
+ */
+export function isLoopbackUrl(baseUrl: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(baseUrl);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return false;
+  // URL normalizes an IPv6 host to bracketed form, e.g. "[::1]".
+  const host = url.hostname.toLowerCase();
+  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1';
+}
+
 function withTimeout(
   signal: AbortSignal | undefined,
   ms: number
@@ -82,6 +103,8 @@ function withTimeout(
  * Never throws — failures (offline, CORS, CSP, timeout) collapse to `ok: false`.
  */
 export async function probeOllama(baseUrl: string, signal?: AbortSignal): Promise<OllamaProbe> {
+  // Loopback-only: a non-local server is never contacted (see isLoopbackUrl).
+  if (!isLoopbackUrl(baseUrl)) return { ok: false, models: [] };
   const t = withTimeout(signal, PROBE_TIMEOUT_MS);
   try {
     const res = await fetch(joinUrl(baseUrl, '/api/tags'), { signal: t.signal });
@@ -179,6 +202,8 @@ function allOccurrences(haystack: string, needle: string, caseInsensitive: boole
  */
 export async function analyzeWithOllama(text: string, opts: AnalyzeOptions): Promise<Span[]> {
   if (!text.trim()) return [];
+  // Loopback-only: user text is never sent to a non-local host (see isLoopbackUrl).
+  if (!isLoopbackUrl(opts.baseUrl)) return [];
   const confidence = opts.confidence ?? DEFAULT_LLM_CONFIDENCE;
   const t = withTimeout(opts.signal, ANALYZE_TIMEOUT_MS);
   try {
