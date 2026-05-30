@@ -531,5 +531,21 @@
   {
     "text": "Internal ref AB123456 has no passport cue nearby.",
     "entities": []
+  },
+  {
+    "text": "Case #3621 — billing issue with the customer. Escalated to Göran Andström.",
+    "entities": [{ "type": "PERSON", "text": "Göran Andström" }]
+  },
+  {
+    "text": "Ticket was forwarded to Qwesterveldt Brakkenzoon for review yesterday.",
+    "entities": [{ "type": "PERSON", "text": "Qwesterveldt Brakkenzoon" }]
+  },
+  {
+    "text": "Escalated to Customer Service Team for review today.",
+    "entities": []
+  },
+  {
+    "text": "Reset to Default Settings completed without issue.",
+    "entities": []
   }
 ]

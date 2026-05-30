@@ -3,7 +3,7 @@ import { tokenize } from '../tokenize';
 import { isParticle } from '../context/particles';
 import { isTitle } from '../context/titles';
 import { isAmbiguousWord } from '../context/commonWords';
-import { isRoleWord, isRoleAbbreviation, isNonNameWord } from '../context/roleWords';
+import { isRoleWord, isRoleAbbreviation, isNonNameWord, isHandoffVerb } from '../context/roleWords';
 import { isSentenceOpener } from '../context/sentenceOpeners';
 import { scoreName } from '../scoring';
 
@@ -210,6 +210,24 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
       if (roleGap.test(between)) roleBefore = true;
     }
   }
+  // Two-token handoff frame: "<handoff_verb> to <Name>". The cue sits two tokens
+  // before the candidate, so the single-step lookback above misses it. Common in
+  // support prose ("Escalated to ...", "forwarded to ...", "Assigned to ...") and
+  // a strong indicator that what follows is a person. Treated as a role cue:
+  // scoring still requires parts >= 2, and NON_NAME_WORDS still blocks structural
+  // chains, so "Escalated to Customer Service Team" remains a non-detection.
+  if (!roleBefore && i >= 2) {
+    const prev = tokens[i - 1];
+    const prev2 = tokens[i - 2];
+    if (
+      prev.text.toLowerCase() === 'to' &&
+      isHandoffVerb(prev2.text) &&
+      SINGLE_GAP.test(text.slice(prev2.end, prev.start)) &&
+      SINGLE_GAP.test(text.slice(prev.end, tok.start))
+    ) {
+      roleBefore = true;
+    }
+  }
 
   const dbHit = anyHit(source, tok);
 
@@ -249,9 +267,7 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
       !roleBefore &&
       tierOf(source, tok) !== 'core' &&
       isSentenceStart(text, tok.start) &&
-      (isSentenceOpener(tok.text) ||
-        isNonNameWord(tok.text) ||
-        !nameContinuation(tokens, i, text))
+      (isSentenceOpener(tok.text) || isNonNameWord(tok.text) || !nameContinuation(tokens, i, text))
     ) {
       return null;
     }
