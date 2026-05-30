@@ -547,5 +547,21 @@
   {
     "text": "Reset to Default Settings completed without issue.",
     "entities": []
+  },
+  {
+    "text": "Fall #3621 — Abrechnungsproblem. Eskaliert an Qwesterveldt Brakkenzoon.",
+    "entities": [{ "type": "PERSON", "text": "Qwesterveldt Brakkenzoon" }]
+  },
+  {
+    "text": "Kundin Wlodimar Krimbleton hat die Rechnung beglichen.",
+    "entities": [{ "type": "PERSON", "text": "Wlodimar Krimbleton" }]
+  },
+  {
+    "text": "Weitergeleitet an Kundenservice Team heute.",
+    "entities": []
+  },
+  {
+    "text": "Delegated an Urgent Ticket today.",
+    "entities": []
   }
 ]
