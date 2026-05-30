@@ -3,7 +3,12 @@ import { tokenize } from '../tokenize';
 import { isParticle } from '../context/particles';
 import { isTitle } from '../context/titles';
 import { isAmbiguousWord } from '../context/commonWords';
-import { isRoleWord, isRoleAbbreviation, isNonNameWord, isHandoffVerb } from '../context/roleWords';
+import {
+  isRoleWord,
+  isRoleAbbreviation,
+  isNonNameWord,
+  isHandoffFrame,
+} from '../context/roleWords';
 import { isSentenceOpener } from '../context/sentenceOpeners';
 import { scoreName } from '../scoring';
 
@@ -210,18 +215,20 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
       if (roleGap.test(between)) roleBefore = true;
     }
   }
-  // Two-token handoff frame: "<handoff_verb> to <Name>". The cue sits two tokens
-  // before the candidate, so the single-step lookback above misses it. Common in
-  // support prose ("Escalated to ...", "forwarded to ...", "Assigned to ...") and
-  // a strong indicator that what follows is a person. Treated as a role cue:
-  // scoring still requires parts >= 2, and NON_NAME_WORDS still blocks structural
-  // chains, so "Escalated to Customer Service Team" remains a non-detection.
+  // Two-token handoff frame: "<handoff_verb> <connector> <Name>". The cue sits two
+  // tokens before the candidate, so the single-step lookback above misses it.
+  // Common in support prose across languages ("Escalated to ...", "Assigned to
+  // ...", "Eskaliert an ...", "Weitergeleitet an ...") and a strong indicator that
+  // what follows is a person. isHandoffFrame requires the verb and connector to
+  // belong to the same language (so the English article in "delegated an Urgent
+  // Ticket" never matches). Treated as a role cue: scoring still requires parts >=
+  // 2, and NON_NAME_WORDS still blocks structural chains, so "Escalated to Customer
+  // Service Team" / "Weitergeleitet an Kundenservice Team" remain non-detections.
   if (!roleBefore && i >= 2) {
     const prev = tokens[i - 1];
     const prev2 = tokens[i - 2];
     if (
-      prev.text.toLowerCase() === 'to' &&
-      isHandoffVerb(prev2.text) &&
+      isHandoffFrame(prev2.text, prev.text) &&
       SINGLE_GAP.test(text.slice(prev2.end, prev.start)) &&
       SINGLE_GAP.test(text.slice(prev.end, tok.start))
     ) {

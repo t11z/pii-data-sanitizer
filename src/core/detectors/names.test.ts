@@ -223,6 +223,99 @@ describe('handoff-verb frame ("<verb> to <Name>")', () => {
   });
 });
 
+describe('handoff-verb frame — German ("<Verb> an <Name>")', () => {
+  // German telegraphic ticket style ("Eskaliert an …", "Zugewiesen an …"). The
+  // connector is "an", paired ONLY with German routing verbs — never the English
+  // "to" — so the multilingual cue layer rescues out-of-DB names inside a German
+  // frame, not just an English one. Held out against the FULL committed dictionary
+  // (the held-out proof for these names lives in the English block above).
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects an unknown name after a sentence-initial German handoff verb + "an"', () => {
+    // Trailing word stays lowercase/non-particle so the chain ends at the surname
+    // (a capitalized word after the nobiliary particle "zur"/"zu" would extend it —
+    // a pre-existing particle behaviour, unrelated to the handoff frame).
+    expect(personsFull('Eskaliert an Qwesterveldt Brakkenzoon gestern.')).toContain(
+      'Qwesterveldt Brakkenzoon'
+    );
+    expect(personsFull('Weitergeleitet an Wlodimar Krimbleton heute.')).toContain(
+      'Wlodimar Krimbleton'
+    );
+  });
+
+  it('detects an unknown name after a mid-sentence German handoff verb + "an"', () => {
+    expect(personsFull('Der Vorgang wurde übergeben an Vexbruck Hollvardsen heute.')).toContain(
+      'Vexbruck Hollvardsen'
+    );
+  });
+
+  it('covers the common German handoff verbs (closed set)', () => {
+    const name = 'Qwesterveldt Brakkenzoon';
+    for (const verb of [
+      'eskaliert',
+      'weitergeleitet',
+      'weitergegeben',
+      'übergeben',
+      'zugewiesen',
+      'umgeleitet',
+      'weitergereicht',
+      'delegiert',
+      'verwiesen',
+      'überwiesen',
+    ]) {
+      expect(personsFull(`Der Vorgang wurde ${verb} an ${name}.`)).toContain(name);
+    }
+  });
+
+  it('does not fire on German structural-noun chains (precision guard)', () => {
+    expect(personsFull('Weitergeleitet an Kundenservice Team heute.')).toHaveLength(0);
+    expect(personsFull('Eskaliert an Buchhaltung Zentrale morgen.')).toHaveLength(0);
+  });
+
+  it('does not fire on cross-language verb/connector mixes', () => {
+    // The pairing is load-bearing: an English handoff verb with the German "an"
+    // (here the English article) is not a frame, and a German verb with "to" is
+    // not a frame either. Both targets are held-out two-token candidates that
+    // WOULD chain if the frame matched — so a non-detection proves the gate.
+    expect(personsFull('Delegated an Qwesterveldt Brakkenzoon today.')).toHaveLength(0);
+    expect(personsFull('Eskaliert to Vexbruck Hollvardsen now.')).toHaveLength(0);
+  });
+
+  it('does not fire on a single token after the German cue', () => {
+    expect(personsFull('Eskaliert an Berlin gestern.')).toHaveLength(0);
+  });
+});
+
+describe('role-noun apposition — German ("<Rolle> <Name>")', () => {
+  // German role nouns are capitalized common nouns; the lookup lowercases, so the
+  // existing one-token role-cue path generalizes to "Kundin <Name>" the same way
+  // it does to "Account holder <Name>". Names held out against the full dictionary.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects an unknown full name after a German role noun', () => {
+    expect(personsFull('Kundin Qwesterveldt Brakkenzoon hat bezahlt.')).toContain(
+      'Qwesterveldt Brakkenzoon'
+    );
+    expect(personsFull('Sachbearbeiter Wlodimar Krimbleton prüft den Fall.')).toContain(
+      'Wlodimar Krimbleton'
+    );
+  });
+
+  it('does not promote a structural-noun phrase after a German role noun', () => {
+    // NON_NAME_WORDS (DE) blocks the chain just as it does on the English path.
+    expect(personsFull('Kunde Konto Nummer wurde geändert.')).toHaveLength(0);
+    expect(personsFull('Mandant Rechnung Vorgang ist offen.')).toHaveLength(0);
+  });
+});
+
 describe('multi-particle name chains (de la, van der, von der, van den)', () => {
   // Verified against the FULL committed dictionary (core + ingested ext), so the
   // names below are genuinely held out — detection rides on the particle-run
