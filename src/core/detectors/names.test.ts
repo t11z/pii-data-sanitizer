@@ -129,6 +129,100 @@ describe('context-based detection (generalizes beyond the DB)', () => {
   });
 });
 
+describe('handoff-verb frame ("<verb> to <Name>")', () => {
+  // The cue ("Escalated to ...", "forwarded to ...", "Assigned to ...") sits TWO
+  // tokens before the name, beyond the existing one-token role-noun lookback.
+  // Verified against the FULL committed dictionary so the names below are
+  // genuinely held out — detection rides on the handoff-frame heuristic, never
+  // on dictionary membership.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects an unknown name after a sentence-initial handoff verb + "to"', () => {
+    expect(personsFull('Escalated to Göran Andström for review.')).toContain('Göran Andström');
+    expect(personsFull('Forwarded to Qwesterveldt Brakkenzoon yesterday.')).toContain(
+      'Qwesterveldt Brakkenzoon'
+    );
+  });
+
+  it('detects an unknown name after a mid-sentence handoff verb + "to"', () => {
+    expect(personsFull('Ticket was referred to Wlodimar Krimbleton today.')).toContain(
+      'Wlodimar Krimbleton'
+    );
+    expect(personsFull('The case was assigned to Vexbruck Hollvardsen last week.')).toContain(
+      'Vexbruck Hollvardsen'
+    );
+  });
+
+  it('covers the common past-tense handoff verbs (closed set)', () => {
+    // One representative case per verb, all using the same held-out name pair so
+    // the test isolates the verb-trigger from name-specific quirks.
+    const name = 'Qwesterveldt Brakkenzoon';
+    for (const verb of [
+      'escalated',
+      'forwarded',
+      'routed',
+      'transferred',
+      'reassigned',
+      'redirected',
+      'assigned',
+      'referred',
+      'handed',
+      'delegated',
+    ]) {
+      expect(personsFull(`The case was ${verb} to ${name} for review.`)).toContain(name);
+    }
+  });
+
+  it('does not fire on structural-noun chains (precision guard)', () => {
+    // The role-cue scoring (parts >= 2 + NON_NAME_WORDS guard) carries over: a
+    // structural-noun chain after the handoff cue must not become a person.
+    expect(personsFull('Escalated to Customer Service Team for review.')).toHaveLength(0);
+    expect(personsFull('Forwarded to Compliance Department this morning.')).toHaveLength(0);
+    expect(personsFull('Routed to Service Desk overnight.')).toHaveLength(0);
+  });
+
+  it('does not fire on a single token after the handoff cue', () => {
+    // parts === 1 + roleBefore alone never clears the threshold; a lone
+    // capitalized word after "to" (a city, a weekday, a label) must not promote.
+    expect(personsFull('Escalated to Berlin overnight.')).toHaveLength(0);
+    expect(personsFull('Assigned to Friday.')).toHaveLength(0);
+  });
+
+  it('does not fire on imperative/structural verb frames (closed set guard)', () => {
+    // The cue is a closed set of past-tense handoff verbs, not a general
+    // "verb + to" rule, so unrelated frames must remain untouched. Each
+    // negative below proves the verb itself is the gate: the same target
+    // ("Default Settings", "Admin Console") would chain under a handoff verb
+    // if "Reset" / "Login" leaked into the cue set.
+    expect(personsFull('Reset to Default Settings completed.')).toHaveLength(0);
+    expect(personsFull('Login to Admin Console required.')).toHaveLength(0);
+  });
+
+  it('proves the handoff-frame names are held out (absent from the full DB)', () => {
+    // The fix is the two-token handoff lookback, not memorization: if any of
+    // these land in the DB later, the cases above stop proving generalization —
+    // re-point them at fresh held-outs.
+    const heldOut = [
+      'göran',
+      'andström',
+      'qwesterveldt',
+      'brakkenzoon',
+      'wlodimar',
+      'krimbleton',
+      'vexbruck',
+      'hollvardsen',
+    ];
+    for (const word of heldOut) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+});
+
 describe('multi-particle name chains (de la, van der, von der, van den)', () => {
   // Verified against the FULL committed dictionary (core + ingested ext), so the
   // names below are genuinely held out — detection rides on the particle-run
@@ -209,12 +303,8 @@ describe('title/role-anchored particle start (no leading given name)', () => {
   });
 
   it('starts a held-out surname on a particle after a role cue', () => {
-    expect(personsFull('Engineer de Hollvardsen reviewed the ticket.')).toContain(
-      'de Hollvardsen'
-    );
-    expect(personsFull('Account holder van Krimbleton was notified.')).toContain(
-      'van Krimbleton'
-    );
+    expect(personsFull('Engineer de Hollvardsen reviewed the ticket.')).toContain('de Hollvardsen');
+    expect(personsFull('Account holder van Krimbleton was notified.')).toContain('van Krimbleton');
   });
 
   it('proves the surnames are held out (absent from the full DB)', () => {

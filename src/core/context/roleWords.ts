@@ -150,6 +150,29 @@ export const NON_NAME_WORDS = new Set<string>([
  */
 export const ROLE_ABBREVIATIONS = new Set<string>(['eng']);
 
+/**
+ * Past-tense ticket-routing verbs that take a person as their object via "to":
+ * "Escalated to Göran Andström", "forwarded to Rajesh Iyer", "Assigned to Anna
+ * Kowalski-Piotrowska". They are recognized as a *two-token* role cue (verb +
+ * "to") in nameStart, so the candidate name two tokens after the verb gets the
+ * same roleBefore boost as the noun cues above. Closed past-tense set on purpose
+ * — a general "verb + to" rule would mis-fire on imperative/structural frames
+ * like "Reset to Default Settings" or "Login to Admin Console". Stored
+ * lowercased.
+ */
+export const HANDOFF_VERBS = new Set<string>([
+  'escalated',
+  'forwarded',
+  'routed',
+  'transferred',
+  'reassigned',
+  'redirected',
+  'assigned',
+  'referred',
+  'handed',
+  'delegated',
+]);
+
 export function isRoleWord(token: string): boolean {
   const l = token.toLowerCase();
   return ROLE_WORDS.has(l) || ROLE_ABBREVIATIONS.has(l);
@@ -161,4 +184,8 @@ export function isRoleAbbreviation(token: string): boolean {
 
 export function isNonNameWord(token: string): boolean {
   return NON_NAME_WORDS.has(token.toLowerCase());
+}
+
+export function isHandoffVerb(token: string): boolean {
+  return HANDOFF_VERBS.has(token.toLowerCase());
 }
