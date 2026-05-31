@@ -129,6 +129,57 @@ describe('context-based detection (generalizes beyond the DB)', () => {
   });
 });
 
+describe('Spanish plural particle chains ("de los", "de las")', () => {
+  // The Spanish multi-word given names "<First> de los <Surname>" and
+  // "<First> de las <Surname>" — e.g. "Maria de los Angeles", "Jorge de las
+  // Mercedes" — were truncating because "los" and "las" were missing from the
+  // PARTICLES set. The chain extended through "de" but then died on the
+  // unrecognized plural article. Adding both tokens lets the run-of-particles
+  // extension cross the connector for held-out names that are NOT in the DB,
+  // proving the fix is a heuristic — not a dictionary addition.
+  it('chains "de los" across a held-out compound name', () => {
+    expect(persons('Mrs. Aurelienne de los Zwingenberger called yesterday.')).toContain(
+      'Aurelienne de los Zwingenberger'
+    );
+  });
+
+  it('chains "de las" across a held-out compound name', () => {
+    expect(persons('Engineer Marquezino de las Fitzgerlandsen approved the refund.')).toContain(
+      'Marquezino de las Fitzgerlandsen'
+    );
+  });
+
+  it('does not turn "de los"/"de las" + structural noun into a person', () => {
+    // Mirrors the existing "van der Department" / "de la Invoice" precision
+    // guard: the structural-noun (`isNonNameWord`) block in the chain-extension
+    // path must still trip across the new plural connectors.
+    expect(persons('Account holder Tomasz de los Department closed early.')).not.toContain(
+      'Tomasz de los Department'
+    );
+    expect(persons('Customer Maria de las Invoice was reviewed.')).not.toContain(
+      'Maria de las Invoice'
+    );
+  });
+
+  it('proves the Spanish-particle held-out names are absent from the full DB', () => {
+    // Uses the FULL committed dictionary (curated `core` + ingested `ext`) so a
+    // future bulk-ingest that adds any of these tokens trips the check and
+    // forces a fresh held-out pair — otherwise the detection cases above stop
+    // proving the heuristic and start riding the dictionary.
+    const fullSource = nameSourceFromBuildInputs();
+    const heldOut: Array<[string, 'Latin']> = [
+      ['aurelienne', 'Latin'],
+      ['zwingenberger', 'Latin'],
+      ['marquezino', 'Latin'],
+      ['fitzgerlandsen', 'Latin'],
+    ];
+    for (const [word, script] of heldOut) {
+      expect(fullSource.hasGiven(word, script), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, script), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+});
+
 describe('handoff-verb frame ("<verb> to <Name>")', () => {
   // The cue ("Escalated to ...", "forwarded to ...", "Assigned to ...") sits TWO
   // tokens before the name, beyond the existing one-token role-noun lookback.
