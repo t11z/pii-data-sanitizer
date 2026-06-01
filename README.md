@@ -103,9 +103,9 @@ ollama pull llama3.2      # pull any model you like
 
 Latin-script European, plus transliterated **Indian, Arabic, Hebrew, Persian**
 and transcribed **Chinese (Pinyin)** and **Japanese (Romaji)** names, plus a
-native-script path for Arabic / Hebrew / Devanagari. Native CJK (no word
-boundaries) is intentionally out of scope for v1. Coverage grows continuously
-via the self-improvement loop. 🗺️
+native-script path for Arabic / Hebrew / Devanagari / Bengali / Tamil / Hangul.
+Native CJK (no word boundaries) is intentionally out of scope for v1. Coverage
+grows continuously via the self-improvement loop. 🗺️
 
 ## 🚀 Quickstart
 
@@ -171,7 +171,7 @@ native scripts on demand) — see `src/app/worker/sanitizer.worker.ts`.
 
 ## 🤖 Self-improving
 
-The name database already covers **~187k names across 5 scripts**
+The name database already covers **~201k names across 7 scripts**
 ([live snapshot](docs/metrics.md)) — and it grows on its own. A multi-layer loop
 runs Claude Code on a schedule, opening PRs that **expand** the dictionary,
 **refine** false positives/negatives, and **discover** coverage gaps then ship a
