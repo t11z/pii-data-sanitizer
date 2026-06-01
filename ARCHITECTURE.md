@@ -67,8 +67,8 @@ higher-confidence ID.
 **Name detection** (`src/core/detectors/names.ts`) is the sophisticated part:
 
 - A **script-aware tokenizer** (`src/core/tokenize.ts`) classifies each token as
-  Latin, Arabic, Hebrew, Devanagari, Han, or Hangul, strips possessive clitics, and
-  is hyphenation-aware.
+  Latin, Arabic, Hebrew, Devanagari, Bengali, Tamil, Han, or Hangul, strips
+  possessive clitics, and is hyphenation-aware.
 - Membership is tested against a **multilingual name database** of Bloom-filter packs
   (see below), with **diacritic folding for Latin only** (so "García" matches
   "garcia", while meaningful Arabic harakat / Hebrew niqqud are preserved).
@@ -115,7 +115,7 @@ fragments — the email span outranks them.
 ## The name database (`src/core/db/`)
 
 Names are stored as **Bloom filters** (`bloom.ts`) — `Uint8Array` bit arrays with
-FNV-1a hashing, sized for a 1e-4 false-positive rate. This keeps ~187k names compact
+FNV-1a hashing, sized for a 1e-4 false-positive rate. This keeps ~201k names compact
 and read-only; probabilistic false positives are harmless because the confidence
 scorer still has to clear the threshold.
 

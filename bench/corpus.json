@@ -575,5 +575,21 @@
   {
     "text": "Delegated an Urgent Ticket today.",
     "entities": []
+  },
+  {
+    "text": "অমৃতা ফারুক আজ অফিসে আসেননি।",
+    "entities": [{ "type": "PERSON", "text": "অমৃতা ফারুক" }]
+  },
+  {
+    "text": "নাসরিন আসিফ এর সাথে যোগাযোগ করা হয়েছে।",
+    "entities": [{ "type": "PERSON", "text": "নাসরিন আসিফ" }]
+  },
+  {
+    "text": "கவிதா மணி இன்று வரமாட்டார்கள்.",
+    "entities": [{ "type": "PERSON", "text": "கவிதா மணி" }]
+  },
+  {
+    "text": "விஜய் சங்கர் கோப்பை திருப்பித் தந்தார்.",
+    "entities": [{ "type": "PERSON", "text": "விஜய் சங்கர்" }]
   }
 ]
