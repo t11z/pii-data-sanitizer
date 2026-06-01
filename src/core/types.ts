@@ -23,7 +23,16 @@ export const ALL_PII_TYPES: PiiType[] = [
   'PERSON',
 ];
 
-export type Script = 'Latin' | 'Arabic' | 'Hebrew' | 'Devanagari' | 'Han' | 'Hangul' | 'Other';
+export type Script =
+  | 'Latin'
+  | 'Arabic'
+  | 'Hebrew'
+  | 'Devanagari'
+  | 'Han'
+  | 'Hangul'
+  | 'Bengali'
+  | 'Tamil'
+  | 'Other';
 
 export interface Token {
   text: string;

@@ -98,7 +98,9 @@ function isCaselessNameScript(token: Token): boolean {
     token.script === 'Arabic' ||
     token.script === 'Hebrew' ||
     token.script === 'Devanagari' ||
-    token.script === 'Hangul'
+    token.script === 'Hangul' ||
+    token.script === 'Bengali' ||
+    token.script === 'Tamil'
   );
 }
 

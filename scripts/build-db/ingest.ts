@@ -40,8 +40,17 @@ const ARABIC_LANGS = ['ar', 'fa', 'ur', 'ps', 'ckb', 'sd'];
 const HEBREW_LANGS = ['he', 'yi'];
 const DEVANAGARI_LANGS = ['hi', 'mr', 'ne', 'sa'];
 const HANGUL_LANGS = ['ko'];
+const BENGALI_LANGS = ['bn'];
+const TAMIL_LANGS = ['ta'];
 
-const NATIVE_LANGS = [...ARABIC_LANGS, ...HEBREW_LANGS, ...DEVANAGARI_LANGS, ...HANGUL_LANGS];
+const NATIVE_LANGS = [
+  ...ARABIC_LANGS,
+  ...HEBREW_LANGS,
+  ...DEVANAGARI_LANGS,
+  ...HANGUL_LANGS,
+  ...BENGALI_LANGS,
+  ...TAMIL_LANGS,
+];
 
 // Humans (Q5) by major Latin label language — fast, large romanized-name pool.
 const HUMAN_LATIN_LANGS = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl'];
@@ -78,6 +87,32 @@ const HUMAN_BY_COUNTRY: Array<[string, string]> = [
   ['wd:Q115', 'am'], ['wd:Q115', 'en'], // Ethiopia
   ['wd:Q954', 'sn'], ['wd:Q954', 'en'], // Zimbabwe
   ['wd:Q1041', 'wo'], ['wd:Q1041', 'fr'], ['wd:Q1041', 'en'], // Senegal
+  // Bengali: Bangladesh (native Bengali script) and Indian Bengali (West Bengal).
+  // Bengali is the 5th most spoken language by native speakers and was previously
+  // entirely uncovered — no Bengali-script names were in any pack.
+  ['wd:Q902', 'bn'], ['wd:Q902', 'en'], // Bangladesh
+  ['wd:Q668', 'bn'], // India (West Bengal, Bengali-speaking population)
+  // Tamil: major Dravidian language (80M+ speakers) with its own script.
+  ['wd:Q668', 'ta'], // India (Tamil Nadu)
+  ['wd:Q854', 'ta'], ['wd:Q854', 'en'], // Sri Lanka
+  // Hangul: North Korean people carry Korean names distinct from South Korean
+  // Wikidata coverage, filling out the Hangul pack's remaining 4 000+ slots.
+  ['wd:Q423', 'ko'], ['wd:Q423', 'en'], // North Korea
+  // Latin-script Africa: French/Portuguese-medium countries with large name pools
+  // that were absent from the Latin pack. Order matters — these run before the
+  // large European name-item sweep so they claim their cap slots.
+  ['wd:Q974', 'fr'], ['wd:Q974', 'sw'], // DR Congo (Lingala/Swahili population)
+  ['wd:Q1037', 'rw'], ['wd:Q1037', 'fr'], ['wd:Q1037', 'en'], // Rwanda
+  ['wd:Q1009', 'fr'], ['wd:Q1009', 'en'], // Cameroon
+  ['wd:Q916', 'pt'], ['wd:Q916', 'en'], // Angola
+  ['wd:Q1029', 'pt'], ['wd:Q1029', 'en'], // Mozambique
+  ['wd:Q1008', 'fr'], ['wd:Q1008', 'en'], // Côte d'Ivoire
+  ['wd:Q965', 'fr'], ['wd:Q965', 'en'], // Burkina Faso
+  ['wd:Q912', 'fr'], ['wd:Q912', 'en'], // Mali
+  ['wd:Q1045', 'so'], ['wd:Q1045', 'en'], // Somalia (Somali is Latin-script)
+  // Latin-script Asia: Philippines has 110M+ people whose names are Latin-script
+  // but were not present at all.
+  ['wd:Q928', 'tl'], ['wd:Q928', 'ceb'], ['wd:Q928', 'en'], // Philippines
 ];
 
 const GIVEN_CLASSES = ['wd:Q202444', 'wd:Q12308941', 'wd:Q11879590', 'wd:Q3409032'];
@@ -87,11 +122,13 @@ const FAMILY_CLASS = 'wd:Q101352';
 // other scripts because it also absorbs romanized Korean and ASCII-folded
 // Vietnamese/African variants generated at ingest time (see add()).
 const CAPS: Record<string, number> = {
-  Latin: 100000,
+  Latin: 150000,
   Arabic: 20000,
   Hebrew: 10000,
   Devanagari: 20000,
   Hangul: 15000,
+  Bengali: 20000,
+  Tamil: 20000,
 };
 
 // Romanized/ASCII-folded variants shorter than this are dropped: 2-letter
