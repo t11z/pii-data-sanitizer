@@ -46,6 +46,10 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: '/security-review'
+          # Self-improvement PRs are opened by claude[bot]; allow that bot so the
+          # action's anti-loop actor guard doesn't fail the check on exactly the
+          # automated PRs that most need a security review.
+          allowed_bots: 'claude'
 
   # Weekly (and on-demand) full-repository scan that opens a labeled issue on findings.
   full-scan:
