@@ -30,6 +30,12 @@ export const PARTICLES = new Set<string>([
   'le',
   'la',
   'les',
+  // Spanish plural definite articles inside "de los" / "de las" name chains
+  // ("Maria de los Angeles", "Pedro de los Santos", "Jorge de las Mercedes"). The
+  // singular forms ("el", "la") and the French plural ("les") are already here;
+  // the Spanish plurals were an asymmetric omission that truncated the chain.
+  'los',
+  'las',
   'y', // Spanish conjunction in compound surnames
   'e', // Portuguese conjunction in compound surnames
   // Arabic / Persian (transliterated)

@@ -168,6 +168,18 @@
     "entities": []
   },
   {
+    "text": "Mrs. Aurelienne de los Zwingenberger called yesterday.",
+    "entities": [{ "type": "PERSON", "text": "Aurelienne de los Zwingenberger" }]
+  },
+  {
+    "text": "Engineer Marquezino de las Fitzgerlandsen approved the refund.",
+    "entities": [{ "type": "PERSON", "text": "Marquezino de las Fitzgerlandsen" }]
+  },
+  {
+    "text": "Account holder Tomasz de los Department closed early.",
+    "entities": []
+  },
+  {
     "text": "Customer Service Team responded quickly.",
     "entities": []
   },
