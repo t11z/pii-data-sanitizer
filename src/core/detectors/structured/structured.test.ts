@@ -330,6 +330,26 @@ describe('phone detection', () => {
     expect(spans).toHaveLength(1);
     expect(spans[0].text).toBe('+39 02 1234 5678');
   });
+
+  it('does not flag a space-only ≥13-digit run (card-shaped)', () => {
+    // Held-out card-shaped groupings (not the gap's "3782 822463 1005") prove
+    // the guard is structural — pure digits + spaces, no '+' / parens / hyphen
+    // / dot / slash, ≥13 digits in the card domain (13–19) — and not a
+    // memorized string. All three are Luhn-invalid so the credit-card detector
+    // does not claim them; without this guard they would surface as PHONE.
+    expect(only('Token 1234 5678 9012 3 referenced.', 'PHONE')).toHaveLength(0); // 13d (4-4-4-1)
+    expect(only('PAN 3056 123456 7890 disputed.', 'PHONE')).toHaveLength(0); // 14d (4-6-4)
+    expect(only('Card on file: 3782 123456 78901 reviewed.', 'PHONE')).toHaveLength(0); // 15d (4-6-5)
+  });
+
+  it('keeps phone candidates with phone punctuation even at the digit ceiling', () => {
+    // The guard only fires when the run has *no* phone-shaped punctuation.
+    // A 13-digit run with '+' or '-' is still a plausible phone (long
+    // domestic-with-extension or country-code formats), so the guard must
+    // not strip it.
+    expect(only('Reach +1 800 555 1234 567 anytime.', 'PHONE')).toHaveLength(1); // 13d, has '+'
+    expect(only('Call 030-1234-567-8901 today.', 'PHONE')).toHaveLength(1); // 14d, has '-'
+  });
 });
 
 describe('credit card beats phone on overlap', () => {

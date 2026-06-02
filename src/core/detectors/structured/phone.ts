@@ -41,6 +41,15 @@ export function detectPhones(text: string): Span[] {
     // numbers/IDs are not swept up.
     const hasSignal = value.trimStart().startsWith('+') || /[().\-/ ]/.test(value);
     if (!hasSignal) continue;
+    // Reject card-shaped digit groupings. ISO/IEC 7812-1 PANs are 13–19 digits.
+    // A space-only digit run with ≥13 digits (e.g. AmEx 4-6-5 "3782 822463 10058",
+    // Diners 4-6-4 "3056 930902 5904", old Visa 4-4-4-1) is structurally a
+    // card-style identifier, not a phone. E.164 phones at this length always carry
+    // a '+' prefix; domestic phones do not reach 13 digits with space-only
+    // grouping. A Luhn-valid PAN is claimed by the credit-card detector and
+    // overlap-resolved away from PHONE, but a Luhn-invalid PAN (synthetic data,
+    // redacted-but-formatted card in a ticket) would otherwise leak through here.
+    if (digits.length >= 13 && !/[+()\-./]/.test(value)) continue;
     const start = match.index + (value.length - value.trimStart().length);
     const trimmed = value.trim();
     const end = start + trimmed.length;
