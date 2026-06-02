@@ -50,6 +50,17 @@ export interface MappingGroup {
   rows: MappingEntry[];
 }
 
+/**
+ * A group the user created by hand to organize the mapping. Purely a display
+ * concept — like auto-detected identities it groups distinct placeholders and
+ * never changes the sanitized output. Custom groups carry NEGATIVE ids so they
+ * can never collide with the core's positive auto-identity ids (resolve.ts).
+ */
+export interface CustomGroup {
+  id: number;
+  label: string;
+}
+
 export interface MappingView {
   /** Sanitized output text, recomputed without the disabled values. */
   text: string;
@@ -57,6 +68,10 @@ export interface MappingView {
   identities: Identity[];
   groups: MappingGroup[];
   ungrouped: MappingEntry[];
+  /** Every assignable target for the row dropdown: auto identities + custom groups. */
+  assignableGroups: { id: number; label: string }[];
+  /** Custom groups with no rows yet — the UI keeps them visible so they can be filled. */
+  emptyCustomGroupIds: number[];
   /** placeholder -> effective identity id (auto-grouping with overrides applied). */
   memberOf: Map<string, number>;
   /** Values flagged as false positives, kept as original in the output. */
@@ -70,6 +85,8 @@ export interface MappingView {
  * detected spans, applying the user's manual overrides:
  *  - `disabled`: values to keep as-is (not replaced) — false-positive correction.
  *  - `assignments`: manual group membership (id, or null for ungrouped).
+ *  - `customGroups`: user-created groups (negative ids) that rows can be assigned
+ *    to, alongside the auto-detected identities.
  *
  * With empty overrides this reproduces the worker's result exactly, since it runs
  * the same pure core functions (`linkNameParts`, `applySanitization`,
@@ -82,7 +99,8 @@ export function buildMappingView(
   mode: SanitizeMode,
   disabled: ReadonlySet<string>,
   assignments: Readonly<Record<string, number | null>>,
-  manual: readonly ManualEntry[] = []
+  manual: readonly ManualEntry[] = [],
+  customGroups: readonly CustomGroup[] = []
 ): MappingView {
   // Fold hand-added values into the detected spans before anything else, so they
   // flow through the exact same pipeline (folding, numbering, grouping). Their
@@ -107,10 +125,17 @@ export function buildMappingView(
     identities = grouped.identities;
   }
 
+  // Custom groups only make sense in pseudonymize mode (redact collapses every
+  // value of a type to one opaque token, so there are no per-value placeholders
+  // to organize). They survive in app state but stay inert in redact mode.
+  const custom = mode === 'pseudonymize' ? customGroups : [];
+
   // Effective group membership: start from auto-grouping, then apply overrides.
+  // Custom-group ids join `validId` so assignments onto them stick; an assignment
+  // to a now-deleted group is simply ignored, reverting the row to ungrouped.
   const memberOf = new Map<string, number>();
   for (const idn of identities) for (const ph of idn.placeholders) memberOf.set(ph, idn.id);
-  const validId = new Set(identities.map((i) => i.id));
+  const validId = new Set<number>([...identities.map((i) => i.id), ...custom.map((g) => g.id)]);
   for (const m of rows) {
     const ov = assignments[keyOf(m.type, m.original)];
     if (ov === undefined) continue;
@@ -118,14 +143,32 @@ export function buildMappingView(
     else if (validId.has(ov)) memberOf.set(m.placeholder, ov);
   }
 
-  const groups = identities
-    .map((idn) => ({
-      id: idn.id,
-      label: idn.label,
-      rows: rows.filter((m) => memberOf.get(m.placeholder) === idn.id),
-    }))
-    .filter((g) => g.rows.length > 0);
+  // Auto identities only show when non-empty; custom groups always show (even
+  // empty) so a freshly created group stays visible until the user fills or
+  // dissolves it.
+  const groups = [
+    ...identities
+      .map((idn) => ({
+        id: idn.id,
+        label: idn.label,
+        rows: rows.filter((m) => memberOf.get(m.placeholder) === idn.id),
+      }))
+      .filter((g) => g.rows.length > 0),
+    ...custom.map((g) => ({
+      id: g.id,
+      label: g.label,
+      rows: rows.filter((m) => memberOf.get(m.placeholder) === g.id),
+    })),
+  ];
   const ungrouped = rows.filter((m) => memberOf.get(m.placeholder) === undefined);
+
+  const assignableGroups = [
+    ...identities.map((i) => ({ id: i.id, label: i.label })),
+    ...custom.map((g) => ({ id: g.id, label: g.label })),
+  ];
+  const emptyCustomGroupIds = custom
+    .filter((g) => !rows.some((m) => memberOf.get(m.placeholder) === g.id))
+    .map((g) => g.id);
 
   // Removed (kept-as-original) values, deduplicated per key.
   const removedMap = new Map<string, RemovedRow>();
@@ -142,6 +185,8 @@ export function buildMappingView(
     identities,
     groups,
     ungrouped,
+    assignableGroups,
+    emptyCustomGroupIds,
     memberOf,
     removed: [...removedMap.values()],
     activeSpans,

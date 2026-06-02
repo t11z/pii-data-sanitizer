@@ -101,6 +101,88 @@ describe('buildMappingView', () => {
   });
 });
 
+describe('buildMappingView with custom groups', () => {
+  const CUSTOM = [{ id: -1, label: 'My group' }];
+
+  it('places an assigned row into the custom group and lists it as assignable', () => {
+    // Bob is auto-ungrouped; assign it into the user's custom group (id -1).
+    const v = buildMappingView(
+      TEXT,
+      SPANS,
+      'pseudonymize',
+      new Set(),
+      { [keyOf('PERSON', 'Bob')]: -1 },
+      [],
+      CUSTOM
+    );
+    const group = v.groups.find((g) => g.id === -1)!;
+    expect(group.rows.some((r) => r.original === 'Bob')).toBe(true);
+    expect(v.ungrouped.some((r) => r.original === 'Bob')).toBe(false);
+    expect(v.assignableGroups.some((g) => g.id === -1 && g.label === 'My group')).toBe(true);
+  });
+
+  it('ignores an assignment to a non-existent custom group id', () => {
+    // Assign to id -2, but only -1 exists — the row must fall back to ungrouped.
+    const v = buildMappingView(
+      TEXT,
+      SPANS,
+      'pseudonymize',
+      new Set(),
+      { [keyOf('PERSON', 'Bob')]: -2 },
+      [],
+      CUSTOM
+    );
+    expect(v.groups.some((g) => g.id === -2)).toBe(false);
+    expect(v.ungrouped.some((r) => r.original === 'Bob')).toBe(true);
+  });
+
+  it('reverts rows to ungrouped when the custom group is removed', () => {
+    // Same stale assignment (-1), but no custom group passed in this render.
+    const v = buildMappingView(
+      TEXT,
+      SPANS,
+      'pseudonymize',
+      new Set(),
+      { [keyOf('PERSON', 'Bob')]: -1 },
+      [],
+      []
+    );
+    expect(v.groups.some((g) => g.id === -1)).toBe(false);
+    expect(v.ungrouped.some((r) => r.original === 'Bob')).toBe(true);
+  });
+
+  it('keeps an empty custom group visible and reports it', () => {
+    const v = buildMappingView(TEXT, SPANS, 'pseudonymize', new Set(), {}, [], CUSTOM);
+    const group = v.groups.find((g) => g.id === -1);
+    expect(group?.rows).toEqual([]);
+    expect(v.emptyCustomGroupIds).toContain(-1);
+  });
+
+  it('ignores custom groups in redact mode', () => {
+    const v = buildMappingView(
+      TEXT,
+      SPANS,
+      'redact',
+      new Set(),
+      { [keyOf('PERSON', 'Bob')]: -1 },
+      [],
+      CUSTOM
+    );
+    expect(v.groups).toEqual([]);
+    expect(v.assignableGroups).toEqual([]);
+    expect(v.emptyCustomGroupIds).toEqual([]);
+  });
+
+  it('reproduces prior behavior when no custom groups are passed', () => {
+    const a = buildMappingView(TEXT, SPANS, 'pseudonymize', new Set(), {});
+    const b = buildMappingView(TEXT, SPANS, 'pseudonymize', new Set(), {}, [], []);
+    expect(b.text).toBe(a.text);
+    expect(b.groups).toEqual(a.groups);
+    expect(b.ungrouped).toEqual(a.ungrouped);
+    expect(b.emptyCustomGroupIds).toEqual([]);
+  });
+});
+
 describe('manualSpans', () => {
   it('matches every occurrence, case-insensitively, preserving the matched text', () => {
     const spans = manualSpans('Sing, then SING, then sing.', [{ type: 'PERSON', value: 'Sing' }]);
