@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
   import { runSanitize, onPackProgress, type SanitizeRun } from './sanitizerClient';
-  import { buildMappingView, keyOf, type ManualEntry } from './mappingView';
+  import { buildMappingView, keyOf, type CustomGroup, type ManualEntry } from './mappingView';
   import { extractText } from './readers';
   import { ALL_PII_TYPES } from '../core';
   import type { MappingEntry, PiiType, SanitizeMode } from '../core';
@@ -76,6 +76,10 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   let assignments = $state<Record<string, number | null>>({});
   // Hand-added values covering missed detections (false negatives): replaced everywhere.
   let manual = $state<ManualEntry[]>([]);
+  // User-created groups for organizing the mapping. Negative ids never collide
+  // with the core's positive auto-identity ids; the counter only grows per session.
+  let customGroups = $state<CustomGroup[]>([]);
+  let customGroupSeq = $state(0);
   let packs = $state<{
     loaded: number;
     total: number;
@@ -194,7 +198,15 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
 
   const view = $derived(
     run
-      ? buildMappingView(run.normalized, run.result.spans, mode, disabled, assignments, manual)
+      ? buildMappingView(
+          run.normalized,
+          run.result.spans,
+          mode,
+          disabled,
+          assignments,
+          manual,
+          customGroups
+        )
       : null
   );
 
@@ -228,11 +240,45 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   });
 
   const hasOverrides = $derived(
-    disabled.size > 0 || Object.keys(assignments).length > 0 || manual.length > 0
+    disabled.size > 0 ||
+      Object.keys(assignments).length > 0 ||
+      manual.length > 0 ||
+      customGroups.length > 0
   );
 
+  // Sentinel select value: "create a new group and drop this row into it".
+  const NEW_GROUP = '__new__';
+
   function assignRow(type: PiiType, original: string, value: string) {
+    if (value === NEW_GROUP) {
+      createCustomGroup(type, original);
+      return;
+    }
     assignments = { ...assignments, [keyOf(type, original)]: value === '' ? null : Number(value) };
+  }
+
+  // Creates an empty custom group and, if given, assigns the triggering row to it.
+  function createCustomGroup(type?: PiiType, original?: string) {
+    const id = -(customGroupSeq + 1);
+    customGroupSeq += 1;
+    customGroups = [...customGroups, { id, label: `Group ${customGroupSeq}` }];
+    if (type && original) {
+      assignments = { ...assignments, [keyOf(type, original)]: id };
+    }
+  }
+
+  function renameCustomGroup(id: number, label: string) {
+    const name = label.trim() || `Group ${Math.abs(id)}`;
+    customGroups = customGroups.map((g) => (g.id === id ? { ...g, label: name } : g));
+  }
+
+  // Dissolves a custom group: drop it and prune its assignments so the rows fall
+  // back to ungrouped (and a later Reset has nothing stale to clear).
+  function deleteCustomGroup(id: number) {
+    customGroups = customGroups.filter((g) => g.id !== id);
+    const next = { ...assignments };
+    for (const [k, v] of Object.entries(next)) if (v === id) delete next[k];
+    assignments = next;
   }
 
   function toggleDisabled(type: PiiType, original: string, off: boolean) {
@@ -260,6 +306,8 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     assignments = {};
     disabled = new Set();
     manual = [];
+    customGroups = [];
+    customGroupSeq = 0;
   }
 
   // --- Select-to-redact: a floating chip anchored to a text selection in the preview.
@@ -535,7 +583,7 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   </section>
 
   {#snippet rowsTable(rows: MappingEntry[])}
-    {@const showGroup = (view?.identities.length ?? 0) > 0}
+    {@const showGroup = mode === 'pseudonymize'}
     <table>
       <thead>
         <tr>
@@ -560,18 +608,18 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
               <td>
                 <select
                   class="group-select"
-                  aria-label="Assign {m.original} to an identity"
+                  aria-label="Assign {m.original} to a group"
                   onchange={(e) => assignRow(m.type, m.original, e.currentTarget.value)}
                 >
-                  {#each view.identities as idn (idn.id)}
-                    <option
-                      value={String(idn.id)}
-                      selected={view.memberOf.get(m.placeholder) === idn.id}>{idn.label}</option
+                  {#each view.assignableGroups as g (g.id)}
+                    <option value={String(g.id)} selected={view.memberOf.get(m.placeholder) === g.id}
+                      >{g.label}</option
                     >
                   {/each}
                   <option value="" selected={view.memberOf.get(m.placeholder) === undefined}
                     >— Ungrouped —</option
                   >
+                  <option value={NEW_GROUP}>＋ New group…</option>
                 </select>
               </td>
             {/if}
@@ -627,9 +675,35 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
         </select>
         <button type="submit" disabled={!manualValue.trim()}>+ Add</button>
       </form>
+      {#if mode === 'pseudonymize'}
+        <button class="link new-group" onclick={() => createCustomGroup()} title="Create a new group"
+          >＋ New group</button
+        >
+      {/if}
       {#each view.groups as g (g.id)}
-        <h3 class="identity">🧩 {g.label}</h3>
-        {@render rowsTable(g.rows)}
+        {#if g.id < 0}
+          <h3 class="identity custom">
+            <span aria-hidden="true">🧩</span>
+            <input
+              class="group-rename"
+              value={g.label}
+              aria-label="Rename group"
+              onchange={(e) => renameCustomGroup(g.id, e.currentTarget.value)}
+            />
+            <button
+              class="link"
+              title="Dissolve group — its items return to Ungrouped"
+              onclick={() => deleteCustomGroup(g.id)}>🗑 Dissolve</button
+            >
+          </h3>
+        {:else}
+          <h3 class="identity">🧩 {g.label}</h3>
+        {/if}
+        {#if g.rows.length > 0}
+          {@render rowsTable(g.rows)}
+        {:else}
+          <p class="group-empty">No items yet — assign some with the group dropdown.</p>
+        {/if}
       {/each}
       {#if view.ungrouped.length > 0}
         {#if view.groups.length > 0}<h3 class="identity">Other</h3>{/if}
@@ -1039,6 +1113,31 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   }
   h3.identity:first-of-type {
     margin-top: 0.3rem;
+  }
+  h3.identity.custom {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .group-rename {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.9rem;
+    max-width: 14rem;
+  }
+  button.link.new-group {
+    display: block;
+    margin: 0.6rem 0 0;
+    padding-left: 0;
+  }
+  .group-empty {
+    margin: 0.2rem 0 0.6rem;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-style: italic;
   }
   footer {
     margin-top: 2rem;
