@@ -591,5 +591,17 @@
   {
     "text": "விஜய் சங்கர் கோப்பை திருப்பித் தந்தார்.",
     "entities": [{ "type": "PERSON", "text": "விஜய் சங்கர்" }]
+  },
+  {
+    "text": "Card on file: 3782 822463 1005 (expires 07/26). Call +91 98765 43210.",
+    "entities": [{ "type": "PHONE", "text": "+91 98765 43210" }]
+  },
+  {
+    "text": "Token 1234 5678 9012 3 referenced; emergency line +44 20 7946 0958.",
+    "entities": [{ "type": "PHONE", "text": "+44 20 7946 0958" }]
+  },
+  {
+    "text": "Disputed card grouping 3056 123456 7890 logged; call back on 089 5550-1234.",
+    "entities": [{ "type": "PHONE", "text": "089 5550-1234" }]
   }
 ]
