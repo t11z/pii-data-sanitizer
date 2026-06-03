@@ -59,6 +59,16 @@ export function detectNationalIds(text: string): Span[] {
 
   for (const m of text.matchAll(SSN_RE)) {
     if (!isValidSsn(m[1], m[2], m[3])) continue;
+    // \b only requires a non-word boundary, but '+' and '-' are non-word chars,
+    // so a 3-2-4 chunk inside a longer dashed/+-prefixed digit run (e.g. the
+    // "351-21-1234" inside "+351-21-1234-567") passes the SSN regex even though
+    // it is a slice of an international phone number, not an SSN. Reject when
+    // the candidate is adjacent to a '+' or '-' on either side — a real SSN is
+    // a standalone 3-2-4 token, never a substring of a longer structured run.
+    const before = m.index === 0 ? '' : text[m.index - 1];
+    const after = m.index + m[0].length < text.length ? text[m.index + m[0].length] : '';
+    if (before === '+' || before === '-') continue;
+    if (after === '-') continue;
     spans.push({
       start: m.index,
       end: m.index + m[0].length,
