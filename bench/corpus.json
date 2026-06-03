@@ -603,5 +603,17 @@
   {
     "text": "Disputed card grouping 3056 123456 7890 logged; call back on 089 5550-1234.",
     "entities": [{ "type": "PHONE", "text": "089 5550-1234" }]
+  },
+  {
+    "text": "TAC #3847 phone connection +351-21-1234-567 logged.",
+    "entities": [{ "type": "PHONE", "text": "+351-21-1234-567" }]
+  },
+  {
+    "text": "Escalation hotline +1-415-22-1234-789 reached.",
+    "entities": [{ "type": "PHONE", "text": "+1-415-22-1234-789" }]
+  },
+  {
+    "text": "Ticket REF-234-56-7890-2026 attached to the case.",
+    "entities": []
   }
 ]

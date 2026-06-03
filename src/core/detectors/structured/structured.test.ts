@@ -399,6 +399,27 @@ describe('national id detection', () => {
     // Phone-like run: several digits repeat, so the "exactly one repeated" rule fails.
     expect(only('Call 49301234567 for support.', 'NATIONAL_ID')).toHaveLength(0);
   });
+
+  it('does not steal a 3-2-4 chunk from inside an international phone number', () => {
+    // Held-out PT phone: "+351-21-1234-567" contains the 3-2-4 dashed run
+    // "351-21-1234" which superficially matches the SSN regex. Because '+' is
+    // a non-word char, \b alone happily anchors there. The adjacency guard
+    // rejects the slice so PHONE wins on overlap and no spurious NATIONAL_ID
+    // remains. The same logic generalises to any "+CC-..." phone whose
+    // grouping happens to expose a 3-2-4 substring.
+    const text = 'TAC #3847: Phone connection +351-21-1234-567 logged.';
+    expect(only(text, 'NATIONAL_ID')).toHaveLength(0);
+    const phones = only(text, 'PHONE');
+    expect(phones).toHaveLength(1);
+    expect(phones[0].text).toBe('+351-21-1234-567');
+  });
+
+  it('does not flag a 3-2-4 chunk inside a longer dashed identifier', () => {
+    // Held-out alphanumeric reference: dashes continue past the 3-2-4 run on
+    // both sides, so the candidate is a slice of a structured ID, not an SSN.
+    expect(only('Ticket REF-234-56-7890-2026 attached.', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('Order 234-56-7890-X is queued.', 'NATIONAL_ID')).toHaveLength(0);
+  });
 });
 
 describe('passport detection (cue-gated)', () => {
