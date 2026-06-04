@@ -183,6 +183,102 @@ describe('buildMappingView with custom groups', () => {
   });
 });
 
+describe('buildMappingView merges same-type placeholders sharing a group', () => {
+  // Held-out names (not the issue's Klaus/Hartmann) so this proves the rule
+  // generalizes: two standalone PERSON detections the user groups by hand.
+  const TXT = 'Greta met Lindqvist today.';
+  const PEOPLE: Span[] = [span('PERSON', 'Greta', 0), span('PERSON', 'Lindqvist', 10)];
+
+  it('folds two grouped same-type names onto one placeholder in the output', () => {
+    // Without grouping they are two distinct people.
+    const base = buildMappingView(TXT, PEOPLE, 'pseudonymize', new Set(), {});
+    expect(base.text).toBe('[PERSON_1] met [PERSON_2] today.');
+
+    // Put both into one custom group → the output must speak with one voice.
+    const v = buildMappingView(
+      TXT,
+      PEOPLE,
+      'pseudonymize',
+      new Set(),
+      { [keyOf('PERSON', 'Greta')]: -1, [keyOf('PERSON', 'Lindqvist')]: -1 },
+      [],
+      [{ id: -1, label: 'Person A' }]
+    );
+    expect(v.text).toBe('[PERSON_1] met [PERSON_1] today.');
+    const group = v.groups.find((g) => g.id === -1)!;
+    expect(group.rows.map((r) => r.placeholder)).toEqual(['[PERSON_1]', '[PERSON_1]']);
+    // Both originals stay listed (each keeps its own row, mapping onto the one token).
+    expect(group.rows.map((r) => r.original)).toEqual(['Greta', 'Lindqvist']);
+    // The group dropdown reads membership off the (remapped) placeholder.
+    expect(v.memberOf.get('[PERSON_1]')).toBe(-1);
+  });
+
+  it('keeps different types distinct even when grouped together', () => {
+    // Alice (PERSON) + alice@x.com (EMAIL) forced into one custom group: one
+    // identity, but a name and an email are different kinds of value.
+    const v = buildMappingView(
+      TEXT,
+      SPANS,
+      'pseudonymize',
+      new Set(),
+      { [keyOf('PERSON', 'Alice')]: -1, [keyOf('EMAIL', 'alice@x.com')]: -1 },
+      [],
+      [{ id: -1, label: 'Alice' }]
+    );
+    expect(v.text).toBe('[PERSON_1] paid [PERSON_2]. [EMAIL_1] [PERSON_1] again.');
+  });
+
+  it('is a no-op when a group has only one member of a type', () => {
+    // A single person in a custom group has nothing to fold onto.
+    const v = buildMappingView(
+      TXT,
+      PEOPLE,
+      'pseudonymize',
+      new Set(),
+      {
+        [keyOf('PERSON', 'Greta')]: -1,
+      },
+      [],
+      [{ id: -1, label: 'Person A' }]
+    );
+    expect(v.text).toBe('[PERSON_1] met [PERSON_2] today.');
+  });
+
+  it('folds three grouped names onto the lowest-numbered placeholder', () => {
+    const txt = 'Greta met Lindqvist and Soren.';
+    const spans = [
+      span('PERSON', 'Greta', 0),
+      span('PERSON', 'Lindqvist', 10),
+      span('PERSON', 'Soren', 24),
+    ];
+    const v = buildMappingView(
+      txt,
+      spans,
+      'pseudonymize',
+      new Set(),
+      {
+        [keyOf('PERSON', 'Greta')]: -1,
+        [keyOf('PERSON', 'Lindqvist')]: -1,
+        [keyOf('PERSON', 'Soren')]: -1,
+      },
+      [],
+      [{ id: -1, label: 'Person A' }]
+    );
+    expect(v.text).toBe('[PERSON_1] met [PERSON_1] and [PERSON_1].');
+  });
+
+  it('merges a second person folded into an auto-identity', () => {
+    // Assigning standalone Bob into Alice's auto-identity makes them one person,
+    // so the output uses Alice's placeholder for Bob too (all groups, not just custom).
+    const base = buildMappingView(TEXT, SPANS, 'pseudonymize', new Set(), {});
+    const alice = base.identities.find((i) => i.label === 'Alice')!;
+    const v = buildMappingView(TEXT, SPANS, 'pseudonymize', new Set(), {
+      [keyOf('PERSON', 'Bob')]: alice.id,
+    });
+    expect(v.text).toBe('[PERSON_1] paid [PERSON_1]. [EMAIL_1] [PERSON_1] again.');
+  });
+});
+
 describe('manualSpans', () => {
   it('matches every occurrence, case-insensitively, preserving the matched text', () => {
     const spans = manualSpans('Sing, then SING, then sing.', [{ type: 'PERSON', value: 'Sing' }]);
@@ -213,7 +309,9 @@ describe('buildMappingView with manual entries', () => {
   const TXT = 'Mara called Mara about the order.';
 
   it('redacts every occurrence of a hand-added value', () => {
-    const v = buildMappingView(TXT, [], 'redact', new Set(), {}, [{ type: 'PERSON', value: 'Mara' }]);
+    const v = buildMappingView(TXT, [], 'redact', new Set(), {}, [
+      { type: 'PERSON', value: 'Mara' },
+    ]);
     expect(v.text).toBe('[PERSON] called [PERSON] about the order.');
     expect(v.rows).toHaveLength(1);
     expect(v.rows[0]).toMatchObject({ original: 'Mara', type: 'PERSON' });
@@ -245,7 +343,9 @@ describe('buildMappingView with manual entries', () => {
     const weak: Span[] = [
       { type: 'PERSON', text: 'Mara', start: 0, end: 4, confidence: 0.4, source: 'names' },
     ];
-    const v = buildMappingView(TXT, weak, 'redact', new Set(), {}, [{ type: 'PERSON', value: 'Mara' }]);
+    const v = buildMappingView(TXT, weak, 'redact', new Set(), {}, [
+      { type: 'PERSON', value: 'Mara' },
+    ]);
     expect(v.text).toBe('[PERSON] called [PERSON] about the order.');
   });
 });
