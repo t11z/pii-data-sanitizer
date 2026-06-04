@@ -1,4 +1,10 @@
-import { applySanitization, linkNameParts, normalize, resolveIdentities, resolveOverlaps } from '../core';
+import {
+  applySanitization,
+  linkNameParts,
+  normalize,
+  resolveIdentities,
+  resolveOverlaps,
+} from '../core';
 import type { Identity, MappingEntry, PiiType, SanitizeMode, Span } from '../core';
 
 /** Stable per-value key — matches the placeholder/identity keying in the core. */
@@ -51,10 +57,13 @@ export interface MappingGroup {
 }
 
 /**
- * A group the user created by hand to organize the mapping. Purely a display
- * concept — like auto-detected identities it groups distinct placeholders and
- * never changes the sanitized output. Custom groups carry NEGATIVE ids so they
- * can never collide with the core's positive auto-identity ids (resolve.ts).
+ * A group the user created by hand to organize the mapping. Like auto-detected
+ * identities it links placeholders; placeholders of *different* types stay
+ * distinct in the output (a person's name and email are one identity but two
+ * kinds of value), but two or more of the *same* type in one group fold onto a
+ * single placeholder (see `buildPlaceholderRemap`) — the user declaring them one
+ * identity. Custom groups carry NEGATIVE ids so they can never collide with the
+ * core's positive auto-identity ids (resolve.ts).
  */
 export interface CustomGroup {
   id: number;
@@ -62,7 +71,11 @@ export interface CustomGroup {
 }
 
 export interface MappingView {
-  /** Sanitized output text, recomputed without the disabled values. */
+  /**
+   * Sanitized output text, recomputed without the disabled values and with
+   * same-type placeholders that share a group folded onto one (see
+   * `buildPlaceholderRemap`).
+   */
   text: string;
   rows: MappingEntry[];
   identities: Identity[];
@@ -78,6 +91,40 @@ export interface MappingView {
   removed: RemovedRow[];
   /** Spans that are still replaced (disabled values filtered out). */
   activeSpans: Span[];
+}
+
+/**
+ * When a group (auto identity or hand-made) holds two or more placeholders of
+ * the SAME type, that's a declaration they're one identity, so the *output* must
+ * speak with one voice: every same-type placeholder in the group folds onto the
+ * group's first (lowest-numbered) one. Different types stay distinct — `[PERSON_1]`
+ * and `[EMAIL_1]` of one person are never merged. Returns oldPlaceholder ->
+ * canonicalPlaceholder; empty when no group has a same-type duplicate (the common
+ * case), which leaves the output untouched. Rows carry unique placeholders (one
+ * row per value), so "first seen" tracks the lowest counter.
+ */
+function buildPlaceholderRemap(
+  rows: readonly MappingEntry[],
+  memberOf: ReadonlyMap<string, number>
+): Map<string, string> {
+  const head = new Map<string, string>(); // `${groupId}:${type}` -> canonical placeholder
+  const remap = new Map<string, string>();
+  for (const m of rows) {
+    const group = memberOf.get(m.placeholder);
+    if (group === undefined) continue;
+    const key = `${group}:${m.type}`;
+    const canonical = head.get(key);
+    if (canonical === undefined) head.set(key, m.placeholder);
+    else if (canonical !== m.placeholder) remap.set(m.placeholder, canonical);
+  }
+  return remap;
+}
+
+/** Replaces whole placeholder tokens; the `[...]` brackets make each match unambiguous. */
+function applyPlaceholderRemap(text: string, remap: ReadonlyMap<string, string>): string {
+  let out = text;
+  for (const [from, to] of remap) out = out.split(from).join(to);
+  return out;
 }
 
 /**
@@ -116,6 +163,7 @@ export function buildMappingView(
   // `disabled` filter so a kept-as-original full name correctly stops folding.
   const personLinks = mode === 'pseudonymize' ? linkNameParts(activeSpans) : new Map();
   const { text, mapping } = applySanitization(normalized, activeSpans, mode, personLinks);
+  let outText = text;
 
   let rows: MappingEntry[] = mapping;
   let identities: Identity[] = [];
@@ -141,6 +189,27 @@ export function buildMappingView(
     if (ov === undefined) continue;
     if (ov === null) memberOf.delete(m.placeholder);
     else if (validId.has(ov)) memberOf.set(m.placeholder, ov);
+  }
+
+  // Fold same-type placeholders that now share a group onto one, in the output
+  // text and every downstream view (rows, identities, memberOf). No-op unless a
+  // group holds a same-type duplicate, so the all-distinct common case is unchanged.
+  const remap = buildPlaceholderRemap(rows, memberOf);
+  if (remap.size > 0) {
+    outText = applyPlaceholderRemap(outText, remap);
+    rows = rows.map((m) => {
+      const ph = remap.get(m.placeholder);
+      return ph ? { ...m, placeholder: ph } : m;
+    });
+    identities = identities.map((idn) => ({
+      ...idn,
+      placeholders: [...new Set(idn.placeholders.map((ph) => remap.get(ph) ?? ph))],
+    }));
+    // Re-key memberOf onto canonical placeholders; merged ones share a group, so
+    // each canonical maps to exactly one id.
+    const entries = [...memberOf].map(([ph, id]): [string, number] => [remap.get(ph) ?? ph, id]);
+    memberOf.clear();
+    for (const [ph, id] of entries) memberOf.set(ph, id);
   }
 
   // Auto identities only show when non-empty; custom groups always show (even
@@ -180,7 +249,7 @@ export function buildMappingView(
   }
 
   return {
-    text,
+    text: outText,
     rows,
     identities,
     groups,
