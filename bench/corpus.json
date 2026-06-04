@@ -509,6 +509,18 @@
     "entities": []
   },
   {
+    "text": "TAC followup: IBAN BR15 0000 0000 0000 0000 0000 0000 0000 0001 logged.",
+    "entities": []
+  },
+  {
+    "text": "Recon entry NL61 ABNA 0417 1643 0000 00 dropped from the import.",
+    "entities": []
+  },
+  {
+    "text": "Settlement reference ES91 2100 0418 4502 0005 1332 confirmed.",
+    "entities": [{ "type": "IBAN", "text": "ES91 2100 0418 4502 0005 1332" }]
+  },
+  {
     "text": "Backup card 5500 0000 0000 0004 stored on file.",
     "entities": [{ "type": "CREDIT_CARD", "text": "5500 0000 0000 0004" }]
   },
