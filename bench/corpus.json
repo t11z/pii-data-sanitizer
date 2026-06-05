@@ -627,5 +627,25 @@
   {
     "text": "Ticket REF-234-56-7890-2026 attached to the case.",
     "entities": []
+  },
+  {
+    "text": "Escalated the request to engineer Bjørn Helgø yesterday afternoon.",
+    "entities": [{ "type": "PERSON", "text": "Bjørn Helgø" }]
+  },
+  {
+    "text": "Account holder Anna Mały approved the wire transfer last week.",
+    "entities": [{ "type": "PERSON", "text": "Anna Mały" }]
+  },
+  {
+    "text": "Customer Heinrich Reuß reported the issue from the Berlin office.",
+    "entities": [{ "type": "PERSON", "text": "Heinrich Reuß" }]
+  },
+  {
+    "text": "Account holder Magnus Koziół approved the wire transfer.",
+    "entities": [{ "type": "PERSON", "text": "Magnus Koziół" }]
+  },
+  {
+    "text": "Bestilling: Pølse Festival fredag aften, billetter sendes via email.",
+    "entities": []
   }
 ]
