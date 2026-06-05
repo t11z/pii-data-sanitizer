@@ -530,6 +530,66 @@ describe('Latin diacritic folding (matches accented surface forms to folded entr
   });
 });
 
+describe('precomposed Latin folding (Nordic ø/æ, Polish ł, German ß, Icelandic ð/þ, Turkish ı)', () => {
+  // NFD already handles every letter+diacritic pair that decomposes (é, ñ, ü, å),
+  // but a handful of historic ligatures and stroked letters are atomic codepoints
+  // with no decomposition: ø, æ, œ, ß, ł, ð, þ, ı. Without an explicit fold the
+  // exact same Census/Wikidata names that already ship in ASCII form ("jorgensen",
+  // "lukasz", "reuss") are unreachable from real prose that writes them natively.
+  // Verified against the FULL committed dictionary so each surface form is
+  // genuinely absent — detection rides on the fold, not on dictionary membership.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects a Nordic ø-name as part of a chain (Bjørn Helgø)', () => {
+    expect(personsFull('We escalated the case to Engineer Bjørn Helgø last Tuesday.')).toContain(
+      'Bjørn Helgø'
+    );
+  });
+
+  it('detects a Polish ł-surname after a role cue (Anna Mały)', () => {
+    expect(personsFull('Engineer Anna Mały filed the report.')).toContain('Anna Mały');
+  });
+
+  it('detects a German ß-surname after a role cue (Heinrich Reuß)', () => {
+    expect(personsFull('Customer Heinrich Reuß reported the issue.')).toContain('Heinrich Reuß');
+  });
+
+  it('proves the detections are held out: the precomposed forms are absent from the full DB', () => {
+    // Folding is the lever, not dictionary membership. If a precomposed entry is
+    // added later under its native spelling, re-point these at fresh held-outs.
+    for (const word of ['bjørn', 'helgø', 'mały', 'reuß', 'sørensen', 'koziół']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('generalizes to any name: an unseen ø-spelling folds to a fixture core entry', () => {
+    // The fixture knows only the ASCII key "qwertson"; the precomposed surface
+    // form "Qwørtsøn" is never added (raw membership is false), yet folding
+    // recovers it. Same heuristic, independent of which names exist in production.
+    const fixture = new PackNameSource();
+    fixture.addWords(['qwertson'], { script: 'Latin', tier: 'core' }, 'latin-core');
+    expect(fixture.hasFamily('qwørtsøn', 'Latin')).toBe(false);
+    const found = detect('Please ask Dr. Qwørtsøn about it.', { nameSource: fixture })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+    expect(found).toContain('Qwørtsøn');
+  });
+
+  it('does not turn Nordic non-name vocabulary into people (precision guard)', () => {
+    // "Pølse" / "Tøj" / "Smør" fold to "polse" / "toj" / "smor", none of which
+    // are in the DB; their capitalized neighbours are structural or absent too,
+    // so no chain forms. Proves the fold is just a lookup mapping — the existing
+    // NON_NAME_WORDS / single-token / chain guards still gate detection.
+    expect(personsFull('Bestilling: Pølse Festival fredag aften.')).toHaveLength(0);
+    expect(personsFull('Tøj og Smør findes i butikken.')).toHaveLength(0);
+  });
+});
+
 describe('transcribed CJK names', () => {
   it('detects a Pinyin full name', () => {
     expect(persons('The award went to Zhang Wei this year.')).toContain('Zhang Wei');

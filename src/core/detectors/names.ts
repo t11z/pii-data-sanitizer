@@ -11,28 +11,27 @@ import {
 } from '../context/roleWords';
 import { isSentenceOpener } from '../context/sentenceOpeners';
 import { scoreName } from '../scoring';
+import { latinFold } from '../latinFold';
 
 function isCapitalized(token: string): boolean {
   const first = token[0];
   return !!first && first !== first.toLowerCase() && first === first.toUpperCase();
 }
 
-const COMBINING_MARKS = new RegExp('[\\u0300-\\u036f]', 'g');
-
 /**
- * Strips Latin diacritics so an accented surface form ("García", "María",
- * "López") matches the ASCII-folded dictionary entry. The Latin name lists are an
- * inconsistent mix — a few entries keep their marks ("jürgen"), most are folded
- * ("garcia", "lopez", "gonzalez") — so without this a perfectly in-pack name is
- * missed purely because it appears with its accents. Querying the folded form too
- * recovers the whole class of accented Latin names.
+ * ASCII-folds the surface form so an accented or precomposed-Latin spelling
+ * ("García", "Jørgensen", "Łukasz", "Reuß") matches the folded dictionary entry
+ * ("garcia", "jorgensen", "lukasz", "reuss") that the ingest sources already
+ * ship. The single rule is shared with the build-time `asciiFold` so what gets
+ * stored at build time is exactly what gets looked up at runtime — see
+ * `src/core/latinFold.ts` for the per-character rationale.
  *
  * Only used on the Latin path: combining marks in Arabic harakat, Hebrew niqqud
  * and Devanagari matras are lexically meaningful, so folding them would corrupt
  * native-script lookups (see callers, gated on script === 'Latin').
  */
 export function foldLatin(word: string): string {
-  return word.normalize('NFD').replace(COMBINING_MARKS, '');
+  return latinFold(word);
 }
 
 /** Membership for one already-lowercased word, with a Latin diacritic-fold fallback. */

@@ -146,17 +146,12 @@ export function romanizeHangul(input: string): string {
   return out.toLowerCase();
 }
 
-const COMBINING_MARKS = /[̀-ͯ]/g;
-
 /**
- * Strips diacritics to an ASCII-folded form: NFD-decompose, drop combining
- * marks, and map the Vietnamese đ (which does not decompose under NFD). Case is
- * preserved; callers lowercase as needed.
+ * Strips diacritics to an ASCII-folded form. The rule is shared with the runtime
+ * lookup (`src/core/detectors/names.ts` → `foldLatin`) so a name stored under
+ * its folded form here is found by the same fold there — see
+ * `src/core/latinFold.ts` for the per-character rationale (Nordic ø/æ, German
+ * ß, Polish ł, Icelandic ð/þ, Turkish ı, Vietnamese đ, …). Case is preserved;
+ * callers lowercase as needed.
  */
-export function asciiFold(input: string): string {
-  return input
-    .normalize('NFD')
-    .replace(COMBINING_MARKS, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D');
-}
+export { latinFold as asciiFold } from '../../src/core/latinFold';
