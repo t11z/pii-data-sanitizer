@@ -341,6 +341,173 @@ describe('handoff-verb frame — German ("<Verb> an <Name>")', () => {
   });
 });
 
+describe('source-noun frame ("<noun> from <Name>")', () => {
+  // The cue is a CLOSED set of origin-of-message nouns ("Complaint from …",
+  // "Email from …", "Letter from …") sitting two tokens before the name —
+  // parallel to the handoff-verb frame above but for the *source* of contact
+  // rather than its destination. Verified against the FULL committed
+  // dictionary so the names below are genuinely held out: detection rides on
+  // the source-frame heuristic, never on dictionary membership.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects an unknown name after a sentence-initial source noun + "from"', () => {
+    // The exact gap that motivated this heuristic (see issue: "Complaint from
+    // Sven Larsson"). "Sven" is absent from the full DB; the chain anchors on
+    // the source-frame cue, not on any one-token dictionary hit.
+    expect(personsFull('Complaint from Qwesterveldt Brakkenzoon regarding refund.')).toContain(
+      'Qwesterveldt Brakkenzoon'
+    );
+    expect(personsFull('Letter from Wlodimar Krimbleton arrived yesterday.')).toContain(
+      'Wlodimar Krimbleton'
+    );
+  });
+
+  it('detects an unknown name after a mid-sentence source noun + "from"', () => {
+    expect(personsFull('We received an inquiry from Vexbruck Hollvardsen this morning.')).toContain(
+      'Vexbruck Hollvardsen'
+    );
+    expect(personsFull('Logged a call from Göran Andström last night.')).toContain(
+      'Göran Andström'
+    );
+  });
+
+  it('covers the common English source nouns (closed set)', () => {
+    // One representative case per noun, all using the same held-out name pair
+    // so the test isolates the noun-trigger from name-specific quirks.
+    const name = 'Qwesterveldt Brakkenzoon';
+    for (const noun of [
+      'Complaint',
+      'Inquiry',
+      'Enquiry',
+      'Request',
+      'Message',
+      'Email',
+      'Mail',
+      'Letter',
+      'Note',
+      'Notes',
+      'Call',
+      'Report',
+      'Submission',
+      'Feedback',
+      'Response',
+      'Reply',
+      'Query',
+      'Update',
+      'Notice',
+      'Notification',
+    ]) {
+      expect(personsFull(`${noun} from ${name} arrived.`)).toContain(name);
+    }
+  });
+
+  it('does not fire on structural-noun chains (precision guard)', () => {
+    // NON_NAME_WORDS still breaks the chain after the source cue — same path
+    // that protects the handoff frame from "Customer Service Team" / "Service
+    // Desk" / "Compliance Department".
+    expect(personsFull('Notification from Customer Service Team this morning.')).toHaveLength(0);
+    expect(personsFull('Update from Finance Department overnight.')).toHaveLength(0);
+    expect(personsFull('Message from Support Desk follows.')).toHaveLength(0);
+  });
+
+  it('does not fire on a single token after the source cue', () => {
+    // parts === 1 + roleBefore alone never clears 0.5; a lone capitalized word
+    // after "from" (a city, a weekday) must not promote. The existing
+    // ext-only single-token penalty in scoreName is the gate.
+    expect(personsFull('Letter from London arrived yesterday.')).toHaveLength(0);
+    expect(personsFull('Email from Berlin overnight.')).toHaveLength(0);
+    expect(personsFull('Update from Friday follows.')).toHaveLength(0);
+  });
+
+  it('does not fire on imperative / unrelated noun frames (closed set guard)', () => {
+    // The cue is a closed set of origin-of-message nouns, not a general
+    // "noun + from" rule, so causal / spatial frames must remain untouched.
+    // Each negative below uses a held-out two-token candidate that WOULD chain
+    // if the noun leaked into the cue set — a non-detection proves the gate.
+    expect(personsFull('Distance from Qwesterveldt Brakkenzoon is large.')).toHaveLength(0);
+    expect(personsFull('Order from Wlodimar Krimbleton was cancelled.')).toHaveLength(0);
+    expect(personsFull('Result from Vexbruck Hollvardsen testing pending.')).toHaveLength(0);
+  });
+
+  it('proves the source-frame names are held out (absent from the full DB)', () => {
+    // The fix is the two-token source lookback, not memorization: if any of
+    // these land in the DB later, the cases above stop proving generalization —
+    // re-point them at fresh held-outs.
+    const heldOut = [
+      'qwesterveldt',
+      'brakkenzoon',
+      'wlodimar',
+      'krimbleton',
+      'vexbruck',
+      'hollvardsen',
+      'göran',
+      'andström',
+    ];
+    for (const word of heldOut) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+});
+
+describe('source-noun frame — German ("<Substantiv> von <Name>")', () => {
+  // German telegraphic style ("Beschwerde von …", "Bericht von …"). The
+  // connector is "von", paired ONLY with German source nouns — never the
+  // English "from" — mirroring the handoff frame's same-language rule.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects an unknown name after a German source noun + "von"', () => {
+    expect(personsFull('Beschwerde von Wlodimar Krimbleton heute eingegangen.')).toContain(
+      'Wlodimar Krimbleton'
+    );
+    expect(personsFull('Bericht von Qwesterveldt Brakkenzoon übermittelt.')).toContain(
+      'Qwesterveldt Brakkenzoon'
+    );
+  });
+
+  it('covers the common German source nouns (closed set)', () => {
+    const name = 'Qwesterveldt Brakkenzoon';
+    for (const noun of [
+      'Beschwerde',
+      'Anfrage',
+      'Nachricht',
+      'Email',
+      'Brief',
+      'Notiz',
+      'Anruf',
+      'Bericht',
+      'Rückmeldung',
+      'Antwort',
+      'Mitteilung',
+      'Meldung',
+      'Feedback',
+    ]) {
+      expect(personsFull(`${noun} von ${name} eingegangen.`)).toContain(name);
+    }
+  });
+
+  it('does not fire on cross-language noun/connector mixes', () => {
+    // The pairing is load-bearing: an English source noun with the German
+    // "von" (or vice versa) is not a frame. Both targets are held-out
+    // two-token candidates that WOULD chain if the frame matched — so a
+    // non-detection proves the gate.
+    expect(personsFull('Update von Qwesterveldt Brakkenzoon heute.')).toHaveLength(0);
+    expect(personsFull('Beschwerde from Vexbruck Hollvardsen now.')).toHaveLength(0);
+  });
+
+  it('does not fire on a single token after the German source cue', () => {
+    expect(personsFull('Beschwerde von Berlin gestern.')).toHaveLength(0);
+  });
+});
+
 describe('role-noun apposition — German ("<Rolle> <Name>")', () => {
   // German role nouns are capitalized common nouns; the lookup lowercases, so the
   // existing one-token role-cue path generalizes to "Kundin <Name>" the same way

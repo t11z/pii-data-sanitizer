@@ -254,6 +254,95 @@ interface HandoffFrame {
   connectors: Set<string>;
 }
 
+/**
+ * Source-noun frames: "<noun> <connector> <Name>" — origin-of-message cues that
+ * also sit two tokens before the name, parallel to HANDOFF_FRAMES. Ubiquitous in
+ * support, email, and news prose ("Complaint from Sven Larsson", "Email from
+ * Anna Schmidt", "Bericht von Hans Müller"). Without this lookback an unknown
+ * given name like "Sven" (no DB hit, no title, no role noun before it) can't
+ * start a chain even when a strong source noun introduces it — the name is
+ * missed even though the cue is unambiguous.
+ *
+ * Same closed, language-paired shape as HANDOFF_FRAMES: an English noun pairs
+ * only with "from", a German noun pairs only with "von", so a cross-language
+ * mix ("update von …" / "Anfrage from …") never fires. The closed noun set is
+ * deliberate: a generic "any noun + from" rule would catch geographic /
+ * temporal frames like "Letter from London arrived" or "Update from yesterday's
+ * meeting" where the capitalized follower is a place or label, not a person.
+ *
+ * Precision relies on the existing layers: single-token candidates after the
+ * cue still fall under the parts === 1 + extOnly penalty in scoreName, so a
+ * lone city / weekday / brand after "from" never promotes; structural follow-on
+ * tokens (NON_NAME_WORDS) still break the chain. The cue only earns its scoring
+ * bonus when parts >= 2 (see scoreName), matching the handoff frame's contract.
+ * Stored lowercased.
+ */
+export interface SourceFrame {
+  /** Source-of-message nouns, lowercased. */
+  nouns: Set<string>;
+  /** Connector preposition(s) for this language, lowercased. */
+  connectors: Set<string>;
+}
+
+export const SOURCE_FRAMES: SourceFrame[] = [
+  {
+    // English: "<noun> from <Person>". Closed set of message / contact-origin
+    // nouns. "by" is intentionally excluded — passive-agent "by" already has
+    // wide coverage via the existing title / DB-anchored paths and a "by"-cue
+    // would over-trigger on causal frames ("report by region", "filed by
+    // department").
+    nouns: new Set([
+      'complaint',
+      'inquiry',
+      'enquiry',
+      'request',
+      'message',
+      'email',
+      'mail',
+      'letter',
+      'note',
+      'notes',
+      'call',
+      'report',
+      'submission',
+      'feedback',
+      'response',
+      'reply',
+      'query',
+      'update',
+      'notice',
+      'notification',
+    ]),
+    connectors: new Set(['from']),
+  },
+  {
+    // German: "<Substantiv> von <Person>". Closed set of message-origin nouns
+    // pairing only with the German "von" (the English noun + German "von" or
+    // vice versa never fires — same rule as HANDOFF_FRAMES). "Mail" is left
+    // out on purpose: it is an ext-tier dictionary hit and the pre-existing
+    // particle path on a sentence-initial ext token + "von" already extends
+    // the chain into the surname ("Mail von …" gets detected without help
+    // from this frame), so adding it here would only re-anchor a path already
+    // covered upstream.
+    nouns: new Set([
+      'beschwerde',
+      'anfrage',
+      'nachricht',
+      'email',
+      'brief',
+      'notiz',
+      'anruf',
+      'bericht',
+      'rückmeldung',
+      'antwort',
+      'mitteilung',
+      'meldung',
+      'feedback',
+    ]),
+    connectors: new Set(['von']),
+  },
+];
+
 export const HANDOFF_FRAMES: HandoffFrame[] = [
   {
     // English
@@ -313,4 +402,15 @@ export function isHandoffFrame(verb: string, connector: string): boolean {
   const v = verb.toLowerCase();
   const c = connector.toLowerCase();
   return HANDOFF_FRAMES.some((f) => f.verbs.has(v) && f.connectors.has(c));
+}
+
+/**
+ * True when `noun` + `connector` form a source frame in the SAME language (see
+ * SOURCE_FRAMES) — e.g. ("complaint", "from") or ("Beschwerde", "von"), but
+ * never the cross-language mix ("complaint", "von") / ("Beschwerde", "from").
+ */
+export function isSourceFrame(noun: string, connector: string): boolean {
+  const n = noun.toLowerCase();
+  const c = connector.toLowerCase();
+  return SOURCE_FRAMES.some((f) => f.nouns.has(n) && f.connectors.has(c));
 }
