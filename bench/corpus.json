@@ -663,5 +663,17 @@
   {
     "text": "Notification from Customer Service Team about the outage.",
     "entities": []
+  },
+  {
+    "text": "Billing dispute filed. Irregular fragment 5123 456 1234561 attached for review.",
+    "entities": []
+  },
+  {
+    "text": "Reference token 4929 88 8888 8883 attached to the ledger entry.",
+    "entities": []
+  },
+  {
+    "text": "Card on file: 5018 1234 5678 900 expires next month.",
+    "entities": [{ "type": "CREDIT_CARD", "text": "5018 1234 5678 900" }]
   }
 ]

@@ -19,6 +19,30 @@ export function isValidLuhn(digits: string): boolean {
   return sum % 10 === 0;
 }
 
+// Payment networks define a small, canonical set of print groupings for PANs:
+// 4-4-4-4 (Visa/MC/Discover/JCB/UnionPay 16), 4-4-4-3 (Maestro/UATP 15), 4-6-5
+// (Amex 15), 4-6-4 (Diners Club 14), and 4-4-4-4-3 (Maestro/UnionPay 19). Any
+// other grouping in prose — e.g. 4-3-7 inside an IBAN's irregular spacing
+// ("IBAN ES… 4300 001 1874756") — is a Luhn-collision inside an unrelated
+// structured token, not an actual card. Enforcing the grouping closes that
+// whole class of FPs without touching real cards, since networks always print
+// in these widths.
+const NETWORK_GROUPINGS: ReadonlySet<string> = new Set([
+  '4-4-4-4',
+  '4-4-4-3',
+  '4-6-5',
+  '4-6-4',
+  '4-4-4-4-3',
+]);
+
+function hasNetworkGrouping(value: string): boolean {
+  const sizes = value
+    .split(/[ -]+/)
+    .filter((g) => g.length > 0)
+    .map((g) => g.length);
+  return NETWORK_GROUPINGS.has(sizes.join('-'));
+}
+
 export function detectCreditCards(text: string): Span[] {
   const spans: Span[] = [];
   for (const match of text.matchAll(CARD_RE)) {
@@ -34,6 +58,7 @@ export function detectCreditCards(text: string): Span[] {
     // Require grouping or a known length to avoid flagging long plain integers.
     const grouped = /[ -]/.test(value);
     if (!grouped && digits.length !== 15 && digits.length !== 16) continue;
+    if (grouped && !hasNetworkGrouping(value)) continue;
     spans.push({
       start: match.index,
       end: match.index + value.length,
