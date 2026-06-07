@@ -162,6 +162,38 @@ describe('credit card detection', () => {
     expect(only('Card: 3782 822463 10005', 'CREDIT_CARD')[0].text).toBe('3782 822463 10005');
     expect(only('Card: 6011 0009 9013 9424', 'CREDIT_CARD')[0].text).toBe('6011 0009 9013 9424');
   });
+
+  it('rejects Luhn-valid runs whose grouping does not match a payment-network format', () => {
+    // The gap-report shape: an IBAN with irregular spacing ("ES9121 4300 001
+    // 1874756") makes "4300 001 1874756" a 14-digit 4-3-7 run that Luhn-passes
+    // (sum=50) but no payment network prints 4-3-7. The grouping guard rejects
+    // it structurally.
+    expect(
+      only(
+        'Billing dispute filed. IBAN ES9121 4300 001 1874756 updated for review.',
+        'CREDIT_CARD'
+      )
+    ).toHaveLength(0);
+    // Held-out 14-digit 4-3-7 Luhn-valid run, distinct digits from the gap
+    // value — the guard is structural, not memorized. (5123 456 1234561:
+    // sum=50, passes Luhn; grouping 4-3-7 is not a network format.)
+    expect(only('Reference 5123 456 1234561 attached', 'CREDIT_CARD')).toHaveLength(0);
+    // Held-out 14-digit 4-2-4-4 Luhn-valid run (4929 88 8888 8883: sum=100,
+    // passes Luhn). A 2-digit group never appears in print on real PANs.
+    expect(only('Token 4929 88 8888 8883 logged', 'CREDIT_CARD')).toHaveLength(0);
+  });
+
+  it('still detects the four canonical grouped PAN widths after the guard', () => {
+    // 4-4-4-4 (16): Visa/MC/Discover/JCB/UnionPay — see 4111…/5500…/6011… above.
+    // The remaining three canonical groupings (Maestro 15, Amex 15, Diners 14)
+    // are exercised here with held-out Luhn-valid PANs to prove the allowlist
+    // matches every printed network width, not only the ones the corpus already
+    // covers.
+    // Maestro/UATP 4-4-4-3 (15): 5018 1234 5678 900 — Luhn-valid (sum=60).
+    expect(only('Card: 5018 1234 5678 900', 'CREDIT_CARD')[0].text).toBe('5018 1234 5678 900');
+    // Diners 4-6-4 (14): 3056 930902 5904 — Luhn-valid Diners test PAN.
+    expect(only('Card: 3056 930902 5904', 'CREDIT_CARD')[0].text).toBe('3056 930902 5904');
+  });
 });
 
 describe('IP detection', () => {
