@@ -8,6 +8,7 @@ import {
   isRoleAbbreviation,
   isNonNameWord,
   isHandoffFrame,
+  isSourceFrame,
 } from '../context/roleWords';
 import { isSentenceOpener } from '../context/sentenceOpeners';
 import { scoreName } from '../scoring';
@@ -230,6 +231,27 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
     const prev2 = tokens[i - 2];
     if (
       isHandoffFrame(prev2.text, prev.text) &&
+      SINGLE_GAP.test(text.slice(prev2.end, prev.start)) &&
+      SINGLE_GAP.test(text.slice(prev.end, tok.start))
+    ) {
+      roleBefore = true;
+    }
+  }
+  // Two-token source frame: "<source-noun> <connector> <Name>", parallel to
+  // the handoff frame but for origin-of-message cues ("Complaint from …",
+  // "Email from …", "Bericht von …"). Same gating: the noun and connector must
+  // belong to the same language entry in SOURCE_FRAMES so cross-language mixes
+  // ("update von …" / "Anfrage from …") never fire, and the two cue tokens stay
+  // on one whitespace-joined line. Scoring still requires parts >= 2 to credit
+  // the cue, and NON_NAME_WORDS still breaks structural follow-ons, so single
+  // capitalized words after the connector ("Letter from London arrived") and
+  // structural chains ("Notification from Customer Service Team") never
+  // promote on the cue alone.
+  if (!roleBefore && i >= 2) {
+    const prev = tokens[i - 1];
+    const prev2 = tokens[i - 2];
+    if (
+      isSourceFrame(prev2.text, prev.text) &&
       SINGLE_GAP.test(text.slice(prev2.end, prev.start)) &&
       SINGLE_GAP.test(text.slice(prev.end, tok.start))
     ) {

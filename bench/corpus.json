@@ -647,5 +647,21 @@
   {
     "text": "Bestilling: Pølse Festival fredag aften, billetter sendes via email.",
     "entities": []
+  },
+  {
+    "text": "Complaint from Qwesterveldt Brakkenzoon regarding the SEPA refund.",
+    "entities": [{ "type": "PERSON", "text": "Qwesterveldt Brakkenzoon" }]
+  },
+  {
+    "text": "Beschwerde von Wlodimar Krimbleton heute eingegangen.",
+    "entities": [{ "type": "PERSON", "text": "Wlodimar Krimbleton" }]
+  },
+  {
+    "text": "Letter from London arrived overnight at the depot.",
+    "entities": []
+  },
+  {
+    "text": "Notification from Customer Service Team about the outage.",
+    "entities": []
   }
 ]
