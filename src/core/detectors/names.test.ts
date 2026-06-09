@@ -650,6 +650,69 @@ describe('false-positive guards', () => {
   });
 });
 
+describe('title-only single-token guard (precision)', () => {
+  // A title token alone is the honorific, not a person. The FP that drove this:
+  // the email "Dr.henrik.brenner@..." promotes "dr" to a derived core entry, and
+  // the preceding role noun "Customer" supplies a role boost, so the lone "Dr"
+  // scores 0.65 — past the 0.5 default. The guard rejects any single-token
+  // PERSON span whose only token is a known title, so the precision fix
+  // generalizes across every title and every promotion path (email-derived core,
+  // ext-DB collision, role boost, sentence-initial luck).
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not emit "Dr" alone when the in-text email promotes "dr" to core', () => {
+    // Reproduces the exact gap-report shape: title before a name, with an email
+    // whose local part starts with the same title — without the guard the
+    // augmented-source second pass emits "Dr" at confidence 0.65.
+    const found = personsFull(
+      'Customer Dr. Henrik von Brenner (Dr.henrik.brenner@company.de) called yesterday.'
+    );
+    expect(found).not.toContain('Dr');
+    expect(found).toContain('Henrik von Brenner');
+  });
+
+  it('generalizes to other titles + held-out names (not "Dr"-specific)', () => {
+    // Same shape with "Prof." and held-out tokens. Proves the guard fires for
+    // any title and that the multi-part real name is still detected via the
+    // heuristic (the surname is absent from the DB — see held-out check below).
+    const found = personsFull(
+      'Customer Prof. Qwesterveldt Brakkenzoon (Prof.qwesterveldt.brakkenzoon@example.com) replied.'
+    );
+    expect(found).not.toContain('Prof');
+    expect(found).toContain('Qwesterveldt Brakkenzoon');
+  });
+
+  it('does not emit a lone title when the chain cannot extend across a period', () => {
+    // No name follows the title on the same chain — without the guard the role
+    // cue + DB collision is enough to surface a single-token "Mr"/"Mrs"/"Hajj".
+    expect(personsFull('Customer Mr. (mr.foo.bar@example.com) replied.')).not.toContain('Mr');
+    expect(personsFull('Reach Mrs. for assistance.')).toHaveLength(0);
+    expect(personsFull('Holder Hajj. visited the branch.')).not.toContain('Hajj');
+  });
+
+  it('still detects a multi-part chain whose first part happens to be a title', () => {
+    // "Don" is a Spanish honorific AND a common given name; with a real surname
+    // following, parts >= 2 proves it is a real name and the chain still fires.
+    // Surname is held-out so this rides on the heuristic, not memorization.
+    expect(personsFull('Don Brakkenzoon signed the form.')).toContain('Don Brakkenzoon');
+  });
+
+  it('proves the held-out values are absent from the full DB', () => {
+    // Uses the FULL committed dictionary (curated `core` + ingested `ext`) so a
+    // future bulk-ingest that adds any of these tokens trips the check and
+    // forces a fresh held-out pair — otherwise the detection cases above stop
+    // proving the heuristic and start riding the dictionary.
+    for (const word of ['qwesterveldt', 'brakkenzoon']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+});
+
 describe('Latin diacritic folding (matches accented surface forms to folded entries)', () => {
   // The Latin lists store most names ASCII-folded ("garcia", "lopez",
   // "gonzalez", "maria"). Before folding, the very same names appearing with

@@ -386,6 +386,19 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
       break;
     }
 
+    // A single-token candidate whose only token is itself a known title is the
+    // honorific in isolation ("Customer Dr.", "Sehr geehrter Herr"), not a
+    // person — the following name sits across an abbreviation dot that breaks
+    // the chain's whitespace-only join. Without this guard, a title that
+    // happens to collide with the name DB (e.g. ext-tier "dr") or is promoted
+    // by an email-derived core entry can score over the threshold on its own.
+    // Multi-part chains like "Don Draper" are unaffected: the title contributes
+    // only as the first part of a longer chain proven by its real surname.
+    if (parts === 1 && isTitle(tokens[i].text)) {
+      i = j + 1;
+      continue;
+    }
+
     const coreHit = tiers.includes('core');
     const extOnly = dbHits > 0 && !coreHit;
 
