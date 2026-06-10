@@ -921,3 +921,43 @@ describe('clause-opening name after a colon/sentence boundary', () => {
     expect(find('Note: Best Zelbrith called in.')).not.toContain('Best Zelbrith');
   });
 });
+
+describe('sentence-initial ext name + particle-hyphen surname', () => {
+  // Asymmetry fix: the corroboration check accepted any bare capitalized follower
+  // ("Bahar Qorvanni"), but rejected the morphologically equivalent particle-hyphen
+  // surname the tokenizer keeps as one lowercase-initial unit ("Muhammad al-Rashid").
+  // Verified against the FULL committed dictionary so the surnames are genuinely
+  // held out — detection rides on the structural heuristic, not on memorization.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('anchors an ext given + held-out al-/el- surname at sentence start', () => {
+    expect(personsFull('Khaled al-Qorvanni reached out today.')).toContain('Khaled al-Qorvanni');
+    expect(personsFull('Tariq el-Brundlefitz approved the refund.')).toContain(
+      'Tariq el-Brundlefitz'
+    );
+  });
+
+  it('proves the surnames are held out (absent from the full DB)', () => {
+    // If any of these land in the DB later, re-point at fresh held-outs.
+    for (const word of ['qorvanni', 'brundlefitz']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('still suppresses a particle-hyphen follower whose tail is lowercase', () => {
+    // particleHyphenName requires the tail to be capitalized, so structural
+    // identifiers / Italian dishes / loanword phrases keep the guard's protection.
+    expect(personsFull('Pizza al-forno was delivered tonight.')).toHaveLength(0);
+    expect(personsFull('Story al-quds was published yesterday.')).toHaveLength(0);
+  });
+
+  it('does not start a chain on a bare lowercase particle-hyphen token', () => {
+    // No leading anchor token, so the relaxed corroboration cannot fire on its own.
+    expect(personsFull('al-Rashid configuration is documented elsewhere.')).toHaveLength(0);
+  });
+});

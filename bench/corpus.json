@@ -675,5 +675,21 @@
   {
     "text": "Card on file: 5018 1234 5678 900 expires next month.",
     "entities": [{ "type": "CREDIT_CARD", "text": "5018 1234 5678 900" }]
+  },
+  {
+    "text": "Khaled al-Qorvanni reached out today about the SEPA refund.",
+    "entities": [{ "type": "PERSON", "text": "Khaled al-Qorvanni" }]
+  },
+  {
+    "text": "Tariq el-Brundlefitz approved the request this morning.",
+    "entities": [{ "type": "PERSON", "text": "Tariq el-Brundlefitz" }]
+  },
+  {
+    "text": "Pizza al-forno was delivered tonight.",
+    "entities": []
+  },
+  {
+    "text": "Story al-quds was published yesterday.",
+    "entities": []
   }
 ]

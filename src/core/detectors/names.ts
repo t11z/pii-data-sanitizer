@@ -194,7 +194,14 @@ function nameContinuation(tokens: Token[], i: number, text: string): boolean {
   const next = tokens[j + 1];
   if (!next) return false;
   if (!SINGLE_GAP.test(text.slice(tokens[j].end, next.start))) return false;
-  if (next.script !== 'Latin' || !isCapitalized(next.text)) return false;
+  if (next.script !== 'Latin') return false;
+  // A bare capitalized follower OR a particle-hyphen-Cap surname the tokenizer
+  // keeps as one lowercase-initial unit ("al-Rashid", "el-Sayyid", "abu-Yusuf")
+  // — both carry a real surname after the anchor. Without the second clause an
+  // Arabic-style sentence start "Muhammad al-Rashid called." is dropped, while
+  // the morphologically equivalent bare-Cap form "Bahar Qorvanni called." is
+  // accepted by the same path: an asymmetry, not a precision lever.
+  if (!isCapitalized(next.text) && !particleHyphenName(next)) return false;
   if (adjoinsDigit(next, text)) return false;
   return !isNonNameWord(next.text) && !isRoleWord(next.text) && !isTitle(next.text);
 }
