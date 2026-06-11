@@ -675,5 +675,27 @@
   {
     "text": "Card on file: 5018 1234 5678 900 expires next month.",
     "entities": [{ "type": "CREDIT_CARD", "text": "5018 1234 5678 900" }]
+  },
+  {
+    "text": "Customer Dr. Henrik von Brenner (Dr.henrik.brenner@company.de) called yesterday.",
+    "entities": [
+      { "type": "PERSON", "text": "Henrik von Brenner" },
+      { "type": "EMAIL", "text": "Dr.henrik.brenner@company.de" }
+    ]
+  },
+  {
+    "text": "Customer Prof. Qwesterveldt Brakkenzoon (Prof.qwesterveldt.brakkenzoon@example.com) replied.",
+    "entities": [
+      { "type": "PERSON", "text": "Qwesterveldt Brakkenzoon" },
+      { "type": "EMAIL", "text": "Prof.qwesterveldt.brakkenzoon@example.com" }
+    ]
+  },
+  {
+    "text": "Reach Mrs. for assistance.",
+    "entities": []
+  },
+  {
+    "text": "Holder Hajj. visited the branch.",
+    "entities": []
   }
 ]
