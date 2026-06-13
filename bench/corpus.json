@@ -697,5 +697,17 @@
   {
     "text": "Holder Hajj. visited the branch.",
     "entities": []
+  },
+  {
+    "text": "Escalated by Sr. Eng. Maria Qwesterveldt to triage.",
+    "entities": [{ "type": "PERSON", "text": "Maria Qwesterveldt" }]
+  },
+  {
+    "text": "Resolved by Dr. Eng. Qwesterveldt Brakkenzoon yesterday.",
+    "entities": [{ "type": "PERSON", "text": "Qwesterveldt Brakkenzoon" }]
+  },
+  {
+    "text": "Customer Eng. for assistance.",
+    "entities": []
   }
 ]
