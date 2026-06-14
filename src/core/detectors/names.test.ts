@@ -713,6 +713,59 @@ describe('title-only single-token guard (precision)', () => {
   });
 });
 
+describe('role-abbreviation single-token guard (precision)', () => {
+  // Parallel to the title-only guard above: a known role abbreviation token
+  // ("Eng.") alone is the role cue, not a person. The FP that drove this:
+  // "Escalated by Sr. Eng. Maria López-García" — "Sr." (title) precedes "Eng",
+  // pushing "Eng" through the unknown-capitalization path; the title boost
+  // alone (0.3 + 0.35 = 0.65) clears the 0.5 threshold while the dot after
+  // "Eng" breaks chain extension into the real surname. The guard rejects any
+  // single-token PERSON span whose only token is a known role abbreviation,
+  // mirroring the existing title-isolation rule.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not emit "Eng" alone when a title-then-role-abbr precedes the real name', () => {
+    // Reproduces the exact gap-report shape. The real name uses a held-out
+    // surname so the chain rides the heuristic (titleBefore + multi-part DB
+    // hit), not memorization of any specific person.
+    const found = personsFull('Escalated by Sr. Eng. Maria Qwesterveldt to triage.');
+    expect(found).not.toContain('Eng');
+    expect(found).toContain('Maria Qwesterveldt');
+  });
+
+  it('generalizes to other titles + held-out names paired with "Eng."', () => {
+    // Same shape with a different title and entirely held-out name parts —
+    // proves the guard fires for any title-preceding-role-abbr combination,
+    // not just "Sr."-specific or "Maria"-specific input.
+    const found = personsFull('Resolved by Dr. Eng. Qwesterveldt Brakkenzoon yesterday.');
+    expect(found).not.toContain('Eng');
+    expect(found).toContain('Qwesterveldt Brakkenzoon');
+  });
+
+  it('still detects multi-part chains following a bare role abbreviation (no title)', () => {
+    // No title before "Eng.": the role-abbreviation path on the NEXT token
+    // (the real name) still fires and produces a normal multi-part detection.
+    // Surname is held-out so the chain rides the heuristic.
+    expect(personsFull('Eng. Qwesterveldt Brakkenzoon signed off.')).toContain(
+      'Qwesterveldt Brakkenzoon'
+    );
+  });
+
+  it('proves the held-out values are absent from the full DB', () => {
+    // Same held-out pair as the title-isolation block. A future bulk-ingest
+    // that adds either trips this check and forces a fresh pair, keeping the
+    // detection cases above honest about which lever they exercise.
+    for (const word of ['qwesterveldt', 'brakkenzoon']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+});
+
 describe('Latin diacritic folding (matches accented surface forms to folded entries)', () => {
   // The Latin lists store most names ASCII-folded ("garcia", "lopez",
   // "gonzalez", "maria"). Before folding, the very same names appearing with
@@ -982,5 +1035,45 @@ describe('clause-opening name after a colon/sentence boundary', () => {
     expect(find('Filed by: Korvan called in.')).not.toContain('Korvan');
     // A clause-opener anchor ("Best") is suppressed even with a follower.
     expect(find('Note: Best Zelbrith called in.')).not.toContain('Best Zelbrith');
+  });
+});
+
+describe('sentence-initial ext name + particle-hyphen surname', () => {
+  // Asymmetry fix: the corroboration check accepted any bare capitalized follower
+  // ("Bahar Qorvanni"), but rejected the morphologically equivalent particle-hyphen
+  // surname the tokenizer keeps as one lowercase-initial unit ("Muhammad al-Rashid").
+  // Verified against the FULL committed dictionary so the surnames are genuinely
+  // held out — detection rides on the structural heuristic, not on memorization.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('anchors an ext given + held-out al-/el- surname at sentence start', () => {
+    expect(personsFull('Khaled al-Qorvanni reached out today.')).toContain('Khaled al-Qorvanni');
+    expect(personsFull('Tariq el-Brundlefitz approved the refund.')).toContain(
+      'Tariq el-Brundlefitz'
+    );
+  });
+
+  it('proves the surnames are held out (absent from the full DB)', () => {
+    // If any of these land in the DB later, re-point at fresh held-outs.
+    for (const word of ['qorvanni', 'brundlefitz']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('still suppresses a particle-hyphen follower whose tail is lowercase', () => {
+    // particleHyphenName requires the tail to be capitalized, so structural
+    // identifiers / Italian dishes / loanword phrases keep the guard's protection.
+    expect(personsFull('Pizza al-forno was delivered tonight.')).toHaveLength(0);
+    expect(personsFull('Story al-quds was published yesterday.')).toHaveLength(0);
+  });
+
+  it('does not start a chain on a bare lowercase particle-hyphen token', () => {
+    // No leading anchor token, so the relaxed corroboration cannot fire on its own.
+    expect(personsFull('al-Rashid configuration is documented elsewhere.')).toHaveLength(0);
   });
 });

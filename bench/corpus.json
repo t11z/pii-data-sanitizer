@@ -677,6 +677,19 @@
     "entities": [{ "type": "CREDIT_CARD", "text": "5018 1234 5678 900" }]
   },
   {
+    "text": "Khaled al-Qorvanni reached out today about the SEPA refund.",
+    "entities": [{ "type": "PERSON", "text": "Khaled al-Qorvanni" }]
+  },
+  {
+    "text": "Tariq el-Brundlefitz approved the request this morning.",
+    "entities": [{ "type": "PERSON", "text": "Tariq el-Brundlefitz" }]
+  },
+  {
+    "text": "Pizza al-forno was delivered tonight.",
+    "entities": []
+  },
+  {
+    "text": "Story al-quds was published yesterday.",
     "text": "Customer Dr. Henrik von Brenner (Dr.henrik.brenner@company.de) called yesterday.",
     "entities": [
       { "type": "PERSON", "text": "Henrik von Brenner" },
@@ -696,6 +709,18 @@
   },
   {
     "text": "Holder Hajj. visited the branch.",
+    "entities": []
+  },
+  {
+    "text": "Escalated by Sr. Eng. Maria Qwesterveldt to triage.",
+    "entities": [{ "type": "PERSON", "text": "Maria Qwesterveldt" }]
+  },
+  {
+    "text": "Resolved by Dr. Eng. Qwesterveldt Brakkenzoon yesterday.",
+    "entities": [{ "type": "PERSON", "text": "Qwesterveldt Brakkenzoon" }]
+  },
+  {
+    "text": "Customer Eng. for assistance.",
     "entities": []
   }
 ]

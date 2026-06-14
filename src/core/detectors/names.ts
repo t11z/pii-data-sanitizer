@@ -194,7 +194,14 @@ function nameContinuation(tokens: Token[], i: number, text: string): boolean {
   const next = tokens[j + 1];
   if (!next) return false;
   if (!SINGLE_GAP.test(text.slice(tokens[j].end, next.start))) return false;
-  if (next.script !== 'Latin' || !isCapitalized(next.text)) return false;
+  if (next.script !== 'Latin') return false;
+  // A bare capitalized follower OR a particle-hyphen-Cap surname the tokenizer
+  // keeps as one lowercase-initial unit ("al-Rashid", "el-Sayyid", "abu-Yusuf")
+  // — both carry a real surname after the anchor. Without the second clause an
+  // Arabic-style sentence start "Muhammad al-Rashid called." is dropped, while
+  // the morphologically equivalent bare-Cap form "Bahar Qorvanni called." is
+  // accepted by the same path: an asymmetry, not a precision lever.
+  if (!isCapitalized(next.text) && !particleHyphenName(next)) return false;
   if (adjoinsDigit(next, text)) return false;
   return !isNonNameWord(next.text) && !isRoleWord(next.text) && !isTitle(next.text);
 }
@@ -386,15 +393,18 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
       break;
     }
 
-    // A single-token candidate whose only token is itself a known title is the
-    // honorific in isolation ("Customer Dr.", "Sehr geehrter Herr"), not a
-    // person — the following name sits across an abbreviation dot that breaks
-    // the chain's whitespace-only join. Without this guard, a title that
-    // happens to collide with the name DB (e.g. ext-tier "dr") or is promoted
-    // by an email-derived core entry can score over the threshold on its own.
-    // Multi-part chains like "Don Draper" are unaffected: the title contributes
-    // only as the first part of a longer chain proven by its real surname.
-    if (parts === 1 && isTitle(tokens[i].text)) {
+    // A single-token candidate whose only token is itself a known title or
+    // role abbreviation is the cue in isolation ("Customer Dr.", "Sr. Eng.
+    // Maria López-García", "Sehr geehrter Herr"), not a person — the real
+    // name sits across the cue's trailing abbreviation dot that breaks the
+    // chain's whitespace-only join. Without this guard, a preceding title
+    // pushes the cue through the unknown-capitalization path
+    // (allowUnknownCap) and the title boost alone (0.3 + 0.35 = 0.65) clears
+    // the threshold, leaving "Eng" / "Dr" stranded while the real surname
+    // detects separately. Multi-part chains like "Don Draper" or "Eng Petrov"
+    // (no dot, no break) are unaffected: the cue contributes only as the
+    // first part of a longer chain proven by its real surname.
+    if (parts === 1 && (isTitle(tokens[i].text) || isRoleAbbreviation(tokens[i].text))) {
       i = j + 1;
       continue;
     }
