@@ -68,8 +68,11 @@ async function main(): Promise<void> {
     names.sort();
     writeFileSync(
       file,
-      JSON.stringify({ source: 'us-census-2010', license: LICENSE, script: 'Latin', names }, null, 0) +
-        '\n'
+      JSON.stringify(
+        { source: 'us-census-2010', license: LICENSE, script: 'Latin', names },
+        null,
+        0
+      ) + '\n'
     );
     console.log(`  Latin (census): ${names.length} surnames → ${file}`);
   } finally {

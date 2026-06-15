@@ -177,8 +177,7 @@ export function detectNamesInUrls(text: string, source: NameSource): Span[] {
     while (k < segs.length) {
       const a = segs[k];
       const b = segs[k + 1];
-      const adjacent =
-        !!b && PAIR_SEP.has(body.slice(a.end, b.start)) && a.end + 1 === b.start;
+      const adjacent = !!b && PAIR_SEP.has(body.slice(a.end, b.start)) && a.end + 1 === b.start;
 
       if (adjacent && pairIsName(source, a.text, b.text)) {
         spans.push(span(text, base + a.start, base + b.end));

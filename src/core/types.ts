@@ -32,6 +32,10 @@ export type Script =
   | 'Hangul'
   | 'Bengali'
   | 'Tamil'
+  | 'Telugu'
+  | 'Gujarati'
+  | 'Kannada'
+  | 'Malayalam'
   | 'Other';
 
 export interface Token {

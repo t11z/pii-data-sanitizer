@@ -1,43 +1,93 @@
 [
   {
     "text": "Contact jane.doe@example.com about the invoice.",
-    "entities": [{ "type": "EMAIL", "text": "jane.doe@example.com" }]
+    "entities": [
+      {
+        "type": "EMAIL",
+        "text": "jane.doe@example.com"
+      }
+    ]
   },
   {
     "text": "Wire the funds to DE89 3704 0044 0532 0130 00 by Friday.",
-    "entities": [{ "type": "IBAN", "text": "DE89 3704 0044 0532 0130 00" }]
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "DE89 3704 0044 0532 0130 00"
+      }
+    ]
   },
   {
     "text": "The card 4111 1111 1111 1111 expires soon.",
-    "entities": [{ "type": "CREDIT_CARD", "text": "4111 1111 1111 1111" }]
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "4111 1111 1111 1111"
+      }
+    ]
   },
   {
     "text": "The host 192.168.1.254 rebooted overnight.",
-    "entities": [{ "type": "IP", "text": "192.168.1.254" }]
+    "entities": [
+      {
+        "type": "IP",
+        "text": "192.168.1.254"
+      }
+    ]
   },
   {
     "text": "The probe reached 203.0.113.42.",
-    "entities": [{ "type": "IP", "text": "203.0.113.42" }]
+    "entities": [
+      {
+        "type": "IP",
+        "text": "203.0.113.42"
+      }
+    ]
   },
   {
     "text": "Gateway logged 2001:db8::1 at noon.",
-    "entities": [{ "type": "IP", "text": "2001:db8::1" }]
+    "entities": [
+      {
+        "type": "IP",
+        "text": "2001:db8::1"
+      }
+    ]
   },
   {
     "text": "Access logged from 2001:db8::8a2e:370:7335 overnight.",
-    "entities": [{ "type": "IP", "text": "2001:db8::8a2e:370:7335" }]
+    "entities": [
+      {
+        "type": "IP",
+        "text": "2001:db8::8a2e:370:7335"
+      }
+    ]
   },
   {
     "text": "The adapter reported fe80::abcd:1234:5678:9abc%eth2 online.",
-    "entities": [{ "type": "IP", "text": "fe80::abcd:1234:5678:9abc%eth2" }]
+    "entities": [
+      {
+        "type": "IP",
+        "text": "fe80::abcd:1234:5678:9abc%eth2"
+      }
+    ]
   },
   {
     "text": "The relay used ::ffff:198.51.100.7 for translation.",
-    "entities": [{ "type": "IP", "text": "::ffff:198.51.100.7" }]
+    "entities": [
+      {
+        "type": "IP",
+        "text": "::ffff:198.51.100.7"
+      }
+    ]
   },
   {
     "text": "Translation went via 64:ff9b::203.0.113.9 last night.",
-    "entities": [{ "type": "IP", "text": "64:ff9b::203.0.113.9" }]
+    "entities": [
+      {
+        "type": "IP",
+        "text": "64:ff9b::203.0.113.9"
+      }
+    ]
   },
   {
     "text": "The sync job ran at 12:34:56 sharp.",
@@ -45,49 +95,105 @@
   },
   {
     "text": "The adapter hardware id 00:1a:2b:3c:4d:5e was logged.",
-    "entities": [{ "type": "MAC", "text": "00:1a:2b:3c:4d:5e" }]
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "00:1a:2b:3c:4d:5e"
+      }
+    ]
   },
   {
     "text": "Please call +49 30 1234567 tomorrow morning.",
-    "entities": [{ "type": "PHONE", "text": "+49 30 1234567" }]
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+49 30 1234567"
+      }
+    ]
   },
   {
     "text": "The meeting with Kai-Uwe von Braun is confirmed.",
-    "entities": [{ "type": "PERSON", "text": "Kai-Uwe von Braun" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Kai-Uwe von Braun"
+      }
+    ]
   },
   {
     "text": "The report by John Smith is attached.",
-    "entities": [{ "type": "PERSON", "text": "John Smith" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "John Smith"
+      }
+    ]
   },
   {
     "text": "Ask Dr. Anjali Sharma for the sign-off.",
-    "entities": [{ "type": "PERSON", "text": "Anjali Sharma" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Anjali Sharma"
+      }
+    ]
   },
   {
     "text": "A famous speech by David ben Gurion was archived.",
-    "entities": [{ "type": "PERSON", "text": "David ben Gurion" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "David ben Gurion"
+      }
+    ]
   },
   {
     "text": "We spoke with Omar al Farouk briefly.",
-    "entities": [{ "type": "PERSON", "text": "Omar al Farouk" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Omar al Farouk"
+      }
+    ]
   },
   {
     "text": "The award went to Zhang Wei this year.",
-    "entities": [{ "type": "PERSON", "text": "Zhang Wei" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Zhang Wei"
+      }
+    ]
   },
   {
     "text": "A new novel by Haruki Murakami was released.",
-    "entities": [{ "type": "PERSON", "text": "Haruki Murakami" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Haruki Murakami"
+      }
+    ]
   },
   {
     "text": "यह प्रिया शर्मा है।",
-    "entities": [{ "type": "PERSON", "text": "प्रिया शर्मा" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "प्रिया शर्मा"
+      }
+    ]
   },
   {
     "text": "Email John Smith and also محمد حسن before noon.",
     "entities": [
-      { "type": "PERSON", "text": "John Smith" },
-      { "type": "PERSON", "text": "محمد حسن" }
+      {
+        "type": "PERSON",
+        "text": "John Smith"
+      },
+      {
+        "type": "PERSON",
+        "text": "محمد حسن"
+      }
     ]
   },
   {
@@ -109,55 +215,113 @@
   {
     "text": "Send the file to maria.lopez@correo.es and copy carlos@correo.es.",
     "entities": [
-      { "type": "EMAIL", "text": "maria.lopez@correo.es" },
-      { "type": "EMAIL", "text": "carlos@correo.es" }
+      {
+        "type": "EMAIL",
+        "text": "maria.lopez@correo.es"
+      },
+      {
+        "type": "EMAIL",
+        "text": "carlos@correo.es"
+      }
     ]
   },
   {
     "text": "Reach Michael Anderson or Giulia Rossi for details.",
     "entities": [
-      { "type": "PERSON", "text": "Michael Anderson" },
-      { "type": "PERSON", "text": "Giulia Rossi" }
+      {
+        "type": "PERSON",
+        "text": "Michael Anderson"
+      },
+      {
+        "type": "PERSON",
+        "text": "Giulia Rossi"
+      }
     ]
   },
   {
     "text": "A talk by Reza Tehrani and Li Na is scheduled.",
     "entities": [
-      { "type": "PERSON", "text": "Reza Tehrani" },
-      { "type": "PERSON", "text": "Li Na" }
+      {
+        "type": "PERSON",
+        "text": "Reza Tehrani"
+      },
+      {
+        "type": "PERSON",
+        "text": "Li Na"
+      }
     ]
   },
   {
     "text": "Account holder Nadia Brzezinski paid the invoice.",
-    "entities": [{ "type": "PERSON", "text": "Nadia Brzezinski" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Nadia Brzezinski"
+      }
+    ]
   },
   {
     "text": "Engineer Tomasz Wojcik resolved the ticket.",
-    "entities": [{ "type": "PERSON", "text": "Tomasz Wojcik" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Tomasz Wojcik"
+      }
+    ]
   },
   {
     "text": "The claim filed by claimant Folake Adeyemi was approved.",
-    "entities": [{ "type": "PERSON", "text": "Folake Adeyemi" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Folake Adeyemi"
+      }
+    ]
   },
   {
     "text": "Please ask Dr. Zzz Qwertz about the refund.",
-    "entities": [{ "type": "PERSON", "text": "Zzz Qwertz" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Zzz Qwertz"
+      }
+    ]
   },
   {
     "text": "Forward the case to Omar al-Farouk.",
-    "entities": [{ "type": "PERSON", "text": "Omar al-Farouk" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Omar al-Farouk"
+      }
+    ]
   },
   {
     "text": "Engineer Amir al-Rashid handled the case.",
-    "entities": [{ "type": "PERSON", "text": "Amir al-Rashid" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Amir al-Rashid"
+      }
+    ]
   },
   {
     "text": "Engineer Wlodimar de la Qwesterveldt resolved the ticket.",
-    "entities": [{ "type": "PERSON", "text": "Wlodimar de la Qwesterveldt" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Wlodimar de la Qwesterveldt"
+      }
+    ]
   },
   {
     "text": "Analyst Brunhildricka van der Zorblatt approved the refund.",
-    "entities": [{ "type": "PERSON", "text": "Brunhildricka van der Zorblatt" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Brunhildricka van der Zorblatt"
+      }
+    ]
   },
   {
     "text": "Reach out to the de la team about it.",
@@ -169,11 +333,21 @@
   },
   {
     "text": "Mrs. Aurelienne de los Zwingenberger called yesterday.",
-    "entities": [{ "type": "PERSON", "text": "Aurelienne de los Zwingenberger" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Aurelienne de los Zwingenberger"
+      }
+    ]
   },
   {
     "text": "Engineer Marquezino de las Fitzgerlandsen approved the refund.",
-    "entities": [{ "type": "PERSON", "text": "Marquezino de las Fitzgerlandsen" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Marquezino de las Fitzgerlandsen"
+      }
+    ]
   },
   {
     "text": "Account holder Tomasz de los Department closed early.",
@@ -189,11 +363,21 @@
   },
   {
     "text": "Report filed by Eng. Dimitri Petrov this morning.",
-    "entities": [{ "type": "PERSON", "text": "Dimitri Petrov" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Dimitri Petrov"
+      }
+    ]
   },
   {
     "text": "Support came from Eng. Andreas Meyer-Krahmer overnight.",
-    "entities": [{ "type": "PERSON", "text": "Andreas Meyer-Krahmer" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Andreas Meyer-Krahmer"
+      }
+    ]
   },
   {
     "text": "Eng. Release Notes are attached for review.",
@@ -205,34 +389,70 @@
   },
   {
     "text": "Please contact Rajesh Kumar about the shipment.",
-    "entities": [{ "type": "PERSON", "text": "Rajesh Kumar" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Rajesh Kumar"
+      }
+    ]
   },
   {
     "text": "The invoice was approved by Anjali Sharma yesterday.",
-    "entities": [{ "type": "PERSON", "text": "Anjali Sharma" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Anjali Sharma"
+      }
+    ]
   },
   {
     "text": "Reach out to Imran Khan or Ali Hassan for details.",
     "entities": [
-      { "type": "PERSON", "text": "Imran Khan" },
-      { "type": "PERSON", "text": "Ali Hassan" }
+      {
+        "type": "PERSON",
+        "text": "Imran Khan"
+      },
+      {
+        "type": "PERSON",
+        "text": "Ali Hassan"
+      }
     ]
   },
   {
     "text": "यह अमित कुमार का खाता है।",
-    "entities": [{ "type": "PERSON", "text": "अमित कुमार" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "अमित कुमार"
+      }
+    ]
   },
   {
     "text": "Email from فاطمة الزهراء arrived this morning.",
-    "entities": [{ "type": "PERSON", "text": "فاطمة الزهراء" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "فاطمة الزهراء"
+      }
+    ]
   },
   {
     "text": "The contract was signed by Mohammed Al-Rashid.",
-    "entities": [{ "type": "PERSON", "text": "Mohammed Al-Rashid" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Mohammed Al-Rashid"
+      }
+    ]
   },
   {
     "text": "הדוח נכתב על ידי דוד כהן בבוקר.",
-    "entities": [{ "type": "PERSON", "text": "דוד כהן" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "דוד כהן"
+      }
+    ]
   },
   {
     "text": "Forward the documents by Friday.",
@@ -244,11 +464,21 @@
   },
   {
     "text": "Account holder Šimon Čech reviewed the invoice.",
-    "entities": [{ "type": "PERSON", "text": "Šimon Čech" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Šimon Čech"
+      }
+    ]
   },
   {
     "text": "Engineer Niño Gübler resolved the outage overnight.",
-    "entities": [{ "type": "PERSON", "text": "Niño Gübler" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Niño Gübler"
+      }
+    ]
   },
   {
     "text": "We will visit Bogotá in May.",
@@ -272,19 +502,39 @@
   },
   {
     "text": "Order #ORD-2025-001847-X needs review; call +39 02 1234 5678 today.",
-    "entities": [{ "type": "PHONE", "text": "+39 02 1234 5678" }]
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+39 02 1234 5678"
+      }
+    ]
   },
   {
     "text": "Case escalation: Bahar Mehrabad reached out today.",
-    "entities": [{ "type": "PERSON", "text": "Bahar Mehrabad" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Bahar Mehrabad"
+      }
+    ]
   },
   {
     "text": "Case ORD-2024-7743: Kaveh Mohamadi opened a ticket.",
-    "entities": [{ "type": "PERSON", "text": "Kaveh Mohamadi" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Kaveh Mohamadi"
+      }
+    ]
   },
   {
     "text": "Support note: Marcus de Wilde processed the claim.",
-    "entities": [{ "type": "PERSON", "text": "Marcus de Wilde" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Marcus de Wilde"
+      }
+    ]
   },
   {
     "text": "Best Regards from the whole team.",
@@ -304,15 +554,30 @@
   },
   {
     "text": "Dr. van der Vandermeerux arrived today.",
-    "entities": [{ "type": "PERSON", "text": "van der Vandermeerux" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "van der Vandermeerux"
+      }
+    ]
   },
   {
     "text": "Ms. de Brakkenzoon signed the form.",
-    "entities": [{ "type": "PERSON", "text": "de Brakkenzoon" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "de Brakkenzoon"
+      }
+    ]
   },
   {
     "text": "Engineer de Hollvardsen reviewed the ticket.",
-    "entities": [{ "type": "PERSON", "text": "de Hollvardsen" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "de Hollvardsen"
+      }
+    ]
   },
   {
     "text": "Dr. van der Department escalated this.",
@@ -332,15 +597,30 @@
   },
   {
     "text": "Reach support at jörg.müller@beispiel.de soon.",
-    "entities": [{ "type": "EMAIL", "text": "jörg.müller@beispiel.de" }]
+    "entities": [
+      {
+        "type": "EMAIL",
+        "text": "jörg.müller@beispiel.de"
+      }
+    ]
   },
   {
     "text": "Forward the refund request to begoña@correo.es promptly.",
-    "entities": [{ "type": "EMAIL", "text": "begoña@correo.es" }]
+    "entities": [
+      {
+        "type": "EMAIL",
+        "text": "begoña@correo.es"
+      }
+    ]
   },
   {
     "text": "The downtime notice went to ole.østby@nordpost.no overnight.",
-    "entities": [{ "type": "EMAIL", "text": "ole.østby@nordpost.no" }]
+    "entities": [
+      {
+        "type": "EMAIL",
+        "text": "ole.østby@nordpost.no"
+      }
+    ]
   },
   {
     "text": "Café@home served lunch yesterday.",
@@ -352,47 +632,102 @@
   },
   {
     "text": "Analyst Linh Nguyen approved the claim.",
-    "entities": [{ "type": "PERSON", "text": "Linh Nguyen" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Linh Nguyen"
+      }
+    ]
   },
   {
     "text": "The invoice was reviewed by Tran Hoa yesterday.",
-    "entities": [{ "type": "PERSON", "text": "Tran Hoa" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Tran Hoa"
+      }
+    ]
   },
   {
     "text": "Engineer Sipho Dlamini resolved the incident.",
-    "entities": [{ "type": "PERSON", "text": "Sipho Dlamini" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Sipho Dlamini"
+      }
+    ]
   },
   {
     "text": "The report by Ngozi Okonkwo was filed.",
-    "entities": [{ "type": "PERSON", "text": "Ngozi Okonkwo" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Ngozi Okonkwo"
+      }
+    ]
   },
   {
     "text": "Report filed by Otieno Kariuki today.",
-    "entities": [{ "type": "PERSON", "text": "Otieno Kariuki" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Otieno Kariuki"
+      }
+    ]
   },
   {
     "text": "Please contact Kofi Mensah about the shipment.",
-    "entities": [{ "type": "PERSON", "text": "Kofi Mensah" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Kofi Mensah"
+      }
+    ]
   },
   {
     "text": "Please contact 김민준 about the shipment.",
-    "entities": [{ "type": "PERSON", "text": "김민준" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "김민준"
+      }
+    ]
   },
   {
     "text": "The case was handled by Kim Min-jun.",
-    "entities": [{ "type": "PERSON", "text": "Kim Min-jun" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Kim Min-jun"
+      }
+    ]
   },
   {
     "text": "The access point reported MAC 00:1A:2B:3C:4D:5E overnight.",
-    "entities": [{ "type": "MAC", "text": "00:1A:2B:3C:4D:5E" }]
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "00:1A:2B:3C:4D:5E"
+      }
+    ]
   },
   {
     "text": "The NIC 00-1a-2b-3c-4d-5e dropped its link.",
-    "entities": [{ "type": "MAC", "text": "00-1a-2b-3c-4d-5e" }]
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "00-1a-2b-3c-4d-5e"
+      }
+    ]
   },
   {
     "text": "Switch port learned 001a.2b3c.4d5e this morning.",
-    "entities": [{ "type": "MAC", "text": "001a.2b3c.4d5e" }]
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "001a.2b3c.4d5e"
+      }
+    ]
   },
   {
     "text": "The build artifact 001A2B3C4D5E was uploaded.",
@@ -400,11 +735,21 @@
   },
   {
     "text": "Join the call at https://bergstrom.webex.com/meet/joost.vandenberg today.",
-    "entities": [{ "type": "PERSON", "text": "joost.vandenberg" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "joost.vandenberg"
+      }
+    ]
   },
   {
     "text": "Reviewer profile is at https://corp.example.com/u/d.schneider for context.",
-    "entities": [{ "type": "PERSON", "text": "d.schneider" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "d.schneider"
+      }
+    ]
   },
   {
     "text": "The dashboard lives at https://mail.google.com/inbox now.",
@@ -421,15 +766,27 @@
   {
     "text": "Notes from Michael Anderson are at https://x.example.com/u/michael.anderson now.",
     "entities": [
-      { "type": "PERSON", "text": "Michael Anderson" },
-      { "type": "PERSON", "text": "michael.anderson" }
+      {
+        "type": "PERSON",
+        "text": "Michael Anderson"
+      },
+      {
+        "type": "PERSON",
+        "text": "michael.anderson"
+      }
     ]
   },
   {
     "text": "Slides by Giulia Rossi live at https://x.example.com/u/g.rossi today.",
     "entities": [
-      { "type": "PERSON", "text": "Giulia Rossi" },
-      { "type": "PERSON", "text": "g.rossi" }
+      {
+        "type": "PERSON",
+        "text": "Giulia Rossi"
+      },
+      {
+        "type": "PERSON",
+        "text": "g.rossi"
+      }
     ]
   },
   {
@@ -446,19 +803,39 @@
   },
   {
     "text": "Customer Marcus Wilson called about case 1234 today.",
-    "entities": [{ "type": "PERSON", "text": "Marcus Wilson" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Marcus Wilson"
+      }
+    ]
   },
   {
     "text": "Escalation: customer wired funds to IT 60 X054 2811 1010 0000 0123 456 yesterday.",
-    "entities": [{ "type": "IBAN", "text": "IT 60 X054 2811 1010 0000 0123 456" }]
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "IT 60 X054 2811 1010 0000 0123 456"
+      }
+    ]
   },
   {
     "text": "Refund booked against BE 68 5390 0754 7034 this morning.",
-    "entities": [{ "type": "IBAN", "text": "BE 68 5390 0754 7034" }]
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "BE 68 5390 0754 7034"
+      }
+    ]
   },
   {
     "text": "Settlement IBAN NL 91 ABNA 0417 1643 00 cleared overnight.",
-    "entities": [{ "type": "IBAN", "text": "NL 91 ABNA 0417 1643 00" }]
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "NL 91 ABNA 0417 1643 00"
+      }
+    ]
   },
   {
     "text": "Reference code XY 11 AAAA BBBB CCCC DDDD EEEE present.",
@@ -470,19 +847,39 @@
   },
   {
     "text": "Firewall rule blocks 198.51.100.0/24 from the perimeter.",
-    "entities": [{ "type": "IP", "text": "198.51.100.0/24" }]
+    "entities": [
+      {
+        "type": "IP",
+        "text": "198.51.100.0/24"
+      }
+    ]
   },
   {
     "text": "The SOC alert flagged 2001:db8:1234::/48 overnight.",
-    "entities": [{ "type": "IP", "text": "2001:db8:1234::/48" }]
+    "entities": [
+      {
+        "type": "IP",
+        "text": "2001:db8:1234::/48"
+      }
+    ]
   },
   {
     "text": "Edge node fe80::1%eth0/64 came back online.",
-    "entities": [{ "type": "IP", "text": "fe80::1%eth0/64" }]
+    "entities": [
+      {
+        "type": "IP",
+        "text": "fe80::1%eth0/64"
+      }
+    ]
   },
   {
     "text": "Customer reported access from 2600:1700::/32 this morning.",
-    "entities": [{ "type": "IP", "text": "2600:1700::/32" }]
+    "entities": [
+      {
+        "type": "IP",
+        "text": "2600:1700::/32"
+      }
+    ]
   },
   {
     "text": "Documentation says the subnet mask /24 is the default.",
@@ -490,11 +887,21 @@
   },
   {
     "text": "Visit the runbook at 192.168.1.1/admin/login for details.",
-    "entities": [{ "type": "IP", "text": "192.168.1.1" }]
+    "entities": [
+      {
+        "type": "IP",
+        "text": "192.168.1.1"
+      }
+    ]
   },
   {
     "text": "Bad mask 10.0.0.0/64 was logged but the operator typo'd.",
-    "entities": [{ "type": "IP", "text": "10.0.0.0" }]
+    "entities": [
+      {
+        "type": "IP",
+        "text": "10.0.0.0"
+      }
+    ]
   },
   {
     "text": "Placeholder block 0000 0000 0000 0000 in the template, not a real card.",
@@ -518,39 +925,84 @@
   },
   {
     "text": "Settlement reference ES91 2100 0418 4502 0005 1332 confirmed.",
-    "entities": [{ "type": "IBAN", "text": "ES91 2100 0418 4502 0005 1332" }]
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "ES91 2100 0418 4502 0005 1332"
+      }
+    ]
   },
   {
     "text": "Backup card 5500 0000 0000 0004 stored on file.",
-    "entities": [{ "type": "CREDIT_CARD", "text": "5500 0000 0000 0004" }]
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "5500 0000 0000 0004"
+      }
+    ]
   },
   {
     "text": "Corporate Amex 3782 822463 10005 charged the deposit.",
-    "entities": [{ "type": "CREDIT_CARD", "text": "3782 822463 10005" }]
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "3782 822463 10005"
+      }
+    ]
   },
   {
     "text": "New hire SSN 234-56-7890 was added to payroll.",
-    "entities": [{ "type": "NATIONAL_ID", "text": "234-56-7890" }]
+    "entities": [
+      {
+        "type": "NATIONAL_ID",
+        "text": "234-56-7890"
+      }
+    ]
   },
   {
     "text": "German tax ID 65929970489 is on the invoice.",
-    "entities": [{ "type": "NATIONAL_ID", "text": "65929970489" }]
+    "entities": [
+      {
+        "type": "NATIONAL_ID",
+        "text": "65929970489"
+      }
+    ]
   },
   {
     "text": "Traveler passport number L898902C3 was logged at the gate.",
-    "entities": [{ "type": "PASSPORT", "text": "L898902C3" }]
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "L898902C3"
+      }
+    ]
   },
   {
     "text": "Patient date of birth: 1972-11-30 recorded in the chart.",
-    "entities": [{ "type": "DATE_OF_BIRTH", "text": "1972-11-30" }]
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1972-11-30"
+      }
+    ]
   },
   {
     "text": "Kunde, geboren am 04.07.1968, meldete sich erneut.",
-    "entities": [{ "type": "DATE_OF_BIRTH", "text": "04.07.1968" }]
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "04.07.1968"
+      }
+    ]
   },
   {
     "text": "The server logged 192.168.0.10 at 2024-03-01 without incident.",
-    "entities": [{ "type": "IP", "text": "192.168.0.10" }]
+    "entities": [
+      {
+        "type": "IP",
+        "text": "192.168.0.10"
+      }
+    ]
   },
   {
     "text": "Internal ref AB123456 has no passport cue nearby.",
@@ -558,11 +1010,21 @@
   },
   {
     "text": "Case #3621 — billing issue with the customer. Escalated to Göran Andström.",
-    "entities": [{ "type": "PERSON", "text": "Göran Andström" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Göran Andström"
+      }
+    ]
   },
   {
     "text": "Ticket was forwarded to Qwesterveldt Brakkenzoon for review yesterday.",
-    "entities": [{ "type": "PERSON", "text": "Qwesterveldt Brakkenzoon" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Qwesterveldt Brakkenzoon"
+      }
+    ]
   },
   {
     "text": "Escalated to Customer Service Team for review today.",
@@ -574,11 +1036,21 @@
   },
   {
     "text": "Fall #3621 — Abrechnungsproblem. Eskaliert an Qwesterveldt Brakkenzoon.",
-    "entities": [{ "type": "PERSON", "text": "Qwesterveldt Brakkenzoon" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Qwesterveldt Brakkenzoon"
+      }
+    ]
   },
   {
     "text": "Kundin Wlodimar Krimbleton hat die Rechnung beglichen.",
-    "entities": [{ "type": "PERSON", "text": "Wlodimar Krimbleton" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Wlodimar Krimbleton"
+      }
+    ]
   },
   {
     "text": "Weitergeleitet an Kundenservice Team heute.",
@@ -590,39 +1062,84 @@
   },
   {
     "text": "অমৃতা ফারুক আজ অফিসে আসেননি।",
-    "entities": [{ "type": "PERSON", "text": "অমৃতা ফারুক" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "অমৃতা ফারুক"
+      }
+    ]
   },
   {
     "text": "নাসরিন আসিফ এর সাথে যোগাযোগ করা হয়েছে।",
-    "entities": [{ "type": "PERSON", "text": "নাসরিন আসিফ" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "নাসরিন আসিফ"
+      }
+    ]
   },
   {
     "text": "கவிதா மணி இன்று வரமாட்டார்கள்.",
-    "entities": [{ "type": "PERSON", "text": "கவிதா மணி" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "கவிதா மணி"
+      }
+    ]
   },
   {
     "text": "விஜய் சங்கர் கோப்பை திருப்பித் தந்தார்.",
-    "entities": [{ "type": "PERSON", "text": "விஜய் சங்கர்" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "விஜய் சங்கர்"
+      }
+    ]
   },
   {
     "text": "Card on file: 3782 822463 1005 (expires 07/26). Call +91 98765 43210.",
-    "entities": [{ "type": "PHONE", "text": "+91 98765 43210" }]
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+91 98765 43210"
+      }
+    ]
   },
   {
     "text": "Token 1234 5678 9012 3 referenced; emergency line +44 20 7946 0958.",
-    "entities": [{ "type": "PHONE", "text": "+44 20 7946 0958" }]
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+44 20 7946 0958"
+      }
+    ]
   },
   {
     "text": "Disputed card grouping 3056 123456 7890 logged; call back on 089 5550-1234.",
-    "entities": [{ "type": "PHONE", "text": "089 5550-1234" }]
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "089 5550-1234"
+      }
+    ]
   },
   {
     "text": "TAC #3847 phone connection +351-21-1234-567 logged.",
-    "entities": [{ "type": "PHONE", "text": "+351-21-1234-567" }]
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+351-21-1234-567"
+      }
+    ]
   },
   {
     "text": "Escalation hotline +1-415-22-1234-789 reached.",
-    "entities": [{ "type": "PHONE", "text": "+1-415-22-1234-789" }]
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+1-415-22-1234-789"
+      }
+    ]
   },
   {
     "text": "Ticket REF-234-56-7890-2026 attached to the case.",
@@ -630,19 +1147,39 @@
   },
   {
     "text": "Escalated the request to engineer Bjørn Helgø yesterday afternoon.",
-    "entities": [{ "type": "PERSON", "text": "Bjørn Helgø" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Bjørn Helgø"
+      }
+    ]
   },
   {
     "text": "Account holder Anna Mały approved the wire transfer last week.",
-    "entities": [{ "type": "PERSON", "text": "Anna Mały" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Anna Mały"
+      }
+    ]
   },
   {
     "text": "Customer Heinrich Reuß reported the issue from the Berlin office.",
-    "entities": [{ "type": "PERSON", "text": "Heinrich Reuß" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Heinrich Reuß"
+      }
+    ]
   },
   {
     "text": "Account holder Magnus Koziół approved the wire transfer.",
-    "entities": [{ "type": "PERSON", "text": "Magnus Koziół" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Magnus Koziół"
+      }
+    ]
   },
   {
     "text": "Bestilling: Pølse Festival fredag aften, billetter sendes via email.",
@@ -650,11 +1187,21 @@
   },
   {
     "text": "Complaint from Qwesterveldt Brakkenzoon regarding the SEPA refund.",
-    "entities": [{ "type": "PERSON", "text": "Qwesterveldt Brakkenzoon" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Qwesterveldt Brakkenzoon"
+      }
+    ]
   },
   {
     "text": "Beschwerde von Wlodimar Krimbleton heute eingegangen.",
-    "entities": [{ "type": "PERSON", "text": "Wlodimar Krimbleton" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Wlodimar Krimbleton"
+      }
+    ]
   },
   {
     "text": "Letter from London arrived overnight at the depot.",
@@ -674,33 +1221,59 @@
   },
   {
     "text": "Card on file: 5018 1234 5678 900 expires next month.",
-    "entities": [{ "type": "CREDIT_CARD", "text": "5018 1234 5678 900" }]
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "5018 1234 5678 900"
+      }
+    ]
   },
   {
     "text": "Khaled al-Qorvanni reached out today about the SEPA refund.",
-    "entities": [{ "type": "PERSON", "text": "Khaled al-Qorvanni" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Khaled al-Qorvanni"
+      }
+    ]
   },
   {
     "text": "Tariq el-Brundlefitz approved the request this morning.",
-    "entities": [{ "type": "PERSON", "text": "Tariq el-Brundlefitz" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Tariq el-Brundlefitz"
+      }
+    ]
   },
   {
     "text": "Pizza al-forno was delivered tonight.",
     "entities": []
   },
   {
-    "text": "Story al-quds was published yesterday.",
     "text": "Customer Dr. Henrik von Brenner (Dr.henrik.brenner@company.de) called yesterday.",
     "entities": [
-      { "type": "PERSON", "text": "Henrik von Brenner" },
-      { "type": "EMAIL", "text": "Dr.henrik.brenner@company.de" }
+      {
+        "type": "PERSON",
+        "text": "Henrik von Brenner"
+      },
+      {
+        "type": "EMAIL",
+        "text": "Dr.henrik.brenner@company.de"
+      }
     ]
   },
   {
     "text": "Customer Prof. Qwesterveldt Brakkenzoon (Prof.qwesterveldt.brakkenzoon@example.com) replied.",
     "entities": [
-      { "type": "PERSON", "text": "Qwesterveldt Brakkenzoon" },
-      { "type": "EMAIL", "text": "Prof.qwesterveldt.brakkenzoon@example.com" }
+      {
+        "type": "PERSON",
+        "text": "Qwesterveldt Brakkenzoon"
+      },
+      {
+        "type": "EMAIL",
+        "text": "Prof.qwesterveldt.brakkenzoon@example.com"
+      }
     ]
   },
   {
@@ -713,14 +1286,60 @@
   },
   {
     "text": "Escalated by Sr. Eng. Maria Qwesterveldt to triage.",
-    "entities": [{ "type": "PERSON", "text": "Maria Qwesterveldt" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Maria Qwesterveldt"
+      }
+    ]
   },
   {
     "text": "Resolved by Dr. Eng. Qwesterveldt Brakkenzoon yesterday.",
-    "entities": [{ "type": "PERSON", "text": "Qwesterveldt Brakkenzoon" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Qwesterveldt Brakkenzoon"
+      }
+    ]
   },
   {
     "text": "Customer Eng. for assistance.",
     "entities": []
+  },
+  {
+    "text": "ఈ నివేదిక అంజలి రెడ్డి రాసింది.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "అంజలి రెడ్డి"
+      }
+    ]
+  },
+  {
+    "text": "અહેવાલ અંજલિ પટેલ દ્વારા.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "અંજલિ પટેલ"
+      }
+    ]
+  },
+  {
+    "text": "ಈ ವರದಿಯನ್ನು ಅಂಜಲಿ ಕುಮಾರ್ ಬರೆದರು.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "ಅಂಜಲಿ ಕುಮಾರ್"
+      }
+    ]
+  },
+  {
+    "text": "അഞ്ജലി നായർ ഈ റിപ്പോർട്ട് എഴുതി.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "അഞ്ജലി നായർ"
+      }
+    ]
   }
 ]

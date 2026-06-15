@@ -10,10 +10,7 @@ const CIDR_SUFFIX = '(?:\\/\\d{1,3})?';
 // still allowing a sentence-ending period after the address. The optional `/N`
 // is appended so CIDR-tagged IPv4 ("10.0.0.0/24") is captured as one span; a
 // bare `/32` cannot match because the IP body is required.
-const IPV4_RE = new RegExp(
-  `(?<![\\d.])(?:${OCTET}\\.){3}${OCTET}(?!\\.?\\d)${CIDR_SUFFIX}`,
-  'g'
-);
+const IPV4_RE = new RegExp(`(?<![\\d.])(?:${OCTET}\\.){3}${OCTET}(?!\\.?\\d)${CIDR_SUFFIX}`, 'g');
 
 // IPv6 is matched in two phases. Phase 1 grabs a *maximal* candidate token:
 // runs of alphanumeric "groups" separated by colons (at least two colons, so a

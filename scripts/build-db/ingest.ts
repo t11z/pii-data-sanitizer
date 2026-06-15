@@ -33,8 +33,24 @@ const LICENSE = 'Wikidata (CC0)';
 
 // Name-item label languages, grouped by the script they predominantly yield.
 const LATIN_LANGS = [
-  'en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl', 'sv', 'da',
-  'nb', 'fi', 'cs', 'ro', 'hu', 'tr', 'id', 'ca',
+  'en',
+  'de',
+  'fr',
+  'es',
+  'it',
+  'pt',
+  'nl',
+  'pl',
+  'sv',
+  'da',
+  'nb',
+  'fi',
+  'cs',
+  'ro',
+  'hu',
+  'tr',
+  'id',
+  'ca',
 ];
 const ARABIC_LANGS = ['ar', 'fa', 'ur', 'ps', 'ckb', 'sd'];
 const HEBREW_LANGS = ['he', 'yi'];
@@ -42,6 +58,10 @@ const DEVANAGARI_LANGS = ['hi', 'mr', 'ne', 'sa'];
 const HANGUL_LANGS = ['ko'];
 const BENGALI_LANGS = ['bn'];
 const TAMIL_LANGS = ['ta'];
+const TELUGU_LANGS = ['te'];
+const GUJARATI_LANGS = ['gu'];
+const KANNADA_LANGS = ['kn'];
+const MALAYALAM_LANGS = ['ml'];
 
 const NATIVE_LANGS = [
   ...ARABIC_LANGS,
@@ -50,6 +70,10 @@ const NATIVE_LANGS = [
   ...HANGUL_LANGS,
   ...BENGALI_LANGS,
   ...TAMIL_LANGS,
+  ...TELUGU_LANGS,
+  ...GUJARATI_LANGS,
+  ...KANNADA_LANGS,
+  ...MALAYALAM_LANGS,
 ];
 
 // Humans (Q5) by major Latin label language — fast, large romanized-name pool.
@@ -61,58 +85,116 @@ const HUMAN_LATIN_LANGS = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl'];
 // items — including Korea (Hangul), Vietnam (Latin w/ diacritics), and
 // sub-Saharan Africa (mostly Latin). A bare `Q5 + native-label` query times out.
 const HUMAN_BY_COUNTRY: Array<[string, string]> = [
-  ['wd:Q668', 'hi'], ['wd:Q668', 'mr'], ['wd:Q668', 'sa'], ['wd:Q668', 'en'], // India
-  ['wd:Q837', 'ne'], ['wd:Q837', 'en'], // Nepal
-  ['wd:Q794', 'fa'], ['wd:Q794', 'en'], // Iran
-  ['wd:Q843', 'ur'], ['wd:Q843', 'en'], // Pakistan
-  ['wd:Q889', 'ps'], ['wd:Q889', 'fa'], ['wd:Q889', 'en'], // Afghanistan
-  ['wd:Q79', 'ar'], ['wd:Q79', 'en'], // Egypt
+  ['wd:Q668', 'hi'],
+  ['wd:Q668', 'mr'],
+  ['wd:Q668', 'sa'],
+  ['wd:Q668', 'en'], // India
+  ['wd:Q837', 'ne'],
+  ['wd:Q837', 'en'], // Nepal
+  ['wd:Q794', 'fa'],
+  ['wd:Q794', 'en'], // Iran
+  ['wd:Q843', 'ur'],
+  ['wd:Q843', 'en'], // Pakistan
+  ['wd:Q889', 'ps'],
+  ['wd:Q889', 'fa'],
+  ['wd:Q889', 'en'], // Afghanistan
+  ['wd:Q79', 'ar'],
+  ['wd:Q79', 'en'], // Egypt
   ['wd:Q851', 'ar'], // Saudi Arabia
   ['wd:Q796', 'ar'], // Iraq
   ['wd:Q822', 'ar'], // Lebanon
   ['wd:Q878', 'ar'], // United Arab Emirates
-  ['wd:Q801', 'he'], ['wd:Q801', 'en'], // Israel
+  ['wd:Q801', 'he'],
+  ['wd:Q801', 'en'], // Israel
   // East Asia: Korean native (ko → Hangul) is romanized at ingest; Vietnamese
   // (vi) is Latin with diacritics, ASCII-folded at ingest.
-  ['wd:Q884', 'ko'], ['wd:Q884', 'en'], // South Korea
-  ['wd:Q881', 'vi'], ['wd:Q881', 'en'], // Vietnam
+  ['wd:Q884', 'ko'],
+  ['wd:Q884', 'en'], // South Korea
+  ['wd:Q881', 'vi'],
+  ['wd:Q881', 'en'], // Vietnam
   // Sub-Saharan Africa: native labels are Latin script (Yoruba, Igbo, Hausa,
   // Swahili, Zulu, Xhosa, Akan/Twi/Ewe, Shona, Wolof, Afrikaans) + romanized en.
-  ['wd:Q1033', 'yo'], ['wd:Q1033', 'ig'], ['wd:Q1033', 'ha'], ['wd:Q1033', 'en'], // Nigeria
-  ['wd:Q117', 'ak'], ['wd:Q117', 'tw'], ['wd:Q117', 'ee'], ['wd:Q117', 'en'], // Ghana
-  ['wd:Q114', 'sw'], ['wd:Q114', 'en'], // Kenya
-  ['wd:Q258', 'zu'], ['wd:Q258', 'xh'], ['wd:Q258', 'af'], ['wd:Q258', 'en'], // South Africa
-  ['wd:Q924', 'sw'], ['wd:Q924', 'en'], // Tanzania
-  ['wd:Q1036', 'sw'], ['wd:Q1036', 'en'], // Uganda
-  ['wd:Q115', 'am'], ['wd:Q115', 'en'], // Ethiopia
-  ['wd:Q954', 'sn'], ['wd:Q954', 'en'], // Zimbabwe
-  ['wd:Q1041', 'wo'], ['wd:Q1041', 'fr'], ['wd:Q1041', 'en'], // Senegal
+  ['wd:Q1033', 'yo'],
+  ['wd:Q1033', 'ig'],
+  ['wd:Q1033', 'ha'],
+  ['wd:Q1033', 'en'], // Nigeria
+  ['wd:Q117', 'ak'],
+  ['wd:Q117', 'tw'],
+  ['wd:Q117', 'ee'],
+  ['wd:Q117', 'en'], // Ghana
+  ['wd:Q114', 'sw'],
+  ['wd:Q114', 'en'], // Kenya
+  ['wd:Q258', 'zu'],
+  ['wd:Q258', 'xh'],
+  ['wd:Q258', 'af'],
+  ['wd:Q258', 'en'], // South Africa
+  ['wd:Q924', 'sw'],
+  ['wd:Q924', 'en'], // Tanzania
+  ['wd:Q1036', 'sw'],
+  ['wd:Q1036', 'en'], // Uganda
+  ['wd:Q115', 'am'],
+  ['wd:Q115', 'en'], // Ethiopia
+  ['wd:Q954', 'sn'],
+  ['wd:Q954', 'en'], // Zimbabwe
+  ['wd:Q1041', 'wo'],
+  ['wd:Q1041', 'fr'],
+  ['wd:Q1041', 'en'], // Senegal
   // Bengali: Bangladesh (native Bengali script) and Indian Bengali (West Bengal).
   // Bengali is the 5th most spoken language by native speakers and was previously
   // entirely uncovered — no Bengali-script names were in any pack.
-  ['wd:Q902', 'bn'], ['wd:Q902', 'en'], // Bangladesh
+  ['wd:Q902', 'bn'],
+  ['wd:Q902', 'en'], // Bangladesh
   ['wd:Q668', 'bn'], // India (West Bengal, Bengali-speaking population)
   // Tamil: major Dravidian language (80M+ speakers) with its own script.
   ['wd:Q668', 'ta'], // India (Tamil Nadu)
-  ['wd:Q854', 'ta'], ['wd:Q854', 'en'], // Sri Lanka
+  ['wd:Q854', 'ta'],
+  ['wd:Q854', 'en'], // Sri Lanka
   // Hangul: North Korean people carry Korean names distinct from South Korean
   // Wikidata coverage, filling out the Hangul pack's remaining 4 000+ slots.
-  ['wd:Q423', 'ko'], ['wd:Q423', 'en'], // North Korea
+  ['wd:Q423', 'ko'],
+  ['wd:Q423', 'en'], // North Korea
   // Latin-script Africa: French/Portuguese-medium countries with large name pools
   // that were absent from the Latin pack. Order matters — these run before the
   // large European name-item sweep so they claim their cap slots.
-  ['wd:Q974', 'fr'], ['wd:Q974', 'sw'], // DR Congo (Lingala/Swahili population)
-  ['wd:Q1037', 'rw'], ['wd:Q1037', 'fr'], ['wd:Q1037', 'en'], // Rwanda
-  ['wd:Q1009', 'fr'], ['wd:Q1009', 'en'], // Cameroon
-  ['wd:Q916', 'pt'], ['wd:Q916', 'en'], // Angola
-  ['wd:Q1029', 'pt'], ['wd:Q1029', 'en'], // Mozambique
-  ['wd:Q1008', 'fr'], ['wd:Q1008', 'en'], // Côte d'Ivoire
-  ['wd:Q965', 'fr'], ['wd:Q965', 'en'], // Burkina Faso
-  ['wd:Q912', 'fr'], ['wd:Q912', 'en'], // Mali
-  ['wd:Q1045', 'so'], ['wd:Q1045', 'en'], // Somalia (Somali is Latin-script)
+  ['wd:Q974', 'fr'],
+  ['wd:Q974', 'sw'], // DR Congo (Lingala/Swahili population)
+  ['wd:Q1037', 'rw'],
+  ['wd:Q1037', 'fr'],
+  ['wd:Q1037', 'en'], // Rwanda
+  ['wd:Q1009', 'fr'],
+  ['wd:Q1009', 'en'], // Cameroon
+  ['wd:Q916', 'pt'],
+  ['wd:Q916', 'en'], // Angola
+  ['wd:Q1029', 'pt'],
+  ['wd:Q1029', 'en'], // Mozambique
+  ['wd:Q1008', 'fr'],
+  ['wd:Q1008', 'en'], // Côte d'Ivoire
+  ['wd:Q965', 'fr'],
+  ['wd:Q965', 'en'], // Burkina Faso
+  ['wd:Q912', 'fr'],
+  ['wd:Q912', 'en'], // Mali
+  ['wd:Q1045', 'so'],
+  ['wd:Q1045', 'en'], // Somalia (Somali is Latin-script)
   // Latin-script Asia: Philippines has 110M+ people whose names are Latin-script
   // but were not present at all.
-  ['wd:Q928', 'tl'], ['wd:Q928', 'ceb'], ['wd:Q928', 'en'], // Philippines
+  ['wd:Q928', 'tl'],
+  ['wd:Q928', 'ceb'],
+  ['wd:Q928', 'en'], // Philippines
+  // Tamil expansion: Malaysia (~2M Tamil speakers) and Singapore (Tamil official
+  // language) were absent despite covering India and Sri Lanka. Latin-script Tamil
+  // names in Malaysia also feed the Latin pack via ASCII-fold.
+  ['wd:Q833', 'ta'],
+  ['wd:Q833', 'en'], // Malaysia
+  ['wd:Q334', 'ta'],
+  ['wd:Q334', 'en'], // Singapore
+  // Four major Indian scripts previously entirely absent from the name database.
+  // Combined 200M+ native speakers; country-constrained queries keep the SPARQL
+  // endpoint from timing out. English labels go into the Latin pack via the
+  // existing ['wd:Q668', 'en'] entry above; these add the native-script forms.
+  ['wd:Q668', 'te'], // India — Telugu (Andhra Pradesh, Telangana; 80M+ speakers)
+  ['wd:Q668', 'gu'], // India — Gujarati (Gujarat, Rajasthan; 50M+ speakers)
+  ['wd:Q668', 'kn'], // India — Kannada (Karnataka; 44M+ speakers)
+  ['wd:Q668', 'ml'], // India — Malayalam (Kerala; 35M+ speakers)
 ];
 
 const GIVEN_CLASSES = ['wd:Q202444', 'wd:Q12308941', 'wd:Q11879590', 'wd:Q3409032'];
@@ -129,6 +211,10 @@ const CAPS: Record<string, number> = {
   Hangul: 15000,
   Bengali: 20000,
   Tamil: 20000,
+  Telugu: 20000,
+  Gujarati: 20000,
+  Kannada: 20000,
+  Malayalam: 20000,
 };
 
 // Romanized/ASCII-folded variants shorter than this are dropped: 2-letter

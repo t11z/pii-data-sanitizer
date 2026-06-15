@@ -169,10 +169,7 @@ describe('credit card detection', () => {
     // (sum=50) but no payment network prints 4-3-7. The grouping guard rejects
     // it structurally.
     expect(
-      only(
-        'Billing dispute filed. IBAN ES9121 4300 001 1874756 updated for review.',
-        'CREDIT_CARD'
-      )
+      only('Billing dispute filed. IBAN ES9121 4300 001 1874756 updated for review.', 'CREDIT_CARD')
     ).toHaveLength(0);
     // Held-out 14-digit 4-3-7 Luhn-valid run, distinct digits from the gap
     // value — the guard is structural, not memorized. (5123 456 1234561:

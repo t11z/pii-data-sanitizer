@@ -100,7 +100,11 @@ function isCaselessNameScript(token: Token): boolean {
     token.script === 'Devanagari' ||
     token.script === 'Hangul' ||
     token.script === 'Bengali' ||
-    token.script === 'Tamil'
+    token.script === 'Tamil' ||
+    token.script === 'Telugu' ||
+    token.script === 'Gujarati' ||
+    token.script === 'Kannada' ||
+    token.script === 'Malayalam'
   );
 }
 
