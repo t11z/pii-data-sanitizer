@@ -11,6 +11,7 @@ import {
   isSourceFrame,
 } from '../context/roleWords';
 import { isSentenceOpener } from '../context/sentenceOpeners';
+import { isLikelyAcronym } from '../context/acronyms';
 import { scoreName } from '../scoring';
 import { latinFold } from '../latinFold';
 
@@ -122,6 +123,13 @@ function particleHyphenName(token: Token): boolean {
 function nameLike(token: Token, source: NameSource, allowUnknownCap: boolean): boolean {
   if (token.script === 'Latin') {
     if (!isCapitalized(token.text) && !particleHyphenName(token)) return false;
+    // Short ALL-CAPS Latin runs are acronyms / initialisms in prose (ID, PIN,
+    // DOB, URL, HQ, ...), never a name part — even when the lowercased form
+    // coincidentally appears in the long-tail surname list. Rejecting them here
+    // keeps a chain like "Sarah Smith DOB" / "Sarah Smith PIN" from absorbing
+    // the label. The check is structural (no closed list), so it generalizes to
+    // every acronym, including ones the engine has never seen.
+    if (isLikelyAcronym(token.text)) return false;
     return anyHit(source, token) || allowUnknownCap;
   }
   if (isCaselessNameScript(token)) {
@@ -203,6 +211,10 @@ function nameContinuation(tokens: Token[], i: number, text: string): boolean {
   // accepted by the same path: an asymmetry, not a precision lever.
   if (!isCapitalized(next.text) && !particleHyphenName(next)) return false;
   if (adjoinsDigit(next, text)) return false;
+  // A short ALL-CAPS continuation is an acronym label (the "Tech ID" / "Sales QA"
+  // shape), not a corroborating second name part — never let it rescue an
+  // otherwise-weak ext-tier sentence-start anchor.
+  if (isLikelyAcronym(next.text)) return false;
   return !isNonNameWord(next.text) && !isRoleWord(next.text) && !isTitle(next.text);
 }
 
@@ -288,6 +300,12 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
       return { titleBefore, roleBefore, dbHit: false };
     }
     if (!isCapitalized(tok.text)) return null;
+    // Short ALL-CAPS Latin runs are acronyms / initialisms, not name anchors —
+    // a title or role cue ("Dr. ID", "Engineer URL") would otherwise push them
+    // through the unknownCap path and the title boost alone (0.3 + 0.35 = 0.65)
+    // would clear the threshold. Rejecting them here closes the title/role
+    // shortcut symmetrically with the chain-extension guard in nameLike.
+    if (isLikelyAcronym(tok.text)) return null;
     // A bulk-only (ext) token at a sentence start, with no title/role to vouch
     // for it, is normally too weak to START a name chain: sentence-initial
     // capitalization is uninformative and the long-tail lists contain many
