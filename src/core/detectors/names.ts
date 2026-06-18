@@ -287,6 +287,22 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
     ) {
       return { titleBefore, roleBefore, dbHit: false };
     }
+    // Parallel start path: a particle-hyphen-name token ("al-Rashid", "el-Sayyid",
+    // "abu-Yusuf") anchored by a title/role cue. The tokenizer glues the particle
+    // and the capitalized tail into one lowercase-initial unit, so the standard
+    // capitalization gate below rejects it even when a strong cue precedes it and
+    // a corroborating second part follows ("customer al-Rashid al-Makki"). Already
+    // a valid CONTINUATION (see nameContinuation) — this brings the START path to
+    // parity. Same triple guard as the lowercase-particle branch above: cue +
+    // shape check + nameContinuation, so a lone "customer al-Rashid said …" or a
+    // structural follower ("customer al-Service Desk") still does not promote.
+    if (
+      (titleBefore || roleBefore) &&
+      particleHyphenName(tok) &&
+      nameContinuation(tokens, i, text)
+    ) {
+      return { titleBefore, roleBefore, dbHit: false };
+    }
     if (!isCapitalized(tok.text)) return null;
     // A bulk-only (ext) token at a sentence start, with no title/role to vouch
     // for it, is normally too weak to START a name chain: sentence-initial
