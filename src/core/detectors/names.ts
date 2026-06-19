@@ -287,6 +287,23 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
     ) {
       return { titleBefore, roleBefore, dbHit: false };
     }
+    // Particle-hyphen surname as the chain's FIRST token, after a title or role
+    // cue: "customer al-Rashid al-Makki", "Dr. el-Sayyid Brakkenzoon", "Engineer
+    // abu-Yusuf Vandermeerux". The tokenizer glues these as one lowercase-initial
+    // token (head = particle, tail = capitalized), so the next bailout would drop
+    // them even though the role/title cue strongly licenses a person. Mirrors the
+    // bare-particle branch above with the same triple guard — cue + shape +
+    // corroborating second name part — so precision holds: a lone particle-hyphen
+    // token after the cue ("Customer al-Rashid confirms …"), a structural
+    // follower ("Customer al-Rashid Department escalated …"), and a lowercase
+    // tail ("Customer al-forno ordered …" → particleHyphenName false) all fail.
+    if (
+      (titleBefore || roleBefore) &&
+      particleHyphenName(tok) &&
+      nameContinuation(tokens, i, text)
+    ) {
+      return { titleBefore, roleBefore, dbHit };
+    }
     if (!isCapitalized(tok.text)) return null;
     // A bulk-only (ext) token at a sentence start, with no title/role to vouch
     // for it, is normally too weak to START a name chain: sentence-initial

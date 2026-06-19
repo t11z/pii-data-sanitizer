@@ -636,6 +636,77 @@ describe('title/role-anchored particle start (no leading given name)', () => {
   });
 });
 
+describe('title/role-anchored particle-hyphen start (joined "al-Surname")', () => {
+  // The tokenizer glues "al-Rashid", "el-Sayyid", "abu-Yusuf" into a single
+  // lowercase-initial token (head = particle, tail = capitalized). Without a
+  // particle-hyphen branch in nameStart the candidate fails the capitalization
+  // check, so a chain whose FIRST token is such a surname is dropped even when
+  // a strong title/role cue precedes it ("customer al-Rashid al-Makki ..."). The
+  // branch only fires when (a) a cue precedes the candidate AND (b) a real
+  // continuation follows — same triple guard as the bare-particle branch, so a
+  // single particle-hyphen token after a cue, a structural follow-on, and a
+  // missing cue all stay non-detections. Verified against the FULL committed
+  // dictionary so the surnames below are genuinely held out — detection rides
+  // on the particle-hyphen-start heuristic, never on dictionary membership.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('starts a held-out particle-hyphen surname after a role cue', () => {
+    expect(personsFull('Customer al-Brakkenzoon al-Vandermeerux confirmed.')).toContain(
+      'al-Brakkenzoon al-Vandermeerux'
+    );
+    expect(personsFull('Engineer el-Hollvardsen Krimbleton reviewed the case.')).toContain(
+      'el-Hollvardsen Krimbleton'
+    );
+  });
+
+  it('starts a held-out particle-hyphen surname after a title', () => {
+    expect(personsFull('Dr. abu-Brakkenzoon Vandermeerux signed the form.')).toContain(
+      'abu-Brakkenzoon Vandermeerux'
+    );
+  });
+
+  it('proves the particle-hyphen surnames are held out (absent from the full DB)', () => {
+    // The fix is the new start branch, not memorization: if any of these land in
+    // the DB later the test trips and a fresh held-out pair must be picked.
+    const heldOut = ['brakkenzoon', 'vandermeerux', 'hollvardsen', 'krimbleton'];
+    for (const word of heldOut) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('does not fire on a single particle-hyphen token after the cue (no continuation)', () => {
+    // Precision guard for today's gap-report shape: "Customer al-Rashid confirms ..."
+    // — the cue is there but nothing corroborates the name, so a chain on parts === 1
+    // would FP on "Customer al-Hambra reserved ..." / "Engineer al-Capitan finalized
+    // ...". The nameContinuation requirement keeps it out.
+    expect(personsFull('Customer al-Brakkenzoon confirmed the order.')).toHaveLength(0);
+    expect(personsFull('Engineer el-Hollvardsen replied yesterday.')).toHaveLength(0);
+  });
+
+  it('does not fire when the particle-hyphen leads into a structural noun', () => {
+    expect(personsFull('Customer al-Brakkenzoon Department escalated this.')).toHaveLength(0);
+    expect(personsFull('Engineer el-Hollvardsen Service confirmed the ticket.')).toHaveLength(0);
+  });
+
+  it('does not start a name on a particle-hyphen surname without a title or role cue', () => {
+    // No cue → branch never fires → the lowercase-initial token fails the
+    // capitalization bailout. Same shape that today's gap report flagged single-
+    // token, but here even with a continuation it stays out without a cue.
+    expect(personsFull('Yesterday al-Brakkenzoon Vandermeerux walked in.')).toHaveLength(0);
+  });
+
+  it('does not fire on a particle-hyphen token whose tail is lowercase', () => {
+    // particleHyphenName requires the tail to be capitalized, so the food /
+    // place ("al-forno", "al-quds" lowercased) stays out even after a cue.
+    expect(personsFull('Customer al-forno ordered tonight.')).toHaveLength(0);
+  });
+});
+
 describe('false-positive guards', () => {
   it('does not flag lowercase common words', () => {
     expect(persons('She gave a frank and rose-tinted review.')).toHaveLength(0);
