@@ -1361,5 +1361,31 @@
         "text": "അഞ്ജലി നായർ"
       }
     ]
+  },
+  {
+    "text": "TAC #5102 — Eldorin Vakatashi (eldorin.v@example.gr) called about the refund.",
+    "entities": [
+      { "type": "PERSON", "text": "Eldorin Vakatashi" },
+      { "type": "EMAIL", "text": "eldorin.v@example.gr" }
+    ]
+  },
+  {
+    "text": "Customer Tzevarin Brakkenzoon (t.brakkenzoon@example.com) replied to the agent.",
+    "entities": [
+      { "type": "PERSON", "text": "Tzevarin Brakkenzoon" },
+      { "type": "EMAIL", "text": "t.brakkenzoon@example.com" }
+    ]
+  },
+  {
+    "text": "Atlanta Marrioth (atlanta.marrioth@example.com) confirmed the conference booking.",
+    "entities": [
+      { "type": "EMAIL", "text": "atlanta.marrioth@example.com" }
+    ]
+  },
+  {
+    "text": "Customer Service Team (cs.team@example.com) acknowledged the ticket.",
+    "entities": [
+      { "type": "EMAIL", "text": "cs.team@example.com" }
+    ]
   }
 ]
