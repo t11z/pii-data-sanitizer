@@ -790,11 +790,11 @@
     ]
   },
   {
-    "text": "Confirmed IBAN CZ6508 0000 1234 5678 9012 34 today.",
+    "text": "Confirmed ref CZ6508 0000 1234 5678 9012 34 today.",
     "entities": []
   },
   {
-    "text": "Requested IBAN PT50 0001 0051 0505 0105 0105 for the refund.",
+    "text": "Requested ref PT50 0001 0051 0505 0105 0105 for the refund.",
     "entities": []
   },
   {
@@ -836,6 +836,18 @@
         "text": "NL 91 ABNA 0417 1643 00"
       }
     ]
+  },
+  {
+    "text": "Refund processed to IBAN ZK00 1122 3344 5566 7788 confirmed.",
+    "entities": [{ "type": "IBAN", "text": "ZK00 1122 3344 5566 7788" }]
+  },
+  {
+    "text": "Held-out cued IBAN body wraps a Luhn-valid 16-digit run; IBAN ZK99 4111 1111 1111 1111 booked, and the inner run must not surface as CREDIT_CARD.",
+    "entities": [{ "type": "IBAN", "text": "ZK99 4111 1111 1111 1111" }]
+  },
+  {
+    "text": "The IBAN format guide is on the wiki for new agents.",
+    "entities": []
   },
   {
     "text": "Reference code XY 11 AAAA BBBB CCCC DDDD EEEE present.",
@@ -912,11 +924,11 @@
     "entities": []
   },
   {
-    "text": "Billing update: IBAN BR15 0000 0000 0000 0000 0000 0000 C 00 set for review.",
+    "text": "Billing update: ref BR15 0000 0000 0000 0000 0000 0000 C 00 set for review.",
     "entities": []
   },
   {
-    "text": "TAC followup: IBAN BR15 0000 0000 0000 0000 0000 0000 0000 0001 logged.",
+    "text": "TAC followup: ref BR15 0000 0000 0000 0000 0000 0000 0000 0001 logged.",
     "entities": []
   },
   {
