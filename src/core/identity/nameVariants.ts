@@ -25,7 +25,12 @@ function addForm(out: Map<string, string>, value: string, original: string): voi
   if (!out.has(value)) out.set(value, original);
 }
 
-function addVariants(out: Map<string, string>, given: string, family: string, original: string): void {
+function addVariants(
+  out: Map<string, string>,
+  given: string,
+  family: string,
+  original: string
+): void {
   const initial = given[0];
   for (const sep of SEPS) {
     addForm(out, given + sep + family, original);
@@ -48,10 +53,7 @@ function addVariants(out: Map<string, string>, given: string, family: string, or
 function buildVariants(personSpans: Span[]): Map<string, string> {
   const out = new Map<string, string>();
   const done = new Set<string>();
-  const normalizers: Array<(s: string) => string> = [
-    (t) => normName(t),
-    (t) => foldLatin(t),
-  ];
+  const normalizers: Array<(s: string) => string> = [(t) => normName(t), (t) => foldLatin(t)];
 
   for (const s of personSpans) {
     if (s.type !== 'PERSON') continue;

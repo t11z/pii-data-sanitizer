@@ -612,8 +612,9 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
                   onchange={(e) => assignRow(m.type, m.original, e.currentTarget.value)}
                 >
                   {#each view.assignableGroups as g (g.id)}
-                    <option value={String(g.id)} selected={view.memberOf.get(m.placeholder) === g.id}
-                      >{g.label}</option
+                    <option
+                      value={String(g.id)}
+                      selected={view.memberOf.get(m.placeholder) === g.id}>{g.label}</option
                     >
                   {/each}
                   <option value="" selected={view.memberOf.get(m.placeholder) === undefined}
@@ -676,8 +677,10 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
         <button type="submit" disabled={!manualValue.trim()}>+ Add</button>
       </form>
       {#if mode === 'pseudonymize'}
-        <button class="link new-group" onclick={() => createCustomGroup()} title="Create a new group"
-          >＋ New group</button
+        <button
+          class="link new-group"
+          onclick={() => createCustomGroup()}
+          title="Create a new group">＋ New group</button
         >
       {/if}
       {#each view.groups as g (g.id)}

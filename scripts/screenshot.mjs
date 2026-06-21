@@ -18,11 +18,17 @@ Server 192.168.10.42 flagged the request from Omar al Farouk.
 Please loop in kai-uwe@example.com about the David ben Gurion case.`;
 
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 2 });
+const page = await browser.newPage({
+  viewport: { width: 1280, height: 900 },
+  deviceScaleFactor: 2,
+});
 await page.goto(URL, { waitUntil: 'networkidle' });
 
 // Pseudonymize mode shows stable [PERSON_1]/[EMAIL_1] placeholders — nicer for a hero shot.
-await page.getByRole('radio', { name: /pseudonymize/i }).check().catch(() => {});
+await page
+  .getByRole('radio', { name: /pseudonymize/i })
+  .check()
+  .catch(() => {});
 
 const ta = page.locator('textarea').first();
 await ta.click();
