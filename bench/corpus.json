@@ -1259,6 +1259,14 @@
     ]
   },
   {
+    "text": "Customer al-Brakkenzoon al-Vandermeerux confirmed the refund.",
+    "entities": [{ "type": "PERSON", "text": "al-Brakkenzoon al-Vandermeerux" }]
+  },
+  {
+    "text": "Customer al-Brakkenzoon Department escalated this overnight.",
+    "entities": []
+  },
+  {
     "text": "Pizza al-forno was delivered tonight.",
     "entities": []
   },
