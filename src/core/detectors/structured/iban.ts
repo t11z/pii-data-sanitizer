@@ -6,6 +6,20 @@ import type { Span } from '../../types';
 // pattern cannot leak random "XX 12 …" strings as IBANs.
 const IBAN_RE = /\b[A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30}\b/g;
 
+// Cue-anchored path: the standalone word "IBAN" immediately precedes an IBAN-
+// shaped run. The acronym is a near-deterministic intent signal — writers reach
+// for "IBAN" only when declaring an account number — so it lets us emit a span
+// even when the run fails mod-97 / country-length validation (mis-keyed,
+// OCR-corrupted, or non-standard groupings). Captured group is the SHAPE only,
+// not the cue word, so the span text mirrors what callers and the bench expect
+// for a bare IBAN. The acronym itself is closed-class and almost never appears
+// outside banking prose, so the cue does not leak in benign contexts; the
+// uncued path remains strictly gated by mod-97 + length. This also overlap-
+// shields the cascade FPs (PERSON "IBAN <CC>" — `iban` is a Basque given name
+// in the ext dictionary — and CREDIT_CARD / PHONE matches on 4-digit groups
+// inside the IBAN body) via the existing resolveOverlaps confidence ranking.
+const IBAN_CUED_RE = /\bIBAN\b[\s:]+([A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30})\b/g;
+
 // Official IBAN length per country, from the SWIFT IBAN Registry. Mod-97 alone
 // passes ~1% of random strings by chance, so a longer-than-canonical run that
 // happens to checksum-validate (e.g. a 32-char "BR15 …" with extra zero groups
@@ -127,16 +141,38 @@ export function isValidIban(raw: string): boolean {
 
 export function detectIbans(text: string): Span[] {
   const spans: Span[] = [];
+  const validated: Array<[number, number]> = [];
   for (const match of text.matchAll(IBAN_RE)) {
     const value = match[0];
     if (!isValidIban(value)) continue;
+    const start = match.index;
+    const end = start + value.length;
     spans.push({
-      start: match.index,
-      end: match.index + value.length,
+      start,
+      end,
       type: 'IBAN',
       text: value,
       confidence: 0.97,
       source: 'iban',
+    });
+    validated.push([start, end]);
+  }
+  // Cue-anchored: emit a span at 0.96 (just under the strict path's 0.97, just
+  // over the cascade FPs at 0.95) when the cue word precedes an IBAN-shape that
+  // the strict path did not already claim. Skip when contained in a validated
+  // span to avoid double-counting.
+  for (const match of text.matchAll(IBAN_CUED_RE)) {
+    const value = match[1];
+    const start = match.index + match[0].length - value.length;
+    const end = start + value.length;
+    if (validated.some(([s, e]) => start >= s && end <= e)) continue;
+    spans.push({
+      start,
+      end,
+      type: 'IBAN',
+      text: value,
+      confidence: 0.96,
+      source: 'iban-cued',
     });
   }
   return spans;
