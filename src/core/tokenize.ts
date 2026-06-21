@@ -18,6 +18,10 @@ const SCRIPT_TESTS: Array<[Script, RegExp]> = [
   ['Hangul', /\p{Script=Hangul}/u],
   ['Bengali', /\p{Script=Bengali}/u],
   ['Tamil', /\p{Script=Tamil}/u],
+  ['Telugu', /\p{Script=Telugu}/u],
+  ['Gujarati', /\p{Script=Gujarati}/u],
+  ['Kannada', /\p{Script=Kannada}/u],
+  ['Malayalam', /\p{Script=Malayalam}/u],
   ['Han', /\p{Script=Han}/u],
 ];
 

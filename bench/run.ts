@@ -32,7 +32,10 @@ function buildNameSource(): PackNameSource {
   const dir = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'build-db', 'data');
   if (existsSync(dir)) {
     for (const f of readdirSync(dir).filter((n) => n.endsWith('.json'))) {
-      const p = JSON.parse(readFileSync(join(dir, f), 'utf8')) as { script: Script; names: string[] };
+      const p = JSON.parse(readFileSync(join(dir, f), 'utf8')) as {
+        script: Script;
+        names: string[];
+      };
       const tier = p.script === 'Latin' ? 'ext' : 'core';
       src.addWords(p.names, { script: p.script, tier }, f);
     }

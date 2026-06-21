@@ -127,7 +127,6 @@ describe('probeOllama', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-
   it('returns models when the server responds', async () => {
     mockFetch(
       () =>

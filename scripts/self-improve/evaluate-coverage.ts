@@ -213,7 +213,9 @@ for (const [type, s] of Object.entries(stats).sort()) {
   );
 }
 if (skippedTypes.size) {
-  console.warn(`\n⚠️  Ignored unknown entity types in ground truth: ${[...skippedTypes].join(', ')}`);
+  console.warn(
+    `\n⚠️  Ignored unknown entity types in ground truth: ${[...skippedTypes].join(', ')}`
+  );
 }
 console.log(`\nMissed (false negatives): ${falseNegatives.length}`);
 for (const m of falseNegatives.slice(0, 20)) {
