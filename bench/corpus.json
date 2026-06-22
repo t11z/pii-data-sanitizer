@@ -1361,5 +1361,31 @@
         "text": "അഞ്ജലി നായർ"
       }
     ]
+  },
+  {
+    "text": "Engineer: Praxworth Fnordlinger resolved the ticket overnight.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Praxworth Fnordlinger"
+      }
+    ]
+  },
+  {
+    "text": "Account holder: Fingleton Bazlovic disputed the charge yesterday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Fingleton Bazlovic"
+      }
+    ]
+  },
+  {
+    "text": "Customer: Service Team responded within the SLA window.",
+    "entities": []
+  },
+  {
+    "text": "Please notify the duty engineer. Daily Briefing follows shortly.",
+    "entities": []
   }
 ]
