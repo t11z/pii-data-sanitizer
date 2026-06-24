@@ -1361,5 +1361,31 @@
         "text": "അഞ്ജലി നായർ"
       }
     ]
+  },
+  {
+    "text": "Customer called 33 1 4070 1234 56 from Paris yesterday.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "33 1 4070 1234 56"
+      }
+    ]
+  },
+  {
+    "text": "Reach the agent at 39 06 4555 1234 567 about the refund.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "39 06 4555 1234 567"
+      }
+    ]
+  },
+  {
+    "text": "Card on file 5555 4444 3333 2 will be reissued shortly.",
+    "entities": []
+  },
+  {
+    "text": "Reference number 1234567890123 attached for review.",
+    "entities": []
   }
 ]
