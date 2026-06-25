@@ -1361,5 +1361,45 @@
         "text": "അഞ്ജലി നായർ"
       }
     ]
+  },
+  {
+    "text": "Customer Klaus-Dieter Müller (Qwerlin) called the support line.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Klaus-Dieter Müller"
+      },
+      {
+        "type": "PERSON",
+        "text": "Qwerlin"
+      }
+    ]
+  },
+  {
+    "text": "Maria López (Manager) approved the refund this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Maria López"
+      }
+    ]
+  },
+  {
+    "text": "Maria López (Active) confirmed the case is open.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Maria López"
+      }
+    ]
+  },
+  {
+    "text": "Maria López (CEO) approved the refund this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Maria López"
+      }
+    ]
   }
 ]

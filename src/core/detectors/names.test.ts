@@ -1148,3 +1148,103 @@ describe('sentence-initial ext name + particle-hyphen surname', () => {
     expect(personsFull('al-Rashid configuration is documented elsewhere.')).toHaveLength(0);
   });
 });
+
+describe('AKA-in-parens frame ("<Name> (<Alias>)")', () => {
+  // Support / CRM prose puts nicknames, given names, or alias disambiguators
+  // in parentheses directly after the full name: "Customer von Neumann
+  // (Johann) called", "Dr. Patel (Aisha) reviewed". The inner token sits at a
+  // `(`-sentence-start with no title or role cue to vouch for it, so the
+  // chain detector's sentence-start guard silently drops it even when it is
+  // in the dictionary. The fence is structural — a *confirmed* name span sits
+  // directly before the open paren, the alias is a single token, the close
+  // paren follows it directly — so the cue licenses the alias on shape alone,
+  // without needing it in the database. All names below are held out against
+  // the full committed dictionary so the heuristic is what's being tested.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects an alias whose token is absent from the full DB', () => {
+    // "Qwerlin" is held out; the cue is the parens fence after a confirmed
+    // name. Without the heuristic the alias is dropped at `(`-sentence-start.
+    expect(personsFull('Customer Klaus-Dieter Müller (Qwerlin) confirmed today.')).toContain(
+      'Qwerlin'
+    );
+    expect(personsFull('Dr. Fatima Al-Rashid (Vexbruck) reviewed the case.')).toContain('Vexbruck');
+  });
+
+  it('detects an alias right after a sentence-initial confirmed name span', () => {
+    expect(personsFull('Maria López (Qwesterveldt) signed off.')).toContain('Qwesterveldt');
+  });
+
+  it('tolerates no whitespace between the name and the open paren', () => {
+    // The gap regex accepts `(` with optional horizontal whitespace either
+    // side, so "Smith(Bob)" — tight, common in compact log lines — still fires.
+    expect(personsFull('Maria López(Qwerlin) signed off.')).toContain('Qwerlin');
+  });
+
+  it('does not fire on an all-caps acronym in parens', () => {
+    // CEO / HR / IT / NYC / FBI — uppercase short tokens. The shape filter
+    // (at least one lowercase letter) is the gate.
+    expect(personsFull('Maria López (CEO) approved.')).not.toContain('CEO');
+    expect(personsFull('Maria López (HR) approved.')).not.toContain('HR');
+    expect(personsFull('Maria López (NYC) approved.')).not.toContain('NYC');
+  });
+
+  it('does not fire on a known role / title / non-name word', () => {
+    // The NON_NAME_WORDS / role / title guards block common parens content
+    // that is not a person — even when the lemma is in the ext dictionary
+    // ("Manager", "Director", "Lead" are real census surnames).
+    expect(personsFull('Maria López (Manager) approved.')).not.toContain('Manager');
+    expect(personsFull('Maria López (Director) approved.')).not.toContain('Director');
+    expect(personsFull('Maria López (Status) approved.')).not.toContain('Status');
+    expect(personsFull('Maria López (Service) approved.')).not.toContain('Service');
+    expect(personsFull('Maria López (Active) approved.')).not.toContain('Active');
+    expect(personsFull('Maria López (Pending) approved.')).not.toContain('Pending');
+    expect(personsFull('Maria López (Dr) approved.')).not.toContain('Dr');
+    expect(personsFull('Maria López (Customer) approved.')).not.toContain('Customer');
+  });
+
+  it('does not fire on an ambiguous common word in parens (city, month)', () => {
+    // AMBIGUOUS_WORDS blocks tokens that are also ordinary vocabulary so a
+    // city / month annotation after a name does not promote — the most common
+    // alternative meaning of `<Name> (Cap)` in ticket prose.
+    expect(personsFull('Maria López (Berlin) approved.')).not.toContain('Berlin');
+    expect(personsFull('Maria López (April) approved.')).not.toContain('April');
+  });
+
+  it('does not fire on a parenthesized non-alias (token followed by more content)', () => {
+    // The close-paren must follow the alias directly. A second token inside
+    // the parens ("(Smith Department)", "(Berlin office)") leaves the chain
+    // to the regular detector path, not this cue.
+    expect(personsFull('Maria López (Qwerlin office) approved.')).not.toContain('Qwerlin');
+  });
+
+  it('does not fire without a confirmed name span before the open paren', () => {
+    // A bare "(Qwerlin)" or a `(` after non-name content cannot license the
+    // alias — the structural fence requires the just-emitted PERSON.
+    expect(personsFull('The (Qwerlin) flag was raised.')).toHaveLength(0);
+    expect(personsFull('Status: (Qwerlin) review pending.')).toHaveLength(0);
+  });
+
+  it('does not fire when the open paren sits across a line break', () => {
+    // ALIAS_OPEN_GAP stays horizontal-whitespace-only, so a `\n` between the
+    // name span and the parenthesized token never bridges the cue.
+    expect(personsFull('Customer Klaus-Dieter Müller\n(Qwerlin) confirmed today.')).not.toContain(
+      'Qwerlin'
+    );
+  });
+
+  it('proves the AKA-in-parens names are held out (absent from the full DB)', () => {
+    // The detection rides on the structural cue, not on dictionary membership.
+    // If any of these surface in the DB later, the cases above stop proving
+    // generalization and the held-out values must be re-pointed.
+    const heldOut = ['qwerlin', 'vexbruck', 'qwesterveldt'];
+    for (const word of heldOut) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+});
