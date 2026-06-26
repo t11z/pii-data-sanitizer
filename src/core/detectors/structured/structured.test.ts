@@ -393,6 +393,33 @@ describe('IP detection', () => {
       '192.168.1.1'
     );
   });
+
+  it('does not flag IANA-reserved non-identifier addresses (loopback / unspecified / broadcast)', () => {
+    // These addresses are reserved by IANA and never refer to a specific
+    // addressable entity, so they cannot be PII. The values below are HELD OUT
+    // from the single FP case that exposed this bug (`127.0.0.1`): we cover
+    // other points in the loopback /8, the IPv6 loopback literal, and the two
+    // IPv4 special-meaning constants so the test proves the whole reserved
+    // class is filtered, not just the one address.
+    expect(only('Bind dev server to 127.0.0.1 only', 'IP')).toHaveLength(0);
+    expect(only('Probe also hit 127.4.5.6 from the loopback range', 'IP')).toHaveLength(0);
+    expect(only('Loopback subnet 127.0.0.0/8 reserved by IANA', 'IP')).toHaveLength(0);
+    expect(only('IPv6 loopback ::1 came up', 'IP')).toHaveLength(0);
+    expect(only('Listen on 0.0.0.0 for all interfaces', 'IP')).toHaveLength(0);
+    expect(only('Sent to 255.255.255.255 limited broadcast', 'IP')).toHaveLength(0);
+  });
+
+  it('keeps detecting addresses that CAN identify a device (precision guard for the filter)', () => {
+    // Held-out positive guards: the filter must NOT swallow private RFC 1918,
+    // link-local, documentation-range, or public addresses — those still
+    // identify a network endpoint and remain valid PII candidates. Different
+    // exact octets from the cases already covered above.
+    expect(only('Gateway 10.20.30.40 reconfigured', 'IP')[0].text).toBe('10.20.30.40');
+    expect(only('Office subnet 192.168.50.77 reachable', 'IP')[0].text).toBe('192.168.50.77');
+    expect(only('Link-local 169.254.7.7 negotiated', 'IP')[0].text).toBe('169.254.7.7');
+    expect(only('Docs example 203.0.113.99 cited', 'IP')[0].text).toBe('203.0.113.99');
+    expect(only('Link-local fe80::beef logged', 'IP')[0].text).toBe('fe80::beef');
+  });
 });
 
 describe('MAC detection', () => {

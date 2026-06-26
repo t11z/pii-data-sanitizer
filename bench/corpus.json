@@ -1361,5 +1361,13 @@
         "text": "അഞ്ജലി നായർ"
       }
     ]
+  },
+  {
+    "text": "Test entry (no PII): release v1.2.3 deployed. Decoy IP: 127.0.0.1 is loopback only; listener bound to 0.0.0.0 for all interfaces.",
+    "entities": []
+  },
+  {
+    "text": "Dev container exposes ::1 only — no public address yet.",
+    "entities": []
   }
 ]

@@ -52,6 +52,28 @@ function splitCidr(value: string, family: 'v4' | 'v6'): { addr: string; cidr: st
   return { addr: value.slice(0, slash), cidr: value.slice(slash) };
 }
 
+/** IANA-reserved IPv4 addresses that can never identify a specific entity:
+ *  - `127.0.0.0/8` — loopback ("this machine"), used in configs, dev docs, decoys
+ *  - `0.0.0.0` — unspecified ("no address" / "all interfaces")
+ *  - `255.255.255.255` — limited broadcast (every host on the local segment)
+ *  None of these point to a person or a single device, so flagging them as PII is
+ *  noise. RFC 1918 private, link-local (`169.254/16`), and documentation ranges
+ *  (`192.0.2/24`, `198.51.100/24`, `203.0.113/24`) are NOT filtered — they can
+ *  identify a device on a network and remain valid PII candidates. */
+function isIpv4NonIdentifier(addr: string): boolean {
+  if (addr === '0.0.0.0' || addr === '255.255.255.255') return true;
+  return addr.startsWith('127.');
+}
+
+/** IANA-reserved IPv6 addresses that can never identify a specific entity:
+ *  - `::1` — loopback
+ *  Unspecified `::` is already rejected by `isValidIpv6` (the `total >= 1` rule),
+ *  so it does not need a second check here. Link-local `fe80::/10` and the
+ *  documentation prefix `2001:db8::/32` remain detected. */
+function isIpv6NonIdentifier(addr: string): boolean {
+  return addr === '::1';
+}
+
 /** Validates an IPv6 candidate per RFC 4291 (compression, embedded IPv4, zone). */
 function isValidIpv6(candidate: string): boolean {
   let addr = candidate;
@@ -100,6 +122,7 @@ export function detectIps(text: string): Span[] {
   const spans: Span[] = [];
   for (const match of text.matchAll(IPV4_RE)) {
     const { addr, cidr } = splitCidr(match[0], 'v4');
+    if (isIpv4NonIdentifier(addr)) continue;
     const value = addr + cidr;
     spans.push({
       start: match.index,
@@ -113,6 +136,7 @@ export function detectIps(text: string): Span[] {
   for (const match of text.matchAll(IPV6_CANDIDATE_RE)) {
     const { addr, cidr } = splitCidr(match[0], 'v6');
     if (!isValidIpv6(addr)) continue;
+    if (isIpv6NonIdentifier(addr)) continue;
     const value = addr + cidr;
     spans.push({
       start: match.index,
