@@ -137,6 +137,11 @@ function nameLike(token: Token, source: NameSource, allowUnknownCap: boolean): b
 // Horizontal whitespace (space, tab, NBSP, ...) but never a line break: name
 // parts may be joined by spaces, not across newlines.
 const SINGLE_GAP = /^[^\S\n\r]+$/;
+// Middle-initial join: a single dot immediately after a one-letter token, then
+// horizontal whitespace ("John D. Smith", "Rajesh R. Iyer"). Permitted only when
+// the prior token is an initial (see initialDot below), so a real sentence
+// boundary ("…engineer arrived. Bob…") never bridges the gap.
+const INITIAL_DOT_GAP = /^\.[^\S\n\r]+$/;
 /**
  * A token whose final character is directly followed in the source text by a
  * decimal digit is part of a structured identifier ("CZ6508", "PT50", "XR250",
@@ -360,7 +365,18 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
 
     while (j + 1 < tokens.length) {
       const gap = text.slice(tokens[j].end, tokens[j + 1].start);
-      if (!SINGLE_GAP.test(gap)) break;
+      // Bridge a single-letter middle initial's trailing dot ("John D. Smith",
+      // "Rajesh R. Iyer", "Dr. Aleksy P. Vonderhaar"): the chain otherwise
+      // truncates at the initial because SINGLE_GAP rejects the period, leaving
+      // the real surname to start a separate (frequently FP) chain on its own.
+      // Restricted to one-letter tokens followed in the source by exactly one
+      // '.' so multi-letter sentence-final words ("…arrived. Bob…") never bridge.
+      const initialBridge =
+        tokens[j].text.length === 1 &&
+        isCapitalized(tokens[j].text) &&
+        text.charCodeAt(tokens[j].end) === 46 /* '.' */ &&
+        INITIAL_DOT_GAP.test(gap);
+      if (!SINGLE_GAP.test(gap) && !initialBridge) break;
       const next = tokens[j + 1];
 
       if (isParticle(next.text)) {
