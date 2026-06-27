@@ -1148,3 +1148,83 @@ describe('sentence-initial ext name + particle-hyphen surname', () => {
     expect(personsFull('al-Rashid configuration is documented elsewhere.')).toHaveLength(0);
   });
 });
+
+describe('middle-initial bridge ("Given X. Surname")', () => {
+  // Chain extension only bridges pure whitespace, so the period after a
+  // one-letter initial truncates "Rajesh R. Iyer" into "Rajesh R" and leaves
+  // the surname to start a separate (frequently FP) chain. The fix lets the
+  // initial's trailing dot stand in for the gap — but only when the previous
+  // token is exactly one capitalized letter directly followed by '.', so a
+  // multi-letter sentence-final word never bridges into the next clause.
+  //
+  // Verified against the FULL committed dictionary so the held-out cases ride
+  // on the bridge heuristic (anchored by title/role + chain extension on
+  // unknown-cap tokens) and not on the dictionary.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('joins given + initial + surname into one span (title-anchored, held out)', () => {
+    expect(personsFull('Please contact Dr. Qwesterveldt R. Brakkenzoon for details.')).toContain(
+      'Qwesterveldt R. Brakkenzoon'
+    );
+  });
+
+  it('joins given + initial + surname after a role cue (held out)', () => {
+    expect(personsFull('Engineer Wlodimar A. Krimbleton signed the doc.')).toContain(
+      'Wlodimar A. Krimbleton'
+    );
+    expect(personsFull('Account holder Vexbruck T. Hollvardsen disputed the charge.')).toContain(
+      'Vexbruck T. Hollvardsen'
+    );
+  });
+
+  it('chains across two consecutive initials ("J. K. Surname", held out)', () => {
+    // Two initials in a row — each is a one-letter token whose trailing dot
+    // bridges the next gap. Anchored by the title so the chain can start on
+    // the unknown given name.
+    expect(personsFull('Memo by Dr. Aurelienne J. K. Zwingenberger arrived.')).toContain(
+      'Aurelienne J. K. Zwingenberger'
+    );
+  });
+
+  it('proves the held-out names are absent from the full DB', () => {
+    // If a future bulk ingest lands any of these tokens, swap them for fresh
+    // ones — otherwise the test stops proving the heuristic.
+    for (const word of [
+      'qwesterveldt',
+      'brakkenzoon',
+      'wlodimar',
+      'krimbleton',
+      'vexbruck',
+      'hollvardsen',
+      'aurelienne',
+      'zwingenberger',
+    ]) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('does not bridge a multi-letter sentence-final word (precision guard)', () => {
+    // The bridge is gated on length === 1, so a real sentence end with a
+    // multi-letter prior token never lets the next clause join the chain.
+    expect(persons('The engineer arrived. Smith left the building.')).toEqual(['Smith']);
+  });
+
+  it('truncates the chain at the initial when the next token is not a name', () => {
+    // The bridge merely relaxes the gap — the nameLike check still applies, so
+    // a lowercase follower (verb, article, …) ends the chain at the initial.
+    expect(persons('John Q. arrived at 5pm.')).toContain('John Q');
+  });
+
+  it('does not bridge after a period when the prior token is not a single letter', () => {
+    // Title abbreviations like "Dr. Smith. John …" must not let "John" join the
+    // first chain via the period — only one-letter initials bridge.
+    const got = persons('Help Mr. Smith. John was busy with reports.');
+    expect(got).toContain('Smith');
+    expect(got).not.toContain('Smith. John');
+  });
+});

@@ -1361,5 +1361,32 @@
         "text": "അഞ്ജലി നായർ"
       }
     ]
+  },
+  {
+    "text": "Please contact Dr. Qwesterveldt R. Brakkenzoon for details.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Qwesterveldt R. Brakkenzoon"
+      }
+    ]
+  },
+  {
+    "text": "Engineer Wlodimar A. Krimbleton signed the doc.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Wlodimar A. Krimbleton"
+      }
+    ]
+  },
+  {
+    "text": "The engineer arrived. Smith left the building.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Smith"
+      }
+    ]
   }
 ]
