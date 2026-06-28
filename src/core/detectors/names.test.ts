@@ -1337,3 +1337,72 @@ describe('ALL-CAPS short acronyms are never name parts', () => {
     expect(found).toContain('Sarah Smith');
   });
 });
+
+describe('title/role cue + particle-hyphen-name chain start', () => {
+  // Parity fix for the gap-report case "customer al-Rashid al-Makki": both name
+  // parts are particle-hyphen tokens the tokenizer keeps lowercase-initial, and
+  // even the surface forms with strong context cannot START a chain. The path
+  // already existed for plain capitalized tokens and for bare lowercase particles
+  // ("Dr. de la Cruz") followed by a Capitalized surname — this brings the
+  // particle-hyphen shape to parity. All surnames below are verified absent from
+  // the FULL committed dictionary so the test rides on the heuristic alone.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects two held-out particle-hyphen surnames anchored by a role cue', () => {
+    expect(personsFull('Customer al-Qorvanni al-Brundlefitz approved the refund.')).toContain(
+      'al-Qorvanni al-Brundlefitz'
+    );
+    expect(personsFull('Engineer al-Qorvanni al-Brundlefitz handled the case.')).toContain(
+      'al-Qorvanni al-Brundlefitz'
+    );
+    expect(personsFull('Client ben-Qorvanni ben-Brundlefitz called support.')).toContain(
+      'ben-Qorvanni ben-Brundlefitz'
+    );
+  });
+
+  it('detects a particle-hyphen + plain Capitalized surname after a title', () => {
+    // "Dr." title cue + held-out particle-hyphen + held-out bare-Capitalized surname.
+    expect(personsFull('Dr. el-Qorvanni Brundlefitz reported the issue.')).toContain(
+      'el-Qorvanni Brundlefitz'
+    );
+    // "Eng." abbreviated role cue with the same shape.
+    expect(personsFull('Eng. al-Qorvanni al-Brundlefitz joined the call.')).toContain(
+      'al-Qorvanni al-Brundlefitz'
+    );
+  });
+
+  it('proves the chosen surnames are held out (absent from the full DB)', () => {
+    // Re-point at fresh held-outs if any of these later land in the DB.
+    for (const word of ['qorvanni', 'brundlefitz']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('does not fire without a leading title/role cue', () => {
+    // No cue, no DB hit on either part → relaxed start must not anchor.
+    expect(personsFull('al-Qorvanni al-Brundlefitz joined the call.')).toHaveLength(0);
+  });
+
+  it('does not fire when the second part is a structural noun', () => {
+    // nameContinuation rejects NON_NAME_WORDS as the corroborating follower, so a
+    // role cue + particle-hyphen + structural noun cannot promote.
+    expect(personsFull('Customer al-Qorvanni Department joined today.')).toHaveLength(0);
+    expect(personsFull('Engineer al-Qorvanni Service approved the refund.')).toHaveLength(0);
+  });
+
+  it('does not fire on a lone particle-hyphen token after the cue', () => {
+    // Single-token candidate after the cue → nameContinuation returns false → no start.
+    expect(personsFull('Customer al-Qorvanni said the case was forwarded.')).toHaveLength(0);
+  });
+
+  it('does not fire when the tail of the particle-hyphen is lowercase', () => {
+    // particleHyphenName requires the post-hyphen tail to be capitalized, so
+    // Italian dishes / loanword phrases keep their existing protection.
+    expect(personsFull('Customer al-forno ordered a pizza.')).toHaveLength(0);
+  });
+});

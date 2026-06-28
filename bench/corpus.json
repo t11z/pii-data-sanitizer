@@ -1515,5 +1515,44 @@
   {
     "text": "Reference DEX-Beta release notes attached.",
     "entities": []
+  },
+  {
+    "text": "Customer al-Qorvanni al-Brundlefitz approved the refund yesterday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "al-Qorvanni al-Brundlefitz"
+      }
+    ]
+  },
+  {
+    "text": "Engineer al-Qorvanni al-Brundlefitz handled the case overnight.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "al-Qorvanni al-Brundlefitz"
+      }
+    ]
+  },
+  {
+    "text": "Dr. el-Qorvanni Brundlefitz reported the issue this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "el-Qorvanni Brundlefitz"
+      }
+    ]
+  },
+  {
+    "text": "al-Qorvanni al-Brundlefitz joined the call.",
+    "entities": []
+  },
+  {
+    "text": "Customer al-Qorvanni said the case was forwarded.",
+    "entities": []
+  },
+  {
+    "text": "Customer al-Qorvanni Department joined today.",
+    "entities": []
   }
 ]
