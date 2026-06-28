@@ -140,9 +140,9 @@ describe('IBAN detection', () => {
     expect(isValidIban('XQ12 3456 7890 1234 5678 9012')).toBe(false);
     expect(isValidIban('ZK00 1122 3344 5566 7788')).toBe(false);
     expect(isValidIban('BE 68 5390 0754 7035')).toBe(false);
-    expect(
-      only('Refund to IBAN IT99 X054 2811 1010 0000 0123 456 cleared.', 'IBAN')[0].text
-    ).toBe('IT99 X054 2811 1010 0000 0123 456');
+    expect(only('Refund to IBAN IT99 X054 2811 1010 0000 0123 456 cleared.', 'IBAN')[0].text).toBe(
+      'IT99 X054 2811 1010 0000 0123 456'
+    );
     expect(only('Wire IBAN: XQ12 3456 7890 1234 5678 9012 ok', 'IBAN')[0].text).toBe(
       'XQ12 3456 7890 1234 5678 9012'
     );

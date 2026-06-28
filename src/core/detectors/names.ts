@@ -182,6 +182,13 @@ const ROLE_ABBR_GAP = /^[^\S\n\r]*\.?[^\S\n\r]*$/;
 const ROLE_LABEL_GAP = /^[^\S\n\r]*:[^\S\n\r]+$/;
 const HORIZONTAL_WS = /[^\S\n\r]/;
 const SENTENCE_BOUNDARY = '.!?:;\n\r"“”(';
+// "AKA in parens": gap between the last token of a just-emitted name span and
+// the alias candidate must be optional horizontal whitespace, an open paren,
+// then optional horizontal whitespace — and the closing paren must follow the
+// alias directly with at most horizontal whitespace. Both regexes stay
+// horizontal so the cue cannot bridge a line break.
+const ALIAS_OPEN_GAP = /^[^\S\n\r]*\([^\S\n\r]*$/;
+const ALIAS_CLOSE = /^[^\S\n\r]*\)/;
 
 function isSentenceStart(text: string, pos: number): boolean {
   let i = pos - 1;
@@ -371,6 +378,66 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
   return null;
 }
 
+/**
+ * "AKA in parens" frame: a confirmed name span is directly followed by a single
+ * capitalized name-shaped token enclosed in parentheses — "Customer von Neumann
+ * (Johann) called", "Dr. Patel (Aisha) reviewed", "Müller (Klaus) confirmed".
+ * Support and CRM prose marks aliases / nicknames / given-name disambiguators
+ * this way, and the inner token sits at a `(`-sentence-start with no title or
+ * role cue to vouch for it, so the chain detector's sentence-start guard
+ * silently drops it even when it is in the dictionary.
+ *
+ * Precision is held by the structural fence, not by dictionary membership: the
+ * preceding token MUST be the tail of a span we just emitted as PERSON, the
+ * alias MUST be a single token directly enclosed by `()` with at most
+ * horizontal whitespace, and the token shape MUST be name-like — a Latin
+ * Cap-initial token with at least one lowercase letter (which excludes
+ * acronyms like "CEO", "HR", "NYC"), not adjoining a digit, and not a known
+ * non-name word, role/title cue, or ambiguous common word. Together these
+ * gates keep `<Name> (CEO)`, `<Name> (Berlin)`, `<Name> (Active)` (when the
+ * word is in NON_NAME_WORDS / AMBIGUOUS_WORDS / role words) from promoting,
+ * while letting a real out-of-DB given-name alias detect on the cue alone.
+ */
+function aliasInParens(tokens: Token[], prevTailIdx: number, text: string): Span | null {
+  const alias = tokens[prevTailIdx + 1];
+  if (!alias) return null;
+  // The previous token's tail and the alias must be separated by `(` only,
+  // with at most horizontal whitespace on either side. No other punctuation,
+  // no line break.
+  if (!ALIAS_OPEN_GAP.test(text.slice(tokens[prevTailIdx].end, alias.start))) return null;
+  if (alias.script !== 'Latin') return null;
+  if (!isCapitalized(alias.text)) return null;
+  // At least one lowercase letter — filters all-caps acronyms ("CEO", "HR",
+  // "NYC", "FBI") which are the dominant non-alias parens content after a
+  // name in business / support prose.
+  if (!/[a-z]/.test(alias.text)) return null;
+  if (adjoinsDigit(alias, text)) return null;
+  // Known-non-person guards: title/role cues, structural nouns, and
+  // ambiguous common words (cities, months, vocabulary collisions like
+  // "Berlin", "April", "Frank") that the dictionary tier system would
+  // otherwise let through on a single-token path.
+  if (isTitle(alias.text)) return null;
+  if (isRoleWord(alias.text) || isRoleAbbreviation(alias.text)) return null;
+  if (isNonNameWord(alias.text)) return null;
+  if (isAmbiguousWord(alias.text.toLowerCase())) return null;
+  // The closing paren must follow the alias directly — a second token inside
+  // the parens ("(Smith Watson)", "(Berlin office)") is handled (or rejected)
+  // by the normal chain path, not this cue.
+  if (!ALIAS_CLOSE.test(text.slice(alias.end))) return null;
+  return {
+    start: alias.start,
+    end: alias.end,
+    type: 'PERSON',
+    text: text.slice(alias.start, alias.end),
+    // Structural cue is independently strong: a confirmed name span precedes,
+    // the fence is tight, and the alias shape filters block the common
+    // non-alias parens content. Set above the default 0.5 threshold but below
+    // the title-backed 1.0 chain so a future precision tweak can re-rank.
+    confidence: 0.85,
+    source: 'names',
+  };
+}
+
 export function detectNames(text: string, source: NameSource, minConfidence: number): Span[] {
   const tokens = tokenize(text);
   const spans: Span[] = [];
@@ -489,6 +556,7 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
       script: tokens[i].script,
     });
 
+    let nextStart = j + 1;
     if (confidence >= minConfidence) {
       spans.push({
         start: spanStart,
@@ -498,9 +566,14 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
         confidence,
         source: 'names',
       });
+      const alias = aliasInParens(tokens, j, text);
+      if (alias) {
+        spans.push(alias);
+        nextStart = j + 2;
+      }
     }
 
-    i = j + 1;
+    i = nextStart;
   }
 
   return spans;
