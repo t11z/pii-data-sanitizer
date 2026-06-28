@@ -172,6 +172,14 @@ const TITLE_GAP = /^[^\S\n\r]*\.?[^\S\n\r]*$/;
 // words keep the strict whitespace-only SINGLE_GAP, so a real sentence boundary
 // ("...the engineer. Bob ...") never starts a name.
 const ROLE_ABBR_GAP = /^[^\S\n\r]*\.?[^\S\n\r]*$/;
+// Label-style colon between a role cue and the name: "Engineer: Per Aarvik",
+// "Customer: Mary Jones", "Account holder: Bob Davis" — saturates ticket / log /
+// form prose. The colon is required (so a sentence boundary "...engineer. Bob..."
+// still cannot match this branch), and at least one whitespace must follow it
+// (no run-together "Engineer:Per"). Used additively alongside SINGLE_GAP /
+// ROLE_ABBR_GAP, so the existing whitespace-only and abbreviation-dot paths are
+// unchanged — this only widens the role-cue lookback to accept the label form.
+const ROLE_LABEL_GAP = /^[^\S\n\r]*:[^\S\n\r]+$/;
 const HORIZONTAL_WS = /[^\S\n\r]/;
 const SENTENCE_BOUNDARY = '.!?:;\n\r"“”(';
 
@@ -242,7 +250,7 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
     if (isTitle(prev.text) && TITLE_GAP.test(between)) titleBefore = true;
     if (isRoleWord(prev.text)) {
       const roleGap = isRoleAbbreviation(prev.text) ? ROLE_ABBR_GAP : SINGLE_GAP;
-      if (roleGap.test(between)) roleBefore = true;
+      if (roleGap.test(between) || ROLE_LABEL_GAP.test(between)) roleBefore = true;
     }
   }
   // Two-token handoff frame: "<handoff_verb> <connector> <Name>". The cue sits two

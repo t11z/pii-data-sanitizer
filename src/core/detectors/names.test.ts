@@ -129,6 +129,74 @@ describe('context-based detection (generalizes beyond the DB)', () => {
   });
 });
 
+describe('role cue with label colon ("<RoleNoun>: <Name>")', () => {
+  // Ticket / log / form prose introduces a name with a label colon after the
+  // role noun ("Engineer: Per Aarvik", "Customer: Mary Jones",
+  // "Account holder: Bob Davis"). The colon was rejected by the whitespace-only
+  // SINGLE_GAP, so any out-of-DB name in this position was dropped. Detection
+  // here must ride only on the role cue + 2 parts, never on dictionary
+  // membership — names below are held out via the FULL committed DB.
+  it('detects an unknown full name after a role noun + colon', () => {
+    expect(persons('Engineer: Praxworth Fnordlinger resolved the ticket.')).toContain(
+      'Praxworth Fnordlinger'
+    );
+    expect(persons('Customer: Glimwald Pendlemoor called the hotline.')).toContain(
+      'Glimwald Pendlemoor'
+    );
+  });
+
+  it('detects an unknown full name after a compound role label + colon', () => {
+    // "Account holder" + colon — the role noun is the SECOND token of a
+    // descriptor; only the immediate role token before the candidate matters.
+    expect(persons('Account holder: Fingleton Bazlovic disputed the charge.')).toContain(
+      'Fingleton Bazlovic'
+    );
+  });
+
+  it('also accepts the abbreviated role + colon ("Eng.:" / "Eng:")', () => {
+    expect(persons('Eng: Praxworth Glimwald approved the change.')).toContain(
+      'Praxworth Glimwald'
+    );
+  });
+
+  it('does not promote a single capitalized word after a role label colon', () => {
+    // Mirrors the existing parts === 1 + roleBefore guard: a lone capitalized
+    // word after the colon must not clear the threshold (no second name part
+    // to corroborate, no DB hit).
+    expect(persons('Status: Pending review of the order.')).toHaveLength(0);
+    expect(persons('Customer: Acme submitted the form.')).toHaveLength(0);
+  });
+
+  it('does not turn a role label colon + structural nouns into a person', () => {
+    // NON_NAME_WORDS still blocks the structural follow-on — the colon path is
+    // additive over the existing role-cue precision guard.
+    expect(persons('Customer: Service Team responded quickly.')).toHaveLength(0);
+    expect(persons('Engineer: Final Review is pending.')).toHaveLength(0);
+  });
+
+  it('does not let a full role word + period (sentence boundary) start a name via the colon path', () => {
+    // The new gap admits ONLY colon, not period — so the existing
+    // sentence-boundary guard remains intact.
+    expect(persons('Please notify the duty engineer. Daily Briefing follows.')).toHaveLength(0);
+  });
+
+  it('proves the role-label-colon held-out names are absent from the full DB', () => {
+    const fullSource = nameSourceFromBuildInputs();
+    const heldOut: Array<[string, 'Latin']> = [
+      ['praxworth', 'Latin'],
+      ['fnordlinger', 'Latin'],
+      ['glimwald', 'Latin'],
+      ['pendlemoor', 'Latin'],
+      ['fingleton', 'Latin'],
+      ['bazlovic', 'Latin'],
+    ];
+    for (const [word, script] of heldOut) {
+      expect(fullSource.hasGiven(word, script), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, script), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+});
+
 describe('Spanish plural particle chains ("de los", "de las")', () => {
   // The Spanish multi-word given names "<First> de los <Surname>" and
   // "<First> de las <Surname>" — e.g. "Maria de los Angeles", "Jorge de las
