@@ -154,9 +154,7 @@ describe('role cue with label colon ("<RoleNoun>: <Name>")', () => {
   });
 
   it('also accepts the abbreviated role + colon ("Eng.:" / "Eng:")', () => {
-    expect(persons('Eng: Praxworth Glimwald approved the change.')).toContain(
-      'Praxworth Glimwald'
-    );
+    expect(persons('Eng: Praxworth Glimwald approved the change.')).toContain('Praxworth Glimwald');
   });
 
   it('does not promote a single capitalized word after a role label colon', () => {
@@ -1381,9 +1379,7 @@ describe('ALL-CAPS short acronyms are never name parts', () => {
     // The regex is /^[A-Z]{2,4}$/ — strictly letters, length 2-4. A token like
     // "A1" or "B2C" is not all-letters and is left to other gates. Held-out
     // surname so the case rides on the heuristic.
-    expect(personsFull('Customer Marcus Qwerznok contacted support.')).toContain(
-      'Marcus Qwerznok'
-    );
+    expect(personsFull('Customer Marcus Qwerznok contacted support.')).toContain('Marcus Qwerznok');
   });
 
   it('mechanism: structural fix ignores DB membership (PIN-shape)', () => {

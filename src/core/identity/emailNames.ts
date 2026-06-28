@@ -2,11 +2,7 @@ import type { NameSource, Span } from '../types';
 import { foldLatin, givenHit, familyHit } from '../detectors/names';
 import { isFunctionalMailbox } from '../context/mailboxes';
 import { isAmbiguousWord } from '../context/commonWords';
-import {
-  isNonNameWord,
-  isRoleWord,
-  isRoleAbbreviation,
-} from '../context/roleWords';
+import { isNonNameWord, isRoleWord, isRoleAbbreviation } from '../context/roleWords';
 import { isTitle } from '../context/titles';
 
 /** A name token inferred from an email address, used for cross-reference and linking. */
@@ -198,9 +194,7 @@ export function deriveNamesFromAdjacentEmails(
     const usedTokens = new Set<number>([wordIdx]);
     let initialsOk = true;
     for (const init of initialSegments) {
-      const idx = lowered.findIndex(
-        (l, i) => !usedTokens.has(i) && l[0] === foldLatin(init)
-      );
+      const idx = lowered.findIndex((l, i) => !usedTokens.has(i) && l[0] === foldLatin(init));
       if (idx < 0) {
         initialsOk = false;
         break;
