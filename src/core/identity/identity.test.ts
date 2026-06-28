@@ -75,6 +75,62 @@ describe('email-seeded second pass', () => {
   });
 });
 
+describe('email-adjacency anchor for OOV names', () => {
+  // Held-out values: none of "vakatashi", "eldorin", "brakkenzoon", "tzevarin"
+  // appear in the curated `source()` dictionary above — the chain admits only
+  // because the email in parentheses pins the surface form to a person via the
+  // CRM "<word>.<initial>@" template.
+  it('admits a 2-token OOV Latin run when an immediately-following email matches name.initial', () => {
+    expect(
+      persons('TAC #99 — Eldorin Vakatashi (eldorin.v@example.com) confirmed booking.')
+    ).toEqual(['Eldorin Vakatashi']);
+  });
+
+  it('admits the symmetric initial.name shape', () => {
+    expect(persons('Customer Tzevarin Brakkenzoon (t.brakkenzoon@x.com) escalated.')).toEqual([
+      'Tzevarin Brakkenzoon',
+    ]);
+  });
+
+  it('also fires inside angle and square bracket variants', () => {
+    expect(persons('Eldorin Vakatashi <eldorin.v@example.com> emailed.')).toEqual([
+      'Eldorin Vakatashi',
+    ]);
+    expect(persons('Eldorin Vakatashi [eldorin.v@example.com] emailed.')).toEqual([
+      'Eldorin Vakatashi',
+    ]);
+  });
+
+  it('does NOT anchor on the city/brand shape with two full-word segments', () => {
+    // Both local-part segments are full words (no initial), so the "name + initial"
+    // gate keeps this from promoting a corporate signature into a person.
+    expect(persons('Atlanta Marrioth (atlanta.marrioth@example.com) confirmed.')).toEqual([]);
+  });
+
+  it('does NOT anchor on a structural Title-Case chain', () => {
+    // "Customer Service" contains a role word and a structural noun — the
+    // person-shaped gate rejects both before the email is consulted.
+    expect(persons('Customer Service Team (info@example.com) replied.')).toEqual([]);
+  });
+
+  it('does NOT anchor when any local-part segment is a functional mailbox', () => {
+    // "support" is functional → derives nothing; the OOV chain stays unrecognized.
+    expect(persons('Eldorin Vakatashi (eldorin.support@example.com) emailed.')).toEqual([]);
+  });
+
+  it("does NOT anchor when the initial does not match the other token's first letter", () => {
+    // `eldorin.x@` — `x` is not the first letter of "Vakatashi", so the CRM
+    // signature breaks and the chain falls back to its underlying score.
+    expect(persons('Eldorin Vakatashi (eldorin.x@example.com) emailed.')).toEqual([]);
+  });
+
+  it('does NOT promote a lone Title-Case token next to a name.initial email', () => {
+    // Only one Title-Case token before the bracket — the anchor requires a real
+    // multi-token chain so a city/label next to a person email never fires.
+    expect(persons('Eldorin (eldorin.v@example.com) emailed.')).toEqual([]);
+  });
+});
+
 describe('identity grouping', () => {
   it('links name, email and a same-line phone into one identity', () => {
     const { mapping, identities } = sanitize(

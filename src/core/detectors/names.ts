@@ -11,6 +11,7 @@ import {
   isSourceFrame,
 } from '../context/roleWords';
 import { isSentenceOpener } from '../context/sentenceOpeners';
+import { isLikelyAcronym } from '../context/acronyms';
 import { scoreName } from '../scoring';
 import { latinFold } from '../latinFold';
 
@@ -126,6 +127,13 @@ function particleHyphenName(token: Token): boolean {
 function nameLike(token: Token, source: NameSource, allowUnknownCap: boolean): boolean {
   if (token.script === 'Latin') {
     if (!isCapitalized(token.text) && !particleHyphenName(token)) return false;
+    // Short ALL-CAPS Latin runs are acronyms / initialisms in prose (ID, PIN,
+    // DOB, URL, HQ, ...), never a name part — even when the lowercased form
+    // coincidentally appears in the long-tail surname list. Rejecting them here
+    // keeps a chain like "Sarah Smith DOB" / "Sarah Smith PIN" from absorbing
+    // the label. The check is structural (no closed list), so it generalizes to
+    // every acronym, including ones the engine has never seen.
+    if (isLikelyAcronym(token.text)) return false;
     return anyHit(source, token) || allowUnknownCap;
   }
   if (isCaselessNameScript(token)) {
@@ -164,8 +172,23 @@ const TITLE_GAP = /^[^\S\n\r]*\.?[^\S\n\r]*$/;
 // words keep the strict whitespace-only SINGLE_GAP, so a real sentence boundary
 // ("...the engineer. Bob ...") never starts a name.
 const ROLE_ABBR_GAP = /^[^\S\n\r]*\.?[^\S\n\r]*$/;
+// Label-style colon between a role cue and the name: "Engineer: Per Aarvik",
+// "Customer: Mary Jones", "Account holder: Bob Davis" — saturates ticket / log /
+// form prose. The colon is required (so a sentence boundary "...engineer. Bob..."
+// still cannot match this branch), and at least one whitespace must follow it
+// (no run-together "Engineer:Per"). Used additively alongside SINGLE_GAP /
+// ROLE_ABBR_GAP, so the existing whitespace-only and abbreviation-dot paths are
+// unchanged — this only widens the role-cue lookback to accept the label form.
+const ROLE_LABEL_GAP = /^[^\S\n\r]*:[^\S\n\r]+$/;
 const HORIZONTAL_WS = /[^\S\n\r]/;
 const SENTENCE_BOUNDARY = '.!?:;\n\r"“”(';
+// "AKA in parens": gap between the last token of a just-emitted name span and
+// the alias candidate must be optional horizontal whitespace, an open paren,
+// then optional horizontal whitespace — and the closing paren must follow the
+// alias directly with at most horizontal whitespace. Both regexes stay
+// horizontal so the cue cannot bridge a line break.
+const ALIAS_OPEN_GAP = /^[^\S\n\r]*\([^\S\n\r]*$/;
+const ALIAS_CLOSE = /^[^\S\n\r]*\)/;
 
 function isSentenceStart(text: string, pos: number): boolean {
   let i = pos - 1;
@@ -212,6 +235,10 @@ function nameContinuation(tokens: Token[], i: number, text: string): boolean {
   // accepted by the same path: an asymmetry, not a precision lever.
   if (!isCapitalized(next.text) && !particleHyphenName(next)) return false;
   if (adjoinsDigit(next, text)) return false;
+  // A short ALL-CAPS continuation is an acronym label (the "Tech ID" / "Sales QA"
+  // shape), not a corroborating second name part — never let it rescue an
+  // otherwise-weak ext-tier sentence-start anchor.
+  if (isLikelyAcronym(next.text)) return false;
   return !isNonNameWord(next.text) && !isRoleWord(next.text) && !isTitle(next.text);
 }
 
@@ -230,7 +257,7 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
     if (isTitle(prev.text) && TITLE_GAP.test(between)) titleBefore = true;
     if (isRoleWord(prev.text)) {
       const roleGap = isRoleAbbreviation(prev.text) ? ROLE_ABBR_GAP : SINGLE_GAP;
-      if (roleGap.test(between)) roleBefore = true;
+      if (roleGap.test(between) || ROLE_LABEL_GAP.test(between)) roleBefore = true;
     }
   }
   // Two-token handoff frame: "<handoff_verb> <connector> <Name>". The cue sits two
@@ -314,6 +341,12 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
       return { titleBefore, roleBefore, dbHit };
     }
     if (!isCapitalized(tok.text)) return null;
+    // Short ALL-CAPS Latin runs are acronyms / initialisms, not name anchors —
+    // a title or role cue ("Dr. ID", "Engineer URL") would otherwise push them
+    // through the unknownCap path and the title boost alone (0.3 + 0.35 = 0.65)
+    // would clear the threshold. Rejecting them here closes the title/role
+    // shortcut symmetrically with the chain-extension guard in nameLike.
+    if (isLikelyAcronym(tok.text)) return null;
     // A bulk-only (ext) token at a sentence start, with no title/role to vouch
     // for it, is normally too weak to START a name chain: sentence-initial
     // capitalization is uninformative and the long-tail lists contain many
@@ -343,6 +376,66 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
   // Caseless scripts: require database membership (or a preceding title/role).
   if (dbHit || titleBefore || roleBefore) return { titleBefore, roleBefore, dbHit };
   return null;
+}
+
+/**
+ * "AKA in parens" frame: a confirmed name span is directly followed by a single
+ * capitalized name-shaped token enclosed in parentheses — "Customer von Neumann
+ * (Johann) called", "Dr. Patel (Aisha) reviewed", "Müller (Klaus) confirmed".
+ * Support and CRM prose marks aliases / nicknames / given-name disambiguators
+ * this way, and the inner token sits at a `(`-sentence-start with no title or
+ * role cue to vouch for it, so the chain detector's sentence-start guard
+ * silently drops it even when it is in the dictionary.
+ *
+ * Precision is held by the structural fence, not by dictionary membership: the
+ * preceding token MUST be the tail of a span we just emitted as PERSON, the
+ * alias MUST be a single token directly enclosed by `()` with at most
+ * horizontal whitespace, and the token shape MUST be name-like — a Latin
+ * Cap-initial token with at least one lowercase letter (which excludes
+ * acronyms like "CEO", "HR", "NYC"), not adjoining a digit, and not a known
+ * non-name word, role/title cue, or ambiguous common word. Together these
+ * gates keep `<Name> (CEO)`, `<Name> (Berlin)`, `<Name> (Active)` (when the
+ * word is in NON_NAME_WORDS / AMBIGUOUS_WORDS / role words) from promoting,
+ * while letting a real out-of-DB given-name alias detect on the cue alone.
+ */
+function aliasInParens(tokens: Token[], prevTailIdx: number, text: string): Span | null {
+  const alias = tokens[prevTailIdx + 1];
+  if (!alias) return null;
+  // The previous token's tail and the alias must be separated by `(` only,
+  // with at most horizontal whitespace on either side. No other punctuation,
+  // no line break.
+  if (!ALIAS_OPEN_GAP.test(text.slice(tokens[prevTailIdx].end, alias.start))) return null;
+  if (alias.script !== 'Latin') return null;
+  if (!isCapitalized(alias.text)) return null;
+  // At least one lowercase letter — filters all-caps acronyms ("CEO", "HR",
+  // "NYC", "FBI") which are the dominant non-alias parens content after a
+  // name in business / support prose.
+  if (!/[a-z]/.test(alias.text)) return null;
+  if (adjoinsDigit(alias, text)) return null;
+  // Known-non-person guards: title/role cues, structural nouns, and
+  // ambiguous common words (cities, months, vocabulary collisions like
+  // "Berlin", "April", "Frank") that the dictionary tier system would
+  // otherwise let through on a single-token path.
+  if (isTitle(alias.text)) return null;
+  if (isRoleWord(alias.text) || isRoleAbbreviation(alias.text)) return null;
+  if (isNonNameWord(alias.text)) return null;
+  if (isAmbiguousWord(alias.text.toLowerCase())) return null;
+  // The closing paren must follow the alias directly — a second token inside
+  // the parens ("(Smith Watson)", "(Berlin office)") is handled (or rejected)
+  // by the normal chain path, not this cue.
+  if (!ALIAS_CLOSE.test(text.slice(alias.end))) return null;
+  return {
+    start: alias.start,
+    end: alias.end,
+    type: 'PERSON',
+    text: text.slice(alias.start, alias.end),
+    // Structural cue is independently strong: a confirmed name span precedes,
+    // the fence is tight, and the alias shape filters block the common
+    // non-alias parens content. Set above the default 0.5 threshold but below
+    // the title-backed 1.0 chain so a future precision tweak can re-rank.
+    confidence: 0.85,
+    source: 'names',
+  };
 }
 
 export function detectNames(text: string, source: NameSource, minConfidence: number): Span[] {
@@ -463,6 +556,7 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
       script: tokens[i].script,
     });
 
+    let nextStart = j + 1;
     if (confidence >= minConfidence) {
       spans.push({
         start: spanStart,
@@ -472,9 +566,14 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
         confidence,
         source: 'names',
       });
+      const alias = aliasInParens(tokens, j, text);
+      if (alias) {
+        spans.push(alias);
+        nextStart = j + 2;
+      }
     }
 
-    i = j + 1;
+    i = nextStart;
   }
 
   return spans;

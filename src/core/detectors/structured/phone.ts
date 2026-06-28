@@ -42,14 +42,21 @@ export function detectPhones(text: string): Span[] {
     const hasSignal = value.trimStart().startsWith('+') || /[().\-/ ]/.test(value);
     if (!hasSignal) continue;
     // Reject card-shaped digit groupings. ISO/IEC 7812-1 PANs are 13–19 digits.
-    // A space-only digit run with ≥13 digits (e.g. AmEx 4-6-5 "3782 822463 10058",
-    // Diners 4-6-4 "3056 930902 5904", old Visa 4-4-4-1) is structurally a
-    // card-style identifier, not a phone. E.164 phones at this length always carry
-    // a '+' prefix; domestic phones do not reach 13 digits with space-only
-    // grouping. A Luhn-valid PAN is claimed by the credit-card detector and
-    // overlap-resolved away from PHONE, but a Luhn-invalid PAN (synthetic data,
-    // redacted-but-formatted card in a ticket) would otherwise leak through here.
-    if (digits.length >= 13 && !/[+()\-./]/.test(value)) continue;
+    // A space-only digit run with ≥13 digits and a 4-digit leading group
+    // (Visa/MC 4-4-4-4, AmEx 4-6-5, Diners 4-6-4, old Visa 4-4-4-1) is
+    // structurally a card-style identifier, not a phone — every PAN layout
+    // starts with four digits. A fused 13+ digit run with no grouping is
+    // likewise identifier-shaped (bank account / reference number), never
+    // phone-shaped. A Luhn-valid PAN is claimed by the credit-card detector
+    // and overlap-resolved away from PHONE, but a Luhn-invalid PAN (synthetic
+    // data, redacted-but-formatted card in a ticket) would otherwise leak
+    // through here. A leading 1–3-digit group is the country-code-without-`+`
+    // shape ("49 89 32156 7890", "33 1 4070 1234 5678") — common in support
+    // prose where the user drops the plus — and must pass.
+    if (digits.length >= 13 && !/[+()\-./]/.test(value)) {
+      const groups = value.trim().split(/\s+/);
+      if (groups.length === 1 || groups[0].length === 4) continue;
+    }
     const start = match.index + (value.length - value.trimStart().length);
     const trimmed = value.trim();
     const end = start + trimmed.length;

@@ -180,6 +180,29 @@ export const NON_NAME_WORDS = new Set<string>([
   'transaction',
   'statement',
   'receipt',
+  // Common role nouns. Several of these ("Manager", "Director", "Lead", "Head",
+  // "Chief") land in the long-tail ext dictionary as both given- and family-name
+  // surface tokens (real census surnames), which lets them chain into adjacent
+  // capitalized words ("Sarah Manager", "Anna Director") and slip through the
+  // AKA-in-parens cue ("Sarah Lopez (Manager)") as person spans. Treating them
+  // as structural nouns blocks the FP across both paths — they remain valid
+  // role-cue *introducers* (e.g. "Manager Sarah Brown") wherever ROLE_WORDS
+  // also lists them, but they cannot be a name part themselves.
+  'manager',
+  'director',
+  'lead',
+  'head',
+  'chief',
+  // Ticket / case status vocabulary that follows a name in parens or extends a
+  // chain in business prose ("Sarah Lopez (Active)", "Maria Closed the case").
+  // Same precision argument: capitalized in context, lexically a status rather
+  // than a person, and previously unguarded.
+  'active',
+  'inactive',
+  'closed',
+  'open',
+  'pending',
+  'resolved',
   // --- German --- (German compounds most multi-word structures into a single
   // token, so these mainly guard the handoff/role path against the common
   // standalone ticket nouns that can follow a cue.)

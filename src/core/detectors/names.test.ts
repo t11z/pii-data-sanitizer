@@ -129,6 +129,72 @@ describe('context-based detection (generalizes beyond the DB)', () => {
   });
 });
 
+describe('role cue with label colon ("<RoleNoun>: <Name>")', () => {
+  // Ticket / log / form prose introduces a name with a label colon after the
+  // role noun ("Engineer: Per Aarvik", "Customer: Mary Jones",
+  // "Account holder: Bob Davis"). The colon was rejected by the whitespace-only
+  // SINGLE_GAP, so any out-of-DB name in this position was dropped. Detection
+  // here must ride only on the role cue + 2 parts, never on dictionary
+  // membership — names below are held out via the FULL committed DB.
+  it('detects an unknown full name after a role noun + colon', () => {
+    expect(persons('Engineer: Praxworth Fnordlinger resolved the ticket.')).toContain(
+      'Praxworth Fnordlinger'
+    );
+    expect(persons('Customer: Glimwald Pendlemoor called the hotline.')).toContain(
+      'Glimwald Pendlemoor'
+    );
+  });
+
+  it('detects an unknown full name after a compound role label + colon', () => {
+    // "Account holder" + colon — the role noun is the SECOND token of a
+    // descriptor; only the immediate role token before the candidate matters.
+    expect(persons('Account holder: Fingleton Bazlovic disputed the charge.')).toContain(
+      'Fingleton Bazlovic'
+    );
+  });
+
+  it('also accepts the abbreviated role + colon ("Eng.:" / "Eng:")', () => {
+    expect(persons('Eng: Praxworth Glimwald approved the change.')).toContain('Praxworth Glimwald');
+  });
+
+  it('does not promote a single capitalized word after a role label colon', () => {
+    // Mirrors the existing parts === 1 + roleBefore guard: a lone capitalized
+    // word after the colon must not clear the threshold (no second name part
+    // to corroborate, no DB hit).
+    expect(persons('Status: Pending review of the order.')).toHaveLength(0);
+    expect(persons('Customer: Acme submitted the form.')).toHaveLength(0);
+  });
+
+  it('does not turn a role label colon + structural nouns into a person', () => {
+    // NON_NAME_WORDS still blocks the structural follow-on — the colon path is
+    // additive over the existing role-cue precision guard.
+    expect(persons('Customer: Service Team responded quickly.')).toHaveLength(0);
+    expect(persons('Engineer: Final Review is pending.')).toHaveLength(0);
+  });
+
+  it('does not let a full role word + period (sentence boundary) start a name via the colon path', () => {
+    // The new gap admits ONLY colon, not period — so the existing
+    // sentence-boundary guard remains intact.
+    expect(persons('Please notify the duty engineer. Daily Briefing follows.')).toHaveLength(0);
+  });
+
+  it('proves the role-label-colon held-out names are absent from the full DB', () => {
+    const fullSource = nameSourceFromBuildInputs();
+    const heldOut: Array<[string, 'Latin']> = [
+      ['praxworth', 'Latin'],
+      ['fnordlinger', 'Latin'],
+      ['glimwald', 'Latin'],
+      ['pendlemoor', 'Latin'],
+      ['fingleton', 'Latin'],
+      ['bazlovic', 'Latin'],
+    ];
+    for (const [word, script] of heldOut) {
+      expect(fullSource.hasGiven(word, script), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, script), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+});
+
 describe('Spanish plural particle chains ("de los", "de las")', () => {
   // The Spanish multi-word given names "<First> de los <Surname>" and
   // "<First> de las <Surname>" — e.g. "Maria de los Angeles", "Jorge de las
@@ -1226,5 +1292,281 @@ describe('middle-initial bridge ("Given X. Surname")', () => {
     const got = persons('Help Mr. Smith. John was busy with reports.');
     expect(got).toContain('Smith');
     expect(got).not.toContain('Smith. John');
+  });
+});
+
+describe('ALL-CAPS short acronyms are never name parts', () => {
+  // FP shape from the coverage probe: a 2-4 letter ALL-CAPS Latin run after (or
+  // inside) a name chain ("Tech ID", "Sarah Smith DOB", "Dr. ID confirmed")
+  // was being absorbed as a name part — the lowercased form coincidentally
+  // appears in the long-tail surname list, or the title/role boost alone pushed
+  // it over threshold. The structural acronym classifier (length-2-4 ASCII
+  // uppercase) rejects them everywhere a chain might pick them up. Verified
+  // against the FULL committed dictionary so the held-out acronyms below ride
+  // on the surface heuristic, not on dictionary absence.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not anchor a sentence-start ext name + ALL-CAPS acronym ("Tech ID")', () => {
+    // Reproduces the exact gap-report FP. "Tech" is an ext-tier surname surface
+    // (US-Census long-tail); a held-out ALL-CAPS acronym ("QXR") must not
+    // corroborate it at sentence start.
+    expect(
+      personsFull(
+        'Status note: caller raised the ticket. Tech QXR: BUILD-7.5.0-alpha was attached.'
+      )
+    ).toHaveLength(0);
+  });
+
+  it('does not let a title alone anchor an ALL-CAPS short acronym ("Dr. ID")', () => {
+    // The title boost alone (0.65) used to clear the threshold on an unknown
+    // capitalized 2-4 char ALL-CAPS token. Held-out: "ZPL" / "XQT" are not in
+    // the full DB and are not real names — the title boost must not promote them.
+    expect(personsFull('Dr. ZPL confirmed the booking.')).toHaveLength(0);
+    expect(personsFull('Engineer XQT handled the case.')).toHaveLength(0);
+  });
+
+  it('truncates a chain that runs into an ALL-CAPS acronym ("Sarah Smith DEX")', () => {
+    // Chain-extension absorption: a real name followed by an ALL-CAPS label
+    // ("DEX", "QZX") used to extend the chain ("Sarah Smith DEX"@1.0). The
+    // surname only counts now, so the label stays out of the span.
+    const found = personsFull('Sarah Smith DEX: 1990 was confirmed.');
+    expect(found).not.toContain('Sarah Smith DEX');
+    expect(found).toContain('Sarah Smith');
+    const found2 = personsFull('Customer Anna Schmidt QZX updated her profile.');
+    expect(found2).not.toContain('Anna Schmidt QZX');
+    expect(found2).toContain('Anna Schmidt');
+  });
+
+  it('does not anchor a core name + ALL-CAPS acronym chain ("Anderson YXC")', () => {
+    // Mid-sentence chain extension into a held-out ALL-CAPS label. The
+    // single-name fallback (Anderson alone, parts=1 core hit) may still detect,
+    // but the chained "Anderson YXC" FP must not.
+    expect(personsFull('After triage. Anderson YXC: BUILD-7 was logged.')).not.toContain(
+      'Anderson YXC'
+    );
+  });
+
+  it('proves the ALL-CAPS labels are held out (absent from the full DB)', () => {
+    // The lever is the surface shape, not absence — but absence keeps these tests
+    // honest. If a label below lands in the DB later, re-point at fresh held-outs;
+    // the structural fix still applies because it ignores DB membership.
+    for (const word of ['qxr', 'zpl', 'xqt', 'dex', 'qzx', 'yxc']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('precision: mixed-case names still anchor and extend normally', () => {
+    // Negative guard: the rule is length-2-4 ASCII all-uppercase. Any mixed-case
+    // token escapes it, so ordinary names ride through unchanged.
+    expect(personsFull('Sarah Smith updated her profile today.')).toContain('Sarah Smith');
+    expect(personsFull('Customer Anna Schmidt requested support.')).toContain('Anna Schmidt');
+    // A short DB-hit given name in mixed case still anchors at sentence start.
+    expect(personsFull('Bob Anderson signed off on the ticket.')).toContain('Bob Anderson');
+  });
+
+  it('precision: 5+ letter ALL-CAPS surnames still anchor (length window)', () => {
+    // The window stops at 4 chars on purpose — formal/legal documents that
+    // capitalize a full surname ("GARCIA", "SMITH", "JOHNSON") must still detect.
+    expect(personsFull('Account holder GARCIA filed the appeal.')).toContain('GARCIA');
+  });
+
+  it('precision: digits and punctuation in the token disqualify the acronym rule', () => {
+    // The regex is /^[A-Z]{2,4}$/ — strictly letters, length 2-4. A token like
+    // "A1" or "B2C" is not all-letters and is left to other gates. Held-out
+    // surname so the case rides on the heuristic.
+    expect(personsFull('Customer Marcus Qwerznok contacted support.')).toContain('Marcus Qwerznok');
+  });
+
+  it('mechanism: structural fix ignores DB membership (PIN-shape)', () => {
+    // "pin" / "ui" / "os" are real ext-tier surname surfaces from the long-tail
+    // Census list, so a chain extension used to absorb the ALL-CAPS surface
+    // ("Sarah Smith PIN"). The rule is purely structural and rejects them
+    // regardless of DB hit — fixture lets us prove this independent of which
+    // names happen to be in production.
+    const fixture = new PackNameSource();
+    fixture.addWords(['sarah'], { script: 'Latin', tier: 'core' }, 'latin-core');
+    fixture.addWords(['smith', 'pin'], { script: 'Latin', tier: 'ext' }, 'latin-ext');
+    expect(fixture.hasFamily('pin', 'Latin')).toBe(true); // sanity: PIN-lowercased IS in DB
+    const found = detect('Customer Sarah Smith PIN updated her profile.', {
+      nameSource: fixture,
+    })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+    expect(found).not.toContain('Sarah Smith PIN');
+    expect(found).toContain('Sarah Smith');
+  });
+});
+
+describe('title/role cue + particle-hyphen-name chain start', () => {
+  // Parity fix for the gap-report case "customer al-Rashid al-Makki": both name
+  // parts are particle-hyphen tokens the tokenizer keeps lowercase-initial, and
+  // even the surface forms with strong context cannot START a chain. The path
+  // already existed for plain capitalized tokens and for bare lowercase particles
+  // ("Dr. de la Cruz") followed by a Capitalized surname — this brings the
+  // particle-hyphen shape to parity. All surnames below are verified absent from
+  // the FULL committed dictionary so the test rides on the heuristic alone.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects two held-out particle-hyphen surnames anchored by a role cue', () => {
+    expect(personsFull('Customer al-Qorvanni al-Brundlefitz approved the refund.')).toContain(
+      'al-Qorvanni al-Brundlefitz'
+    );
+    expect(personsFull('Engineer al-Qorvanni al-Brundlefitz handled the case.')).toContain(
+      'al-Qorvanni al-Brundlefitz'
+    );
+    expect(personsFull('Client ben-Qorvanni ben-Brundlefitz called support.')).toContain(
+      'ben-Qorvanni ben-Brundlefitz'
+    );
+  });
+
+  it('detects a particle-hyphen + plain Capitalized surname after a title', () => {
+    // "Dr." title cue + held-out particle-hyphen + held-out bare-Capitalized surname.
+    expect(personsFull('Dr. el-Qorvanni Brundlefitz reported the issue.')).toContain(
+      'el-Qorvanni Brundlefitz'
+    );
+    // "Eng." abbreviated role cue with the same shape.
+    expect(personsFull('Eng. al-Qorvanni al-Brundlefitz joined the call.')).toContain(
+      'al-Qorvanni al-Brundlefitz'
+    );
+  });
+
+  it('proves the chosen surnames are held out (absent from the full DB)', () => {
+    // Re-point at fresh held-outs if any of these later land in the DB.
+    for (const word of ['qorvanni', 'brundlefitz']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('does not fire without a leading title/role cue', () => {
+    // No cue, no DB hit on either part → relaxed start must not anchor.
+    expect(personsFull('al-Qorvanni al-Brundlefitz joined the call.')).toHaveLength(0);
+  });
+
+  it('does not fire when the second part is a structural noun', () => {
+    // nameContinuation rejects NON_NAME_WORDS as the corroborating follower, so a
+    // role cue + particle-hyphen + structural noun cannot promote.
+    expect(personsFull('Customer al-Qorvanni Department joined today.')).toHaveLength(0);
+    expect(personsFull('Engineer al-Qorvanni Service approved the refund.')).toHaveLength(0);
+  });
+
+  it('does not fire on a lone particle-hyphen token after the cue', () => {
+    // Single-token candidate after the cue → nameContinuation returns false → no start.
+    expect(personsFull('Customer al-Qorvanni said the case was forwarded.')).toHaveLength(0);
+  });
+
+  it('does not fire when the tail of the particle-hyphen is lowercase', () => {
+    // particleHyphenName requires the post-hyphen tail to be capitalized, so
+    // Italian dishes / loanword phrases keep their existing protection.
+    expect(personsFull('Customer al-forno ordered a pizza.')).toHaveLength(0);
+  });
+});
+
+describe('AKA-in-parens frame ("<Name> (<Alias>)")', () => {
+  // Support / CRM prose puts nicknames, given names, or alias disambiguators
+  // in parentheses directly after the full name: "Customer von Neumann
+  // (Johann) called", "Dr. Patel (Aisha) reviewed". The inner token sits at a
+  // `(`-sentence-start with no title or role cue to vouch for it, so the
+  // chain detector's sentence-start guard silently drops it even when it is
+  // in the dictionary. The fence is structural — a *confirmed* name span sits
+  // directly before the open paren, the alias is a single token, the close
+  // paren follows it directly — so the cue licenses the alias on shape alone,
+  // without needing it in the database. All names below are held out against
+  // the full committed dictionary so the heuristic is what's being tested.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects an alias whose token is absent from the full DB', () => {
+    // "Qwerlin" is held out; the cue is the parens fence after a confirmed
+    // name. Without the heuristic the alias is dropped at `(`-sentence-start.
+    expect(personsFull('Customer Klaus-Dieter Müller (Qwerlin) confirmed today.')).toContain(
+      'Qwerlin'
+    );
+    expect(personsFull('Dr. Fatima Al-Rashid (Vexbruck) reviewed the case.')).toContain('Vexbruck');
+  });
+
+  it('detects an alias right after a sentence-initial confirmed name span', () => {
+    expect(personsFull('Maria López (Qwesterveldt) signed off.')).toContain('Qwesterveldt');
+  });
+
+  it('tolerates no whitespace between the name and the open paren', () => {
+    // The gap regex accepts `(` with optional horizontal whitespace either
+    // side, so "Smith(Bob)" — tight, common in compact log lines — still fires.
+    expect(personsFull('Maria López(Qwerlin) signed off.')).toContain('Qwerlin');
+  });
+
+  it('does not fire on an all-caps acronym in parens', () => {
+    // CEO / HR / IT / NYC / FBI — uppercase short tokens. The shape filter
+    // (at least one lowercase letter) is the gate.
+    expect(personsFull('Maria López (CEO) approved.')).not.toContain('CEO');
+    expect(personsFull('Maria López (HR) approved.')).not.toContain('HR');
+    expect(personsFull('Maria López (NYC) approved.')).not.toContain('NYC');
+  });
+
+  it('does not fire on a known role / title / non-name word', () => {
+    // The NON_NAME_WORDS / role / title guards block common parens content
+    // that is not a person — even when the lemma is in the ext dictionary
+    // ("Manager", "Director", "Lead" are real census surnames).
+    expect(personsFull('Maria López (Manager) approved.')).not.toContain('Manager');
+    expect(personsFull('Maria López (Director) approved.')).not.toContain('Director');
+    expect(personsFull('Maria López (Status) approved.')).not.toContain('Status');
+    expect(personsFull('Maria López (Service) approved.')).not.toContain('Service');
+    expect(personsFull('Maria López (Active) approved.')).not.toContain('Active');
+    expect(personsFull('Maria López (Pending) approved.')).not.toContain('Pending');
+    expect(personsFull('Maria López (Dr) approved.')).not.toContain('Dr');
+    expect(personsFull('Maria López (Customer) approved.')).not.toContain('Customer');
+  });
+
+  it('does not fire on an ambiguous common word in parens (city, month)', () => {
+    // AMBIGUOUS_WORDS blocks tokens that are also ordinary vocabulary so a
+    // city / month annotation after a name does not promote — the most common
+    // alternative meaning of `<Name> (Cap)` in ticket prose.
+    expect(personsFull('Maria López (Berlin) approved.')).not.toContain('Berlin');
+    expect(personsFull('Maria López (April) approved.')).not.toContain('April');
+  });
+
+  it('does not fire on a parenthesized non-alias (token followed by more content)', () => {
+    // The close-paren must follow the alias directly. A second token inside
+    // the parens ("(Smith Department)", "(Berlin office)") leaves the chain
+    // to the regular detector path, not this cue.
+    expect(personsFull('Maria López (Qwerlin office) approved.')).not.toContain('Qwerlin');
+  });
+
+  it('does not fire without a confirmed name span before the open paren', () => {
+    // A bare "(Qwerlin)" or a `(` after non-name content cannot license the
+    // alias — the structural fence requires the just-emitted PERSON.
+    expect(personsFull('The (Qwerlin) flag was raised.')).toHaveLength(0);
+    expect(personsFull('Status: (Qwerlin) review pending.')).toHaveLength(0);
+  });
+
+  it('does not fire when the open paren sits across a line break', () => {
+    // ALIAS_OPEN_GAP stays horizontal-whitespace-only, so a `\n` between the
+    // name span and the parenthesized token never bridges the cue.
+    expect(personsFull('Customer Klaus-Dieter Müller\n(Qwerlin) confirmed today.')).not.toContain(
+      'Qwerlin'
+    );
+  });
+
+  it('proves the AKA-in-parens names are held out (absent from the full DB)', () => {
+    // The detection rides on the structural cue, not on dictionary membership.
+    // If any of these surface in the DB later, the cases above stop proving
+    // generalization and the held-out values must be re-pointed.
+    const heldOut = ['qwerlin', 'vexbruck', 'qwesterveldt'];
+    for (const word of heldOut) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
   });
 });

@@ -839,11 +839,21 @@
   },
   {
     "text": "Refund processed to IBAN ZK00 1122 3344 5566 7788 confirmed.",
-    "entities": [{ "type": "IBAN", "text": "ZK00 1122 3344 5566 7788" }]
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "ZK00 1122 3344 5566 7788"
+      }
+    ]
   },
   {
     "text": "Held-out cued IBAN body wraps a Luhn-valid 16-digit run; IBAN ZK99 4111 1111 1111 1111 booked, and the inner run must not surface as CREDIT_CARD.",
-    "entities": [{ "type": "IBAN", "text": "ZK99 4111 1111 1111 1111" }]
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "ZK99 4111 1111 1111 1111"
+      }
+    ]
   },
   {
     "text": "The IBAN format guide is on the wiki for new agents.",
@@ -1260,7 +1270,12 @@
   },
   {
     "text": "Customer al-Brakkenzoon al-Vandermeerux confirmed the refund.",
-    "entities": [{ "type": "PERSON", "text": "al-Brakkenzoon al-Vandermeerux" }]
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "al-Brakkenzoon al-Vandermeerux"
+      }
+    ]
   },
   {
     "text": "Customer al-Brakkenzoon Department escalated this overnight.",
@@ -1386,6 +1401,223 @@
       {
         "type": "PERSON",
         "text": "Smith"
+      }
+    ]
+  },
+  {
+    "text": "Test entry (no PII): release v1.2.3 deployed. Decoy IP: 127.0.0.1 is loopback only; listener bound to 0.0.0.0 for all interfaces.",
+    "entities": []
+  },
+  {
+    "text": "Dev container exposes ::1 only — no public address yet.",
+    "entities": []
+  },
+  {
+    "text": "Customer called 33 1 4070 1234 56 from Paris yesterday.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "33 1 4070 1234 56"
+      }
+    ]
+  },
+  {
+    "text": "Reach the agent at 39 06 4555 1234 567 about the refund.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "39 06 4555 1234 567"
+      }
+    ]
+  },
+  {
+    "text": "Card on file 5555 4444 3333 2 will be reissued shortly.",
+    "entities": []
+  },
+  {
+    "text": "Reference number 1234567890123 attached for review.",
+    "entities": []
+  },
+  {
+    "text": "TAC #5102 — Eldorin Vakatashi (eldorin.v@example.gr) called about the refund.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Eldorin Vakatashi"
+      },
+      {
+        "type": "EMAIL",
+        "text": "eldorin.v@example.gr"
+      }
+    ]
+  },
+  {
+    "text": "Customer Tzevarin Brakkenzoon (t.brakkenzoon@example.com) replied to the agent.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Tzevarin Brakkenzoon"
+      },
+      {
+        "type": "EMAIL",
+        "text": "t.brakkenzoon@example.com"
+      }
+    ]
+  },
+  {
+    "text": "Atlanta Marrioth (atlanta.marrioth@example.com) confirmed the conference booking.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "text": "atlanta.marrioth@example.com"
+      }
+    ]
+  },
+  {
+    "text": "Customer Service Team (cs.team@example.com) acknowledged the ticket.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "text": "cs.team@example.com"
+      }
+    ]
+  },
+  {
+    "text": "Vendor support: Rajesh Kumar called from +91 98765 43210. Tech QXR: BUILD-7.5.0-alpha attached.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Rajesh Kumar"
+      },
+      {
+        "type": "PHONE",
+        "text": "+91 98765 43210"
+      }
+    ]
+  },
+  {
+    "text": "Account holder Sarah Smith ZPL: 1990 was confirmed today.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Sarah Smith"
+      }
+    ]
+  },
+  {
+    "text": "Dr. XQT confirmed the booking yesterday.",
+    "entities": []
+  },
+  {
+    "text": "Engineer YXC handled the case overnight.",
+    "entities": []
+  },
+  {
+    "text": "Reference DEX-Beta release notes attached.",
+    "entities": []
+  },
+  {
+    "text": "Customer al-Qorvanni al-Brundlefitz approved the refund yesterday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "al-Qorvanni al-Brundlefitz"
+      }
+    ]
+  },
+  {
+    "text": "Engineer al-Qorvanni al-Brundlefitz handled the case overnight.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "al-Qorvanni al-Brundlefitz"
+      }
+    ]
+  },
+  {
+    "text": "Dr. el-Qorvanni Brundlefitz reported the issue this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "el-Qorvanni Brundlefitz"
+      }
+    ]
+  },
+  {
+    "text": "al-Qorvanni al-Brundlefitz joined the call.",
+    "entities": []
+  },
+  {
+    "text": "Customer al-Qorvanni said the case was forwarded.",
+    "entities": []
+  },
+  {
+    "text": "Customer al-Qorvanni Department joined today.",
+    "entities": []
+  },
+  {
+    "text": "Engineer: Praxworth Fnordlinger resolved the ticket overnight.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Praxworth Fnordlinger"
+      }
+    ]
+  },
+  {
+    "text": "Account holder: Fingleton Bazlovic disputed the charge yesterday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Fingleton Bazlovic"
+      }
+    ]
+  },
+  {
+    "text": "Customer: Service Team responded within the SLA window.",
+    "entities": []
+  },
+  {
+    "text": "Please notify the duty engineer. Daily Briefing follows shortly.",
+    "entities": []
+  },
+  {
+    "text": "Customer Klaus-Dieter Müller (Qwerlin) called the support line.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Klaus-Dieter Müller"
+      },
+      {
+        "type": "PERSON",
+        "text": "Qwerlin"
+      }
+    ]
+  },
+  {
+    "text": "Maria López (Manager) approved the refund this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Maria López"
+      }
+    ]
+  },
+  {
+    "text": "Maria López (Active) confirmed the case is open.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Maria López"
+      }
+    ]
+  },
+  {
+    "text": "Maria López (CEO) approved the refund this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Maria López"
       }
     ]
   }

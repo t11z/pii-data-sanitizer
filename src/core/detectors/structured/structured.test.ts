@@ -140,9 +140,9 @@ describe('IBAN detection', () => {
     expect(isValidIban('XQ12 3456 7890 1234 5678 9012')).toBe(false);
     expect(isValidIban('ZK00 1122 3344 5566 7788')).toBe(false);
     expect(isValidIban('BE 68 5390 0754 7035')).toBe(false);
-    expect(
-      only('Refund to IBAN IT99 X054 2811 1010 0000 0123 456 cleared.', 'IBAN')[0].text
-    ).toBe('IT99 X054 2811 1010 0000 0123 456');
+    expect(only('Refund to IBAN IT99 X054 2811 1010 0000 0123 456 cleared.', 'IBAN')[0].text).toBe(
+      'IT99 X054 2811 1010 0000 0123 456'
+    );
     expect(only('Wire IBAN: XQ12 3456 7890 1234 5678 9012 ok', 'IBAN')[0].text).toBe(
       'XQ12 3456 7890 1234 5678 9012'
     );
@@ -393,6 +393,33 @@ describe('IP detection', () => {
       '192.168.1.1'
     );
   });
+
+  it('does not flag IANA-reserved non-identifier addresses (loopback / unspecified / broadcast)', () => {
+    // These addresses are reserved by IANA and never refer to a specific
+    // addressable entity, so they cannot be PII. The values below are HELD OUT
+    // from the single FP case that exposed this bug (`127.0.0.1`): we cover
+    // other points in the loopback /8, the IPv6 loopback literal, and the two
+    // IPv4 special-meaning constants so the test proves the whole reserved
+    // class is filtered, not just the one address.
+    expect(only('Bind dev server to 127.0.0.1 only', 'IP')).toHaveLength(0);
+    expect(only('Probe also hit 127.4.5.6 from the loopback range', 'IP')).toHaveLength(0);
+    expect(only('Loopback subnet 127.0.0.0/8 reserved by IANA', 'IP')).toHaveLength(0);
+    expect(only('IPv6 loopback ::1 came up', 'IP')).toHaveLength(0);
+    expect(only('Listen on 0.0.0.0 for all interfaces', 'IP')).toHaveLength(0);
+    expect(only('Sent to 255.255.255.255 limited broadcast', 'IP')).toHaveLength(0);
+  });
+
+  it('keeps detecting addresses that CAN identify a device (precision guard for the filter)', () => {
+    // Held-out positive guards: the filter must NOT swallow private RFC 1918,
+    // link-local, documentation-range, or public addresses — those still
+    // identify a network endpoint and remain valid PII candidates. Different
+    // exact octets from the cases already covered above.
+    expect(only('Gateway 10.20.30.40 reconfigured', 'IP')[0].text).toBe('10.20.30.40');
+    expect(only('Office subnet 192.168.50.77 reachable', 'IP')[0].text).toBe('192.168.50.77');
+    expect(only('Link-local 169.254.7.7 negotiated', 'IP')[0].text).toBe('169.254.7.7');
+    expect(only('Docs example 203.0.113.99 cited', 'IP')[0].text).toBe('203.0.113.99');
+    expect(only('Link-local fe80::beef logged', 'IP')[0].text).toBe('fe80::beef');
+  });
 });
 
 describe('MAC detection', () => {
@@ -489,6 +516,42 @@ describe('phone detection', () => {
     // not strip it.
     expect(only('Reach +1 800 555 1234 567 anytime.', 'PHONE')).toHaveLength(1); // 13d, has '+'
     expect(only('Call 030-1234-567-8901 today.', 'PHONE')).toHaveLength(1); // 14d, has '-'
+  });
+
+  it('keeps an international number written with country code but no "+"', () => {
+    // Held-out country codes (FR 33, IT 39, ES 34 — distinct from the German
+    // "49" gap case) prove the heuristic generalizes: any space-grouped
+    // ≥13-digit run whose FIRST group is 1–3 digits is country-code-without-`+`
+    // shape (Visa/MC/AmEx/Diners all start with a 4-digit group, so the leading
+    // group's size structurally distinguishes the two patterns).
+    expect(only('Customer called 33 1 4070 1234 56 from Paris.', 'PHONE')[0].text).toBe(
+      '33 1 4070 1234 56'
+    );
+    expect(only('Reach the agent at 39 06 4555 1234 567 today.', 'PHONE')[0].text).toBe(
+      '39 06 4555 1234 567'
+    );
+    expect(only('Mobile 34 91 5555 678 901 confirmed.', 'PHONE')[0].text).toBe(
+      '34 91 5555 678 901'
+    );
+  });
+
+  it('still rejects card-shaped ≥13-digit runs (leading 4-digit group)', () => {
+    // Precision guard for the refined rule: narrowing the card-shape reject to
+    // "first group of 4" must NOT let any Luhn-invalid PAN layout leak through.
+    // Held-out card-shape values (distinct from the proven Visa 4111… and the
+    // issue #74 AmEx case) cover all four card group patterns.
+    expect(only('Reference 4532 9876 5432 1098 dropped.', 'PHONE')).toHaveLength(0); // 4-4-4-4
+    expect(only('Card on file 5555 4444 3333 2 disputed.', 'PHONE')).toHaveLength(0); // 4-4-4-1 (13d)
+    expect(only('Disputed PAN 3056 654321 0987 today.', 'PHONE')).toHaveLength(0); // 4-6-4 (14d)
+    expect(only('PAN 3782 654321 09876 reviewed.', 'PHONE')).toHaveLength(0); // 4-6-5 (15d)
+  });
+
+  it('still rejects fused 13+ digit identifier runs (no grouping)', () => {
+    // The other half of the refined rule: a 13+ digit run with no spaces is
+    // also identifier-shaped (bank account / reference / barcode), never
+    // phone-shaped. Held-out lengths in the 13–19 digit window.
+    expect(only('Reference 1234567890123 attached.', 'PHONE')).toHaveLength(0); // 13d fused
+    expect(only('Account 987654321098765 verified.', 'PHONE')).toHaveLength(0); // 15d fused
   });
 });
 
