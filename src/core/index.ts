@@ -13,7 +13,7 @@ import { detectPassports } from './detectors/structured/passport';
 import { detectDatesOfBirth } from './detectors/structured/dateOfBirth';
 import { detectNames } from './detectors/names';
 import { detectNamesInUrls } from './detectors/structured/urlNames';
-import { deriveNamesFromEmail } from './identity/emailNames';
+import { deriveNamesFromEmail, deriveNamesFromAdjacentEmails } from './identity/emailNames';
 import { detectNameVariants } from './identity/nameVariants';
 import { withDerivedNames } from './identity/augmentedSource';
 import { resolveIdentities } from './identity/resolve';
@@ -57,9 +57,16 @@ export function detect(text: string, options: DetectOptions = {}): Span[] {
     // so an email is never split into name spans.
     const emailSpans = spans.filter((s) => s.type === 'EMAIL');
     const sourceEmails = emailSpans.length > 0 ? emailSpans : detectEmails(normalized);
-    const derived = sourceEmails.flatMap((s) =>
-      deriveNamesFromEmail(s.text.slice(0, s.text.indexOf('@')), nameSource)
-    );
+    const derived = [
+      ...sourceEmails.flatMap((s) =>
+        deriveNamesFromEmail(s.text.slice(0, s.text.indexOf('@')), nameSource)
+      ),
+      // Email-adjacency anchor: "<TitleCase Run> (<email>)" with CRM
+      // name-plus-initial local-part is itself proof the run is a person, even
+      // when none of its tokens hit the dictionary (Greek, Japanese transliterated,
+      // any long-tail OOV name). The derived tokens fold into the same second-pass.
+      ...deriveNamesFromAdjacentEmails(normalized, sourceEmails),
+    ];
     if (derived.length > 0) {
       spans.push(...detectNames(normalized, withDerivedNames(nameSource, derived), minConfidence));
     }
