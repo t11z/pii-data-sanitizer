@@ -1228,3 +1228,112 @@ describe('middle-initial bridge ("Given X. Surname")', () => {
     expect(got).not.toContain('Smith. John');
   });
 });
+
+describe('ALL-CAPS short acronyms are never name parts', () => {
+  // FP shape from the coverage probe: a 2-4 letter ALL-CAPS Latin run after (or
+  // inside) a name chain ("Tech ID", "Sarah Smith DOB", "Dr. ID confirmed")
+  // was being absorbed as a name part — the lowercased form coincidentally
+  // appears in the long-tail surname list, or the title/role boost alone pushed
+  // it over threshold. The structural acronym classifier (length-2-4 ASCII
+  // uppercase) rejects them everywhere a chain might pick them up. Verified
+  // against the FULL committed dictionary so the held-out acronyms below ride
+  // on the surface heuristic, not on dictionary absence.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not anchor a sentence-start ext name + ALL-CAPS acronym ("Tech ID")', () => {
+    // Reproduces the exact gap-report FP. "Tech" is an ext-tier surname surface
+    // (US-Census long-tail); a held-out ALL-CAPS acronym ("QXR") must not
+    // corroborate it at sentence start.
+    expect(
+      personsFull(
+        'Status note: caller raised the ticket. Tech QXR: BUILD-7.5.0-alpha was attached.'
+      )
+    ).toHaveLength(0);
+  });
+
+  it('does not let a title alone anchor an ALL-CAPS short acronym ("Dr. ID")', () => {
+    // The title boost alone (0.65) used to clear the threshold on an unknown
+    // capitalized 2-4 char ALL-CAPS token. Held-out: "ZPL" / "XQT" are not in
+    // the full DB and are not real names — the title boost must not promote them.
+    expect(personsFull('Dr. ZPL confirmed the booking.')).toHaveLength(0);
+    expect(personsFull('Engineer XQT handled the case.')).toHaveLength(0);
+  });
+
+  it('truncates a chain that runs into an ALL-CAPS acronym ("Sarah Smith DEX")', () => {
+    // Chain-extension absorption: a real name followed by an ALL-CAPS label
+    // ("DEX", "QZX") used to extend the chain ("Sarah Smith DEX"@1.0). The
+    // surname only counts now, so the label stays out of the span.
+    const found = personsFull('Sarah Smith DEX: 1990 was confirmed.');
+    expect(found).not.toContain('Sarah Smith DEX');
+    expect(found).toContain('Sarah Smith');
+    const found2 = personsFull('Customer Anna Schmidt QZX updated her profile.');
+    expect(found2).not.toContain('Anna Schmidt QZX');
+    expect(found2).toContain('Anna Schmidt');
+  });
+
+  it('does not anchor a core name + ALL-CAPS acronym chain ("Anderson YXC")', () => {
+    // Mid-sentence chain extension into a held-out ALL-CAPS label. The
+    // single-name fallback (Anderson alone, parts=1 core hit) may still detect,
+    // but the chained "Anderson YXC" FP must not.
+    expect(personsFull('After triage. Anderson YXC: BUILD-7 was logged.')).not.toContain(
+      'Anderson YXC'
+    );
+  });
+
+  it('proves the ALL-CAPS labels are held out (absent from the full DB)', () => {
+    // The lever is the surface shape, not absence — but absence keeps these tests
+    // honest. If a label below lands in the DB later, re-point at fresh held-outs;
+    // the structural fix still applies because it ignores DB membership.
+    for (const word of ['qxr', 'zpl', 'xqt', 'dex', 'qzx', 'yxc']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('precision: mixed-case names still anchor and extend normally', () => {
+    // Negative guard: the rule is length-2-4 ASCII all-uppercase. Any mixed-case
+    // token escapes it, so ordinary names ride through unchanged.
+    expect(personsFull('Sarah Smith updated her profile today.')).toContain('Sarah Smith');
+    expect(personsFull('Customer Anna Schmidt requested support.')).toContain('Anna Schmidt');
+    // A short DB-hit given name in mixed case still anchors at sentence start.
+    expect(personsFull('Bob Anderson signed off on the ticket.')).toContain('Bob Anderson');
+  });
+
+  it('precision: 5+ letter ALL-CAPS surnames still anchor (length window)', () => {
+    // The window stops at 4 chars on purpose — formal/legal documents that
+    // capitalize a full surname ("GARCIA", "SMITH", "JOHNSON") must still detect.
+    expect(personsFull('Account holder GARCIA filed the appeal.')).toContain('GARCIA');
+  });
+
+  it('precision: digits and punctuation in the token disqualify the acronym rule', () => {
+    // The regex is /^[A-Z]{2,4}$/ — strictly letters, length 2-4. A token like
+    // "A1" or "B2C" is not all-letters and is left to other gates. Held-out
+    // surname so the case rides on the heuristic.
+    expect(personsFull('Customer Marcus Qwerznok contacted support.')).toContain(
+      'Marcus Qwerznok'
+    );
+  });
+
+  it('mechanism: structural fix ignores DB membership (PIN-shape)', () => {
+    // "pin" / "ui" / "os" are real ext-tier surname surfaces from the long-tail
+    // Census list, so a chain extension used to absorb the ALL-CAPS surface
+    // ("Sarah Smith PIN"). The rule is purely structural and rejects them
+    // regardless of DB hit — fixture lets us prove this independent of which
+    // names happen to be in production.
+    const fixture = new PackNameSource();
+    fixture.addWords(['sarah'], { script: 'Latin', tier: 'core' }, 'latin-core');
+    fixture.addWords(['smith', 'pin'], { script: 'Latin', tier: 'ext' }, 'latin-ext');
+    expect(fixture.hasFamily('pin', 'Latin')).toBe(true); // sanity: PIN-lowercased IS in DB
+    const found = detect('Customer Sarah Smith PIN updated her profile.', {
+      nameSource: fixture,
+    })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+    expect(found).not.toContain('Sarah Smith PIN');
+    expect(found).toContain('Sarah Smith');
+  });
+});

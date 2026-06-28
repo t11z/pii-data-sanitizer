@@ -1481,5 +1481,39 @@
         "text": "cs.team@example.com"
       }
     ]
+  },
+  {
+    "text": "Vendor support: Rajesh Kumar called from +91 98765 43210. Tech QXR: BUILD-7.5.0-alpha attached.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Rajesh Kumar"
+      },
+      {
+        "type": "PHONE",
+        "text": "+91 98765 43210"
+      }
+    ]
+  },
+  {
+    "text": "Account holder Sarah Smith ZPL: 1990 was confirmed today.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Sarah Smith"
+      }
+    ]
+  },
+  {
+    "text": "Dr. XQT confirmed the booking yesterday.",
+    "entities": []
+  },
+  {
+    "text": "Engineer YXC handled the case overnight.",
+    "entities": []
+  },
+  {
+    "text": "Reference DEX-Beta release notes attached.",
+    "entities": []
   }
 ]
