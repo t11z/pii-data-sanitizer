@@ -13,6 +13,16 @@ const LETTER = /[A-Za-z]/;
 // these is safe for genuine numbers.
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}(?:[ T]\d{1,2}(?::\d{2}){0,2})?$/;
 
+// CIDR-tagged IPv4 (four dotted 1–3-digit segments + `/N`). Real phone numbers
+// never carry a trailing `/N` after a dotted-quad body, so this is an
+// unambiguous CIDR shape — not a phone. The guard exists because the IP
+// detector suppresses network-base CIDRs (e.g. `172.16.0.0/12`) as ranges
+// rather than hosts; without this, the freed bytes would slide through the
+// phone candidate regex and emit a PHONE false positive. Bare dotted-quad IPs
+// are still claimed by the IP detector at higher confidence, so this guard
+// only triggers when a CIDR suffix is present.
+const IPV4_CIDR = /^\d{1,3}(?:\.\d{1,3}){3}\/\d{1,3}$/;
+
 /**
  * True when the digit run is fused — across hyphens or underscores — to letters,
  * i.e. it is part of a structured reference (order #, ticket, invoice, serial,
@@ -55,6 +65,8 @@ export function detectPhones(text: string): Span[] {
     const end = start + trimmed.length;
     // Skip ISO dates / timestamps (e.g. "2026-03-17" or "2026-03-17 14").
     if (ISO_DATE.test(trimmed)) continue;
+    // Skip CIDR-tagged IPv4 (e.g. "172.16.0.0/12") — never a phone number.
+    if (IPV4_CIDR.test(trimmed)) continue;
     // Skip digit runs embedded in an alphanumeric identifier (order/ticket/
     // invoice/serial numbers like "ORD-2025-001847-X") — not phone numbers.
     if (fusedToLetters(text, start, end)) continue;

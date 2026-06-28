@@ -140,9 +140,9 @@ describe('IBAN detection', () => {
     expect(isValidIban('XQ12 3456 7890 1234 5678 9012')).toBe(false);
     expect(isValidIban('ZK00 1122 3344 5566 7788')).toBe(false);
     expect(isValidIban('BE 68 5390 0754 7035')).toBe(false);
-    expect(
-      only('Refund to IBAN IT99 X054 2811 1010 0000 0123 456 cleared.', 'IBAN')[0].text
-    ).toBe('IT99 X054 2811 1010 0000 0123 456');
+    expect(only('Refund to IBAN IT99 X054 2811 1010 0000 0123 456 cleared.', 'IBAN')[0].text).toBe(
+      'IT99 X054 2811 1010 0000 0123 456'
+    );
     expect(only('Wire IBAN: XQ12 3456 7890 1234 5678 9012 ok', 'IBAN')[0].text).toBe(
       'XQ12 3456 7890 1234 5678 9012'
     );
@@ -343,21 +343,45 @@ describe('IP detection', () => {
     expect(only('weird ::ffff:999.1.1.1 bad', 'IP')).toHaveLength(0);
   });
 
-  it('captures an IPv4 CIDR suffix as part of the span', () => {
+  it('captures an IPv4 CIDR suffix as part of the span for hosts (held-out RFC 5737 docs)', () => {
     // Held-out reserved-doc ranges (RFC 5737), absent from any dictionary
     // because IP detection is purely structural — these prove the suffix
-    // capture is general, not memorized.
-    expect(only('Firewall blocks 198.51.100.0/24 from the perimeter', 'IP')[0].text).toBe(
-      '198.51.100.0/24'
-    );
+    // capture is general, not memorized. The values carry non-zero host bits
+    // (or are explicit /32 host routes) so they remain detected after the
+    // network-base suppression rule.
     expect(only('Single host 203.0.113.42/32 only', 'IP')[0].text).toBe('203.0.113.42/32');
+    expect(only('Host 198.51.100.42/24 in subnet', 'IP')[0].text).toBe('198.51.100.42/24');
   });
 
-  it('captures an IPv6 CIDR suffix as part of the span', () => {
-    expect(only('Customer access from 2600:1700::/32 today', 'IP')[0].text).toBe('2600:1700::/32');
-    expect(only('SOC alert flagged 2001:db8:1234::/48 overnight', 'IP')[0].text).toBe(
-      '2001:db8:1234::/48'
+  it('captures an IPv6 CIDR suffix as part of the span for hosts', () => {
+    // Non-zero trailing host bits → kept after network-base suppression.
+    expect(only('Customer access from 2600:1700::5/32 today', 'IP')[0].text).toBe(
+      '2600:1700::5/32'
     );
+    expect(only('SOC alert flagged 2001:db8:1234::abcd/48 overnight', 'IP')[0].text).toBe(
+      '2001:db8:1234::abcd/48'
+    );
+  });
+
+  it('suppresses CIDR-tagged network base addresses (range, not a host)', () => {
+    // A CIDR suffix with prefix < family-max and host bits all zero designates
+    // a routing/firewall range — never a specific addressable device — so it
+    // is not PII. Values held out from any dictionary; the rule is structural
+    // (host-mask & address === 0), so any held-out network base in either
+    // family is suppressed.
+    expect(only('Traced to 172.16.0.0/12 range', 'IP')).toHaveLength(0);
+    expect(only('Subnet 10.0.0.0/8 private', 'IP')).toHaveLength(0);
+    expect(only('Block 198.51.100.0/24 from perimeter', 'IP')).toHaveLength(0);
+    expect(only('IPv6 range 2001:db8::/32 advertised', 'IP')).toHaveLength(0);
+    expect(only('Doc range 2001:db8:1234::/48 reserved', 'IP')).toHaveLength(0);
+    expect(only('Smaller block 2001:db8:abcd::/64 ok', 'IP')).toHaveLength(0);
+  });
+
+  it('still detects bare host addresses from inside a suppressed range', () => {
+    // Precision guard: suppressing the CIDR network base must not suppress
+    // host addresses that happen to appear near it. The gap case has both.
+    const spans = detect('Traced to 172.16.0.0/12 range; gateway 172.16.254.1 was hit.');
+    expect(spans.filter((s) => s.type === 'IP').map((s) => s.text)).toEqual(['172.16.254.1']);
   });
 
   it('captures CIDR after an IPv6 zone identifier', () => {
@@ -489,6 +513,18 @@ describe('phone detection', () => {
     // not strip it.
     expect(only('Reach +1 800 555 1234 567 anytime.', 'PHONE')).toHaveLength(1); // 13d, has '+'
     expect(only('Call 030-1234-567-8901 today.', 'PHONE')).toHaveLength(1); // 14d, has '-'
+  });
+
+  it('does not flag a CIDR-tagged IPv4 as a phone number', () => {
+    // Held-out CIDR network bases that the IP detector now suppresses as
+    // ranges — without this PHONE guard the freed dotted-quad-plus-`/N` text
+    // would slide through the phone candidate regex (dots and `/` are valid
+    // separators). The shape `\d{1,3}.\d{1,3}.\d{1,3}.\d{1,3}/\d{1,3}` is
+    // unambiguously CIDR; no real phone number ends in `/N` after a
+    // dotted-quad body.
+    expect(only('Traced to 172.16.0.0/12 range overnight.', 'PHONE')).toHaveLength(0);
+    expect(only('Block 10.0.0.0/8 covers all of RFC 1918.', 'PHONE')).toHaveLength(0);
+    expect(only('Perimeter drops 198.51.100.0/24 from the wire.', 'PHONE')).toHaveLength(0);
   });
 });
 

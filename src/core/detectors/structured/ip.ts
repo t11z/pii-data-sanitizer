@@ -40,16 +40,81 @@ function isValidIpv4(value: string): boolean {
 /** Splits an optional `/N` CIDR suffix from a candidate. If the suffix is
  * present but the prefix length is out of range for `family`, the suffix is
  * discarded (the bare address still detects) so a malformed mask does not
- * suppress recall on the address itself. */
-function splitCidr(value: string, family: 'v4' | 'v6'): { addr: string; cidr: string } {
+ * suppress recall on the address itself. `prefix` is the parsed prefix length
+ * when a valid suffix is attached, or `null` otherwise — callers use it to
+ * distinguish a host-route `/32` from a network-base prefix. */
+function splitCidr(
+  value: string,
+  family: 'v4' | 'v6'
+): { addr: string; cidr: string; prefix: number | null } {
   const slash = value.indexOf('/');
-  if (slash === -1) return { addr: value, cidr: '' };
+  if (slash === -1) return { addr: value, cidr: '', prefix: null };
   const mask = value.slice(slash + 1);
   const max = family === 'v4' ? 32 : 128;
   if (!/^\d{1,3}$/.test(mask) || Number(mask) > max) {
-    return { addr: value.slice(0, slash), cidr: '' };
+    return { addr: value.slice(0, slash), cidr: '', prefix: null };
   }
-  return { addr: value.slice(0, slash), cidr: value.slice(slash) };
+  return { addr: value.slice(0, slash), cidr: value.slice(slash), prefix: Number(mask) };
+}
+
+/** Packs four octets into a uint32. */
+function ipv4ToUint32(addr: string): number {
+  const p = addr.split('.').map(Number);
+  return ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]) >>> 0;
+}
+
+/** Expands an IPv6 candidate to its full 128-bit integer value. Resolves `::`
+ * compression, embedded IPv4 tails, and strips any `%zone` identifier. The
+ * caller must have already validated the candidate via `isValidIpv6`. */
+function ipv6ToBigInt(candidate: string): bigint {
+  let addr = candidate;
+  const pct = addr.indexOf('%');
+  if (pct !== -1) addr = addr.slice(0, pct);
+
+  const lastColon = addr.lastIndexOf(':');
+  const tail = addr.slice(lastColon + 1);
+  if (tail.includes('.')) {
+    const o = tail.split('.').map(Number);
+    const g1 = ((o[0] << 8) | o[1]).toString(16);
+    const g2 = ((o[2] << 8) | o[3]).toString(16);
+    addr = `${addr.slice(0, lastColon + 1)}${g1}:${g2}`;
+  }
+
+  let groups: string[];
+  const dc = addr.indexOf('::');
+  if (dc !== -1) {
+    const head = addr.slice(0, dc);
+    const rest = addr.slice(dc + 2);
+    const headGroups = head === '' ? [] : head.split(':');
+    const tailGroups = rest === '' ? [] : rest.split(':');
+    const fill = 8 - headGroups.length - tailGroups.length;
+    groups = [...headGroups, ...Array(fill).fill('0'), ...tailGroups];
+  } else {
+    groups = addr.split(':');
+  }
+
+  let result = 0n;
+  for (const g of groups) result = (result << 16n) | BigInt(parseInt(g, 16));
+  return result;
+}
+
+/** True when `addr` is the network *base* address for `prefix` — i.e. every
+ * host bit is zero and the prefix is shorter than the family max. A CIDR-tagged
+ * network base (`172.16.0.0/12`, `10.0.0.0/8`, `2001:db8::/32`) designates a
+ * routing/firewall range, never a specific host, so it is not PII. Host routes
+ * (`/32`, `/128`) and hosts-in-network notations (`10.0.0.5/24`, `fe80::1/64`)
+ * carry per-host bits and are NOT network bases — they remain detected. The
+ * check is purely numeric, so it generalizes to any CIDR-tagged subnet
+ * boundary in either family without per-value memorization. */
+function isCidrNetworkBase(addr: string, prefix: number, family: 'v4' | 'v6'): boolean {
+  if (family === 'v4') {
+    if (prefix >= 32) return false;
+    const hostMask = (0xffffffff >>> prefix) >>> 0;
+    return (ipv4ToUint32(addr) & hostMask) === 0;
+  }
+  if (prefix >= 128) return false;
+  const hostMask = (1n << BigInt(128 - prefix)) - 1n;
+  return (ipv6ToBigInt(addr) & hostMask) === 0n;
 }
 
 /** Validates an IPv6 candidate per RFC 4291 (compression, embedded IPv4, zone). */
@@ -99,7 +164,8 @@ function isValidIpv6(candidate: string): boolean {
 export function detectIps(text: string): Span[] {
   const spans: Span[] = [];
   for (const match of text.matchAll(IPV4_RE)) {
-    const { addr, cidr } = splitCidr(match[0], 'v4');
+    const { addr, cidr, prefix } = splitCidr(match[0], 'v4');
+    if (prefix !== null && isCidrNetworkBase(addr, prefix, 'v4')) continue;
     const value = addr + cidr;
     spans.push({
       start: match.index,
@@ -111,8 +177,9 @@ export function detectIps(text: string): Span[] {
     });
   }
   for (const match of text.matchAll(IPV6_CANDIDATE_RE)) {
-    const { addr, cidr } = splitCidr(match[0], 'v6');
+    const { addr, cidr, prefix } = splitCidr(match[0], 'v6');
     if (!isValidIpv6(addr)) continue;
+    if (prefix !== null && isCidrNetworkBase(addr, prefix, 'v6')) continue;
     const value = addr + cidr;
     spans.push({
       start: match.index,

@@ -858,20 +858,20 @@
     "entities": []
   },
   {
-    "text": "Firewall rule blocks 198.51.100.0/24 from the perimeter.",
+    "text": "Firewall rule blocks host 198.51.100.42/24 from the perimeter.",
     "entities": [
       {
         "type": "IP",
-        "text": "198.51.100.0/24"
+        "text": "198.51.100.42/24"
       }
     ]
   },
   {
-    "text": "The SOC alert flagged 2001:db8:1234::/48 overnight.",
+    "text": "The SOC alert flagged 2001:db8:1234::abcd/48 overnight.",
     "entities": [
       {
         "type": "IP",
-        "text": "2001:db8:1234::/48"
+        "text": "2001:db8:1234::abcd/48"
       }
     ]
   },
@@ -885,13 +885,34 @@
     ]
   },
   {
-    "text": "Customer reported access from 2600:1700::/32 this morning.",
+    "text": "Customer reported access from 2600:1700::5/32 this morning.",
     "entities": [
       {
         "type": "IP",
-        "text": "2600:1700::/32"
+        "text": "2600:1700::5/32"
       }
     ]
+  },
+  {
+    "text": "Network incident traced to 172.16.0.0/12 range; gateway 172.16.254.1 was hit.",
+    "entities": [
+      {
+        "type": "IP",
+        "text": "172.16.254.1"
+      }
+    ]
+  },
+  {
+    "text": "Operator advertised 2001:db8::/32 as the documentation prefix today.",
+    "entities": []
+  },
+  {
+    "text": "Block 10.0.0.0/8 covers the entire RFC 1918 private space.",
+    "entities": []
+  },
+  {
+    "text": "Sub-allocation 2001:db8:abcd::/64 is reserved for the test plane.",
+    "entities": []
   },
   {
     "text": "Documentation says the subnet mask /24 is the default.",
