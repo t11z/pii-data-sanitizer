@@ -44,6 +44,13 @@ export const PARTICLES = new Set<string>([
   'bint',
   'al',
   'el',
+  // Persian/Urdu sun-letter assimilation of the Arabic article — appears in
+  // South Asian Muslim names whenever the surname's first sound absorbs the
+  // lām ("Naveed ul-Haq", "Mahbub ul-Haq", "Zia ul-Haq", "Inayat ul-Allah").
+  // The tokenizer keeps "ul-Haq" as a single lowercase-initial token, so
+  // without "ul" in PARTICLES, particleHyphenName() fails and the chain
+  // truncates at the given name even when the fused surname is in the DB.
+  'ul',
   'abu',
   'abd',
   'abdel',

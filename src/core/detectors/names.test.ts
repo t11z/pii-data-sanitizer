@@ -773,6 +773,57 @@ describe('title/role-anchored particle-hyphen start (joined "al-Surname")', () =
   });
 });
 
+describe('Persian/Urdu "ul-" particle in compound surnames', () => {
+  // "Naveed ul-Haq", "Mahbub ul-Haq", "Zia ul-Haq", "Inayat ul-Allah": the
+  // Arabic article transliterated with sun-letter assimilation. The tokenizer
+  // glues "ul-Haq" into one lowercase-initial token, so without "ul" in
+  // PARTICLES the chain truncates at the given name — even when the fused
+  // surname is in the DB. Verified against the FULL committed dictionary so
+  // the names below are genuinely held out: detection rides on the particle
+  // membership of "ul", never on dictionary memorization of these specific
+  // given names or surnames.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('chains a held-out "ul-Surname" after a role cue', () => {
+    expect(personsFull('Eng. Tahmidur ul-Dawla submitted the refund.')).toContain(
+      'Tahmidur ul-Dawla'
+    );
+    expect(personsFull('Account holder Rumman ul-Muizz called yesterday.')).toContain(
+      'Rumman ul-Muizz'
+    );
+  });
+
+  it('chains a held-out "ul-Surname" after a title abbreviation', () => {
+    expect(personsFull('Filed by Dr. Sadaqat ul-Dawla overnight.')).toContain('Sadaqat ul-Dawla');
+  });
+
+  it('proves the "ul-" names are held out (absent from the full DB)', () => {
+    // The fix is the new particle entry, not memorization: if any of these land
+    // in the DB later the test trips and a fresh held-out pair must be picked.
+    const heldOut = ['tahmidur', 'rumman', 'sadaqat', 'dawla', 'muizz'];
+    for (const word of heldOut) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('does not start a name on a bare "ul-Surname" without a cue', () => {
+    // Same shape as the existing al-/el-/abu- particle-hyphen-start guard: no
+    // cue → branch never fires → the lowercase-initial token stays out.
+    expect(personsFull('Yesterday ul-Dawla walked into the office.')).toHaveLength(0);
+  });
+
+  it('does not fire on "ul-" with a lowercase tail', () => {
+    // particleHyphenName requires the tail to be capitalized, so loanwords with
+    // a lowercase tail ("ul-trasonic", "ul-timate") stay out even after a cue.
+    expect(personsFull('Customer ul-trasonic ordered tonight.')).toHaveLength(0);
+  });
+});
+
 describe('false-positive guards', () => {
   it('does not flag lowercase common words', () => {
     expect(persons('She gave a frank and rose-tinted review.')).toHaveLength(0);
