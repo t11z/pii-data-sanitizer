@@ -174,6 +174,7 @@ export const NON_NAME_WORDS = new Set<string>([
   'network',
   'application',
   'module',
+  'console',
   'license',
   'subscription',
   'balance',

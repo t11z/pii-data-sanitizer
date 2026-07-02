@@ -129,6 +129,110 @@ describe('context-based detection (generalizes beyond the DB)', () => {
   });
 });
 
+describe('backward unknown-cap anchor ("<unknown given> <ext surname>")', () => {
+  // Symmetric backward case of the forward unknown-cap chain extension. The
+  // forward path already accepts an unknown surname after a known given
+  // ("Anna Kuznetsova" — Anna anchors, Kuznetsova is absorbed). Until this
+  // rule landed, the mirror case dropped silently: an unknown GIVEN before a
+  // known surname could not anchor the chain, and a single ext-tier surname
+  // on its own scores below threshold ( 0.6 − 0.2 extOnly penalty = 0.4 ),
+  // so the entire name was lost — exposing every language whose given table
+  // is sparse but whose surnames are in the long-tail (`ext`) bulk.
+  //
+  // Detection here MUST come from the heuristic, never from membership: the
+  // given-name tokens are held out against the FULL committed DB (curated
+  // core + ingested ext) below.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects an unknown given before an ext-tier surname at sentence start', () => {
+    // Vitya — Russian diminutive of Viktor, absent from the DB. Volkov — ext.
+    expect(personsFull('Vitya Volkov requested a refund.')).toContain('Vitya Volkov');
+    // Wojciech — common Polish given, absent. Lindqvist — ext.
+    expect(personsFull('Wojciech Lindqvist arrived this morning.')).toContain(
+      'Wojciech Lindqvist'
+    );
+  });
+
+  it('detects the unknown given even mid-sentence (no sentence-start dependency)', () => {
+    expect(personsFull('Regarding Vitya Volkov, please respond.')).toContain('Vitya Volkov');
+  });
+
+  it('does not detect when the corroborator is also out of the DB', () => {
+    // Both halves unknown — without a DB-confirmed corroborator the chain has
+    // no anchor, so we must NOT promote either token.
+    expect(personsFull('Aiyana Standingbear filed a claim.')).toHaveLength(0);
+    expect(personsFull('Zzzaard Qqqulev submitted the form.')).toHaveLength(0);
+  });
+
+  it('does not promote a sentence-opener verb before a known name', () => {
+    // The candidate filter rejects clause-leading imperatives. Without the
+    // openers extension these would slurp the following name into a single FP
+    // span ("Email Volkov today" → "Email Volkov").
+    expect(personsFull('Email Volkov today about the refund.')).not.toContain('Email Volkov');
+    expect(personsFull('Visit Petrenko before the meeting ends.')).not.toContain(
+      'Visit Petrenko'
+    );
+    expect(personsFull('Meet Lindqvist at the lobby this afternoon.')).not.toContain(
+      'Meet Lindqvist'
+    );
+  });
+
+  it('does not promote a core-tier given name as the corroborator', () => {
+    // "Email John Smith" must remain a clean detection of "John Smith" only,
+    // never "Email John Smith". The corroborator-tier gate (ext-only) is the
+    // precision lever: common Anglo names are core, so "<imperative verb> +
+    // <core given name>" never anchors via this rule.
+    expect(personsFull('Email John Smith and also before noon.')).toEqual(['John Smith']);
+    expect(personsFull('Visit Anna at the cafe.')).toEqual(['Anna']);
+    expect(personsFull('Reach Michael Anderson today.')).toEqual(['Michael Anderson']);
+  });
+
+  it('does not promote a structural noun + ext-tier corroborator', () => {
+    // The candidate cannot be a non-name word (NON_NAME_WORDS) — keeps
+    // "Customer Service Team" / "Account Approval Form" untouched. The
+    // corroborator's non-name filter additionally blocks product-shape
+    // chains like "Admin Console" (console is technical UI vocab in ext).
+    expect(personsFull('Customer Service Team responded quickly.')).toHaveLength(0);
+    expect(personsFull('Login to Admin Console required.')).toHaveLength(0);
+    expect(personsFull('Status Update queued for processing.')).toHaveLength(0);
+  });
+
+  it('does not promote when the corroborator is in AMBIGUOUS_WORDS', () => {
+    // English "frank" lands in the DB at ext-tier and is also ordinary
+    // vocabulary, so it could anchor an "<unknown cap> <ambiguous ext>" chain
+    // (the candidate would otherwise sail through the precision filters). The
+    // corroborator's ambiguous-word filter blocks that promotion path — the
+    // unknown candidate is held out from the full DB, so any detection here
+    // would have to come from this rule alone.
+    expect(personsFull('Zzzaard Frank arrived at the office.')).toHaveLength(0);
+  });
+
+  it('proves the backward-anchor held-out names are absent from the full DB', () => {
+    const heldOut: Array<[string, 'Latin']> = [
+      ['vitya', 'Latin'],
+      ['wojciech', 'Latin'],
+      ['aiyana', 'Latin'],
+      ['standingbear', 'Latin'],
+      ['zzzaard', 'Latin'],
+      ['qqqulev', 'Latin'],
+    ];
+    for (const [word, script] of heldOut) {
+      expect(fullSource.hasGiven(word, script), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, script), `${word} should be out-of-DB`).toBe(false);
+    }
+    // And the corroborators that license detection MUST be present in the
+    // committed DB at `ext` tier — the rule rescues exactly the population
+    // where the surname is ext-tier (and would otherwise score below
+    // threshold on its own).
+    expect(fullSource.matchTier('volkov', 'Latin')).toBe('ext');
+    expect(fullSource.matchTier('lindqvist', 'Latin')).toBe('ext');
+  });
+});
+
 describe('role cue with label colon ("<RoleNoun>: <Name>")', () => {
   // Ticket / log / form prose introduces a name with a label colon after the
   // role noun ("Engineer: Per Aarvik", "Customer: Mary Jones",

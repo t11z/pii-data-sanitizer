@@ -1646,5 +1646,31 @@
         "text": "Maria López"
       }
     ]
+  },
+  {
+    "text": "Vitya Volkov requested a refund for the order.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Vitya Volkov"
+      }
+    ]
+  },
+  {
+    "text": "Wojciech Lindqvist arrived this morning to sign the contract.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Wojciech Lindqvist"
+      }
+    ]
+  },
+  {
+    "text": "Aiyana Standingbear filed a claim with support.",
+    "entities": []
+  },
+  {
+    "text": "Login to Admin Console required before access.",
+    "entities": []
   }
 ]
