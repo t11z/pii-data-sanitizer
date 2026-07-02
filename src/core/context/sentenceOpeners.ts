@@ -118,6 +118,21 @@ export const SENTENCE_OPENERS = new Set<string>([
   'contact',
   'review',
   'update',
+  // Imperative verbs that routinely take a PERSON object in support / business
+  // prose. They are not in the name DB themselves, but capitalize at a sentence
+  // start the same way a given name does, so without listing them they would
+  // anchor the backward-unknown-cap chain rule and slurp the following name
+  // into a single FP span (e.g. "Email Volkov today" → "Email Volkov").
+  'email',
+  'visit',
+  'meet',
+  'page',
+  'ping',
+  'message',
+  'mention',
+  'invite',
+  'tell',
+  'talk',
   'confirm',
   'verify',
   'ensure',

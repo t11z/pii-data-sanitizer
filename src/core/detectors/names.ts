@@ -242,6 +242,48 @@ function nameContinuation(tokens: Token[], i: number, text: string): boolean {
   return !isNonNameWord(next.text) && !isRoleWord(next.text) && !isTitle(next.text);
 }
 
+/**
+ * Stricter sibling of `nameContinuation` used by the backward-unknown-cap
+ * anchor rule below: returns true only when the corroborating token is a
+ * DB-confirmed name that is itself `ext`-tier and not in `AMBIGUOUS_WORDS`.
+ *
+ * Why the tier+ambiguous gate. The backward extension rescues the population
+ * "<unknown cap> <known surname>" that the scoring currently drops — a single
+ * `ext`-tier hit on its own is below threshold (the `parts === 1 && extOnly`
+ * penalty subtracts 0.2 from 0.6 = 0.4 < 0.5). Restricting the corroborator
+ * to `ext`-tier means we rescue ONLY the cases that would otherwise lose
+ * altogether, while leaving every shape that already detects untouched.
+ * Equally important, `core` is dominated by common Anglo names (Anna, John,
+ * Smith), so allowing a `core` corroborator would let "<imperative verb> +
+ * <core given name>" — "Email John Smith", "Visit Anna" — promote into a
+ * person span and break the existing corpus precision. The `AMBIGUOUS_WORDS`
+ * filter on the corroborator suppresses the same kind of accidental match on
+ * dictionary collisions like pinyin "wei" / month-name "may" that the single-
+ * token path is already careful with.
+ */
+function knownNameAfter(tokens: Token[], i: number, source: NameSource, text: string): boolean {
+  let j = i;
+  while (
+    j + 1 < tokens.length &&
+    isParticle(tokens[j + 1].text) &&
+    SINGLE_GAP.test(text.slice(tokens[j].end, tokens[j + 1].start))
+  ) {
+    j++;
+  }
+  const next = tokens[j + 1];
+  if (!next) return false;
+  if (!SINGLE_GAP.test(text.slice(tokens[j].end, next.start))) return false;
+  if (next.script !== 'Latin') return false;
+  if (!isCapitalized(next.text) && !particleHyphenName(next)) return false;
+  if (adjoinsDigit(next, text)) return false;
+  if (isLikelyAcronym(next.text)) return false;
+  if (isNonNameWord(next.text) || isRoleWord(next.text) || isTitle(next.text)) return false;
+  if (!anyHit(source, next)) return false;
+  if (tierOf(source, next) !== 'ext') return false;
+  if (isAmbiguousWord(next.text.toLowerCase())) return false;
+  return true;
+}
+
 function nameStart(tokens: Token[], i: number, source: NameSource, text: string): StartInfo | null {
   const tok = tokens[i];
   if (tok.script === 'Han' || tok.script === 'Other') return null;
@@ -371,6 +413,30 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
     // Role-only start: generalize beyond the DB, but never start on a structural
     // noun (e.g. "Customer Service") — that path needs a real multi-token name.
     if (roleBefore && !isNonNameWord(tok.text)) return { titleBefore, roleBefore, dbHit };
+    // Backward unknown-cap anchor: a capitalized non-DB token anchors the chain
+    // when an `ext`-tier DB-confirmed name part immediately follows. Symmetric
+    // mirror of the forward unknown-cap extension — today "Anna Kuznetsova"
+    // detects because the chain starts at the known given "Anna" and absorbs
+    // the unknown surname; without this rule "Vitya Volkov" silently drops
+    // (Vitya unknown, Volkov a single `ext` token below threshold). The rule
+    // generalizes to every language whose given-name table is sparse but the
+    // surname is in the long-tail (Russian, Polish, less-common Indian forms,
+    // …) without touching dictionary data. Precision filters on the candidate
+    // (sentence opener, ambiguous vocab, non-name / role / title cue) mirror
+    // the sentence-initial ext path; the corroborator gate (ext-tier and not
+    // ambiguous, see `knownNameAfter`) is what keeps "Email John Smith" /
+    // "Visit Anna" / "Pacific Wei" from promoting.
+    if (
+      !isSentenceOpener(tok.text) &&
+      !isAmbiguousWord(tok.text.toLowerCase()) &&
+      !isNonNameWord(tok.text) &&
+      !isRoleWord(tok.text) &&
+      !isRoleAbbreviation(tok.text) &&
+      !isTitle(tok.text) &&
+      knownNameAfter(tokens, i, source, text)
+    ) {
+      return { titleBefore: false, roleBefore: false, dbHit: false };
+    }
     return null;
   }
   // Caseless scripts: require database membership (or a preceding title/role).
