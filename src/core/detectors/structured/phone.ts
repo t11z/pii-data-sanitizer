@@ -6,6 +6,15 @@ const PHONE_RE = /(?<![\w+])\+?\d[\d().\-/ ]{5,}\d(?![\w])/g;
 const ID_CHAR = /[A-Za-z0-9_-]/;
 const LETTER = /[A-Za-z]/;
 
+// A dotted-quad IPv4 address with a trailing CIDR suffix ("172.16.0.0/12",
+// "198.51.100.0/24") is never a phone number — real numbers don't carry a
+// bare `/N` suffix. Overlap resolution normally lets the higher-confidence IP
+// span shadow this candidate, but the IP detector intentionally does not emit
+// a span for a CIDR network-base address (all host bits zero), so this needs
+// its own structural guard rather than relying on that suppression.
+const CIDR_IPV4_RE =
+  /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\/\d{1,2}$/;
+
 // ISO-8601 date or the leading date-plus-hour of a timestamp. The candidate
 // regex stops at ':' (not a separator), so a timestamp like
 // "2026-03-17 14:08:51" surfaces as the candidate "2026-03-17 14" — a date,
@@ -62,6 +71,8 @@ export function detectPhones(text: string): Span[] {
     const end = start + trimmed.length;
     // Skip ISO dates / timestamps (e.g. "2026-03-17" or "2026-03-17 14").
     if (ISO_DATE.test(trimmed)) continue;
+    // Skip CIDR-tagged IPv4 addresses (e.g. "172.16.0.0/12").
+    if (CIDR_IPV4_RE.test(trimmed)) continue;
     // Skip digit runs embedded in an alphanumeric identifier (order/ticket/
     // invoice/serial numbers like "ORD-2025-001847-X") — not phone numbers.
     if (fusedToLetters(text, start, end)) continue;

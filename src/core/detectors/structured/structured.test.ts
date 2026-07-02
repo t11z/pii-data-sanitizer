@@ -346,18 +346,42 @@ describe('IP detection', () => {
   it('captures an IPv4 CIDR suffix as part of the span', () => {
     // Held-out reserved-doc ranges (RFC 5737), absent from any dictionary
     // because IP detection is purely structural — these prove the suffix
-    // capture is general, not memorized.
-    expect(only('Firewall blocks 198.51.100.0/24 from the perimeter', 'IP')[0].text).toBe(
-      '198.51.100.0/24'
+    // capture is general, not memorized. Host bits are non-zero (a device
+    // within the subnet, not the network's base address) so the span survives
+    // the network-base filter below.
+    expect(only('Firewall blocks 198.51.100.5/24 from the perimeter', 'IP')[0].text).toBe(
+      '198.51.100.5/24'
     );
     expect(only('Single host 203.0.113.42/32 only', 'IP')[0].text).toBe('203.0.113.42/32');
   });
 
   it('captures an IPv6 CIDR suffix as part of the span', () => {
-    expect(only('Customer access from 2600:1700::/32 today', 'IP')[0].text).toBe('2600:1700::/32');
-    expect(only('SOC alert flagged 2001:db8:1234::/48 overnight', 'IP')[0].text).toBe(
-      '2001:db8:1234::/48'
+    // Non-zero host bits — a device within the subnet, not the network base.
+    expect(only('Customer access from 2600:1700::5/32 today', 'IP')[0].text).toBe(
+      '2600:1700::5/32'
     );
+    expect(only('SOC alert flagged 2001:db8:1234::a/48 overnight', 'IP')[0].text).toBe(
+      '2001:db8:1234::a/48'
+    );
+  });
+
+  it('does not flag a CIDR network-base address (all host bits zero) — it denotes a range, not a device', () => {
+    // Held out from the issue's examples (172.16.0.0/12, 10.0.0.0/8,
+    // 198.51.100.0/24, 2001:db8:1234::/48, 2600:1700::/32): different octets/
+    // prefixes across both families, proving the numeric host-bit check
+    // generalizes rather than matching memorized values.
+    expect(only('Subnet 192.0.2.0/24 reserved for docs', 'IP')).toHaveLength(0);
+    expect(only('RFC 1918 block 172.31.0.0/16 in use', 'IP')).toHaveLength(0);
+    expect(only('Advertised prefix 2001:db8:5678::/48 seen', 'IP')).toHaveLength(0);
+    expect(only('Unique-local range fd00::/8 configured', 'IP')).toHaveLength(0);
+  });
+
+  it('keeps a host route even when its prefix equals the family max (/32, /128)', () => {
+    // isIpv4NetworkBase/isIpv6NetworkBase short-circuit at prefix >= max, so a
+    // host route is never mistaken for a network base regardless of address —
+    // including one whose host portion would otherwise read as "all zero".
+    expect(only('Host route 203.0.113.1/32 announced', 'IP')[0].text).toBe('203.0.113.1/32');
+    expect(only('Peer address fd00::/128 pinned', 'IP')[0].text).toBe('fd00::/128');
   });
 
   it('captures CIDR after an IPv6 zone identifier', () => {
@@ -487,6 +511,18 @@ describe('phone detection', () => {
       only('The incident started on 2026-03-17 and was resolved later.', 'PHONE')
     ).toHaveLength(0);
     expect(only('Logged at 2026-03-17 09:15 UTC for review.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('does not flag a CIDR-tagged IPv4 address as a phone number', () => {
+    // Held-out octets/prefixes, distinct from the IP suite's cases, proving
+    // the guard is structural (dotted-quad + bare "/N" suffix), not a
+    // memorized value. One is a network-base CIDR the IP detector itself
+    // suppresses (so nothing else would block this candidate); the other is
+    // a host CIDR where the IP detector's higher-confidence span already
+    // wins — covering both shows the guard is not merely a compensating hack
+    // for the network-base case.
+    expect(only('Advertised route 192.0.2.0/24 flagged', 'PHONE')).toHaveLength(0);
+    expect(only('Workstation 10.20.30.40/24 registered', 'PHONE')).toHaveLength(0);
   });
 
   it('keeps a real phone in a line that also has an order number', () => {

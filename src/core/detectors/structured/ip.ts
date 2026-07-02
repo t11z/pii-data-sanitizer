@@ -52,6 +52,59 @@ function splitCidr(value: string, family: 'v4' | 'v6'): { addr: string; cidr: st
   return { addr: value.slice(0, slash), cidr: value.slice(slash) };
 }
 
+function ipv4ToUint32(addr: string): number {
+  const [a, b, c, d] = addr.split('.').map(Number);
+  return ((a << 24) | (b << 16) | (c << 8) | d) >>> 0;
+}
+
+/** True when a CIDR-tagged IPv4 address is the network's *base* address (every
+ *  host bit zero) rather than a specific host — e.g. `172.16.0.0/12` or
+ *  `198.51.100.0/24`. That shape is the textbook denotation of a
+ *  routing/firewall range, not an addressable device, so it carries no PII.
+ *  A host route (`/32`) or a host within a subnet (`10.0.0.5/24`) has at
+ *  least one host bit set and is left alone. */
+function isIpv4NetworkBase(addr: string, prefix: number): boolean {
+  if (prefix >= 32) return false;
+  const hostMask = (0xffffffff >>> prefix) >>> 0;
+  return (ipv4ToUint32(addr) & hostMask) === 0;
+}
+
+/** Expands an already-validated (`isValidIpv6`) IPv6 address — including `::`
+ *  compression and an embedded IPv4 tail — into its 128-bit value, for the
+ *  network-base check below. */
+function ipv6ToBigInt(addr: string): bigint {
+  let a = addr;
+  const lastColon = a.lastIndexOf(':');
+  const tail = a.slice(lastColon + 1);
+  if (tail.includes('.')) {
+    const octets = tail.split('.').map(Number);
+    const high = ((octets[0] << 8) | octets[1]).toString(16);
+    const low = ((octets[2] << 8) | octets[3]).toString(16);
+    a = `${a.slice(0, lastColon + 1)}${high}:${low}`;
+  }
+  const doubleColon = a.indexOf('::');
+  let groups: string[];
+  if (doubleColon !== -1) {
+    const [head, rest] = a.split('::');
+    const headGroups = head === '' ? [] : head.split(':');
+    const tailGroups = rest === '' ? [] : rest.split(':');
+    const filled = 8 - headGroups.length - tailGroups.length;
+    groups = [...headGroups, ...Array(filled).fill('0'), ...tailGroups];
+  } else {
+    groups = a.split(':');
+  }
+  return groups.reduce((value, g) => (value << 16n) | BigInt(parseInt(g, 16)), 0n);
+}
+
+/** Mirrors `isIpv4NetworkBase` for IPv6 — e.g. `2001:db8::/32` or
+ *  `2001:db8:1234::/48`. A zone-qualified address (`fe80::1%eth0/64`) always
+ *  names a specific interface, so it is never treated as a network base. */
+function isIpv6NetworkBase(addr: string, prefix: number): boolean {
+  if (prefix >= 128 || addr.includes('%')) return false;
+  const hostMask = (1n << BigInt(128 - prefix)) - 1n;
+  return (ipv6ToBigInt(addr) & hostMask) === 0n;
+}
+
 /** IANA-reserved IPv4 addresses that can never identify a specific entity:
  *  - `127.0.0.0/8` — loopback ("this machine"), used in configs, dev docs, decoys
  *  - `0.0.0.0` — unspecified ("no address" / "all interfaces")
@@ -123,6 +176,7 @@ export function detectIps(text: string): Span[] {
   for (const match of text.matchAll(IPV4_RE)) {
     const { addr, cidr } = splitCidr(match[0], 'v4');
     if (isIpv4NonIdentifier(addr)) continue;
+    if (cidr && isIpv4NetworkBase(addr, Number(cidr.slice(1)))) continue;
     const value = addr + cidr;
     spans.push({
       start: match.index,
@@ -137,6 +191,7 @@ export function detectIps(text: string): Span[] {
     const { addr, cidr } = splitCidr(match[0], 'v6');
     if (!isValidIpv6(addr)) continue;
     if (isIpv6NonIdentifier(addr)) continue;
+    if (cidr && isIpv6NetworkBase(addr, Number(cidr.slice(1)))) continue;
     const value = addr + cidr;
     spans.push({
       start: match.index,

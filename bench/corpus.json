@@ -869,21 +869,11 @@
   },
   {
     "text": "Firewall rule blocks 198.51.100.0/24 from the perimeter.",
-    "entities": [
-      {
-        "type": "IP",
-        "text": "198.51.100.0/24"
-      }
-    ]
+    "entities": []
   },
   {
     "text": "The SOC alert flagged 2001:db8:1234::/48 overnight.",
-    "entities": [
-      {
-        "type": "IP",
-        "text": "2001:db8:1234::/48"
-      }
-    ]
+    "entities": []
   },
   {
     "text": "Edge node fe80::1%eth0/64 came back online.",
@@ -896,10 +886,36 @@
   },
   {
     "text": "Customer reported access from 2600:1700::/32 this morning.",
+    "entities": []
+  },
+  {
+    "text": "Network incident traced to 172.16.0.0/12 range; suspected gateway 172.16.254.1.",
     "entities": [
       {
         "type": "IP",
-        "text": "2600:1700::/32"
+        "text": "172.16.254.1"
+      }
+    ]
+  },
+  {
+    "text": "Subnet 10.0.0.0/8 private allocation documented in the runbook.",
+    "entities": []
+  },
+  {
+    "text": "Host route 203.0.113.45/32 registered on the perimeter router.",
+    "entities": [
+      {
+        "type": "IP",
+        "text": "203.0.113.45/32"
+      }
+    ]
+  },
+  {
+    "text": "Host 10.0.0.5/24 was assigned to the new workstation.",
+    "entities": [
+      {
+        "type": "IP",
+        "text": "10.0.0.5/24"
       }
     ]
   },
