@@ -18,7 +18,14 @@ const IBAN_RE = /\b[A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30}\b/g;
 // shields the cascade FPs (PERSON "IBAN <CC>" — `iban` is a Basque given name
 // in the ext dictionary — and CREDIT_CARD / PHONE matches on 4-digit groups
 // inside the IBAN body) via the existing resolveOverlaps confidence ranking.
-const IBAN_CUED_RE = /\bIBAN\b[\s:]+([A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30})\b/g;
+//
+// Separator class also admits opening brackets/parens/braces: real prose
+// routinely wraps the IBAN body right after the cue word ("IBAN (AE07 …)",
+// "IBAN [DE89 …]", "IBAN {NL91 …}" in template contexts). Adding these to the
+// class does not widen the precision surface because the IBAN shape after them
+// is still required — `[A-Z]{2}\d{2}` + 10–30 alphanumeric groups does not
+// occur incidentally in prose.
+const IBAN_CUED_RE = /\bIBAN\b[\s:([{]+([A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30})\b/g;
 
 // Official IBAN length per country, from the SWIFT IBAN Registry. Mod-97 alone
 // passes ~1% of random strings by chance, so a longer-than-canonical run that

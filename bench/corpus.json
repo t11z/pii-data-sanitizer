@@ -886,6 +886,41 @@
     "entities": []
   },
   {
+    "text": "Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "AE 07 0331 2345 6789 1234 567"
+      }
+    ]
+  },
+  {
+    "text": "Refund IBAN [ZK00 1122 3344 5566 7788] on file for the merchant.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "ZK00 1122 3344 5566 7788"
+      }
+    ]
+  },
+  {
+    "text": "Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted overnight.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "XQ12 3456 7890 1234 5678 9012"
+      }
+    ]
+  },
+  {
+    "text": "The IBAN (format) is documented on the wiki for new agents.",
+    "entities": []
+  },
+  {
+    "text": "See IBAN [docs] in the runbook for compliance procedures.",
+    "entities": []
+  },
+  {
     "text": "Reference code XY 11 AAAA BBBB CCCC DDDD EEEE present.",
     "entities": []
   },
