@@ -154,6 +154,52 @@ describe('IBAN detection', () => {
     );
   });
 
+  it('cue-anchored path catches paren-/bracket-wrapped IBANs after the cue word', () => {
+    // Held-out, strict-invalid IBAN-shape values wrapped in `(...)`, `[...]`,
+    // and `{...}` immediately after the `IBAN` cue — a common real-world
+    // convention in banking prose ("customer's IBAN (AE07 …) verified"). Prior
+    // to the separator-class extension, the cued path only accepted whitespace
+    // and colons between cue and shape, so these never fired. Values match
+    // exactly the shape captured by the cued path (no trailing `)`).
+    expect(isValidIban('AE 07 0331 2345 6789 1234 567')).toBe(false);
+    expect(isValidIban('IT99 X054 2811 1010 0000 0123 456')).toBe(false);
+    expect(isValidIban('ZK00 1122 3344 5566 7788')).toBe(false);
+    expect(isValidIban('XQ12 3456 7890 1234 5678 9012')).toBe(false);
+    // Paren-wrapped IBAN body — the failing gap-report shape:
+    expect(
+      only(
+        "Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.",
+        'IBAN'
+      )[0].text
+    ).toBe('AE 07 0331 2345 6789 1234 567');
+    // Bracket-wrapped:
+    expect(only('Refund IBAN [ZK00 1122 3344 5566 7788] on file.', 'IBAN')[0].text).toBe(
+      'ZK00 1122 3344 5566 7788'
+    );
+    // Colon + paren — real transcripts often stack them ("IBAN: (…)"):
+    expect(
+      only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text
+    ).toBe('XQ12 3456 7890 1234 5678 9012');
+    // Plain paren wrap on a strict-invalid IT shape:
+    expect(only('Wire IBAN (IT99 X054 2811 1010 0000 0123 456) cleared.', 'IBAN')[0].text).toBe(
+      'IT99 X054 2811 1010 0000 0123 456'
+    );
+  });
+
+  it('bracket separator does not leak on cue word without IBAN shape after it', () => {
+    // Precision guards: `IBAN` followed by an opening bracket must still emit
+    // nothing when the bracket does not enclose a real IBAN shape. Same guard
+    // shape as the whitespace/colon path — the added separator characters must
+    // not create a new leak surface.
+    expect(only('The IBAN (format) is documented on the wiki.', 'IBAN')).toHaveLength(0);
+    expect(only('See IBAN [docs] in the runbook.', 'IBAN')).toHaveLength(0);
+    expect(only('Customer asked about IBAN (setup) today.', 'IBAN')).toHaveLength(0);
+    // A short 2-letter+2-digit token that stops before the IBAN body length
+    // requirement (10–30 alphanumeric groups) must not match either — proves
+    // the shape gate remains load-bearing after the separator change.
+    expect(only('Ref IBAN (AB 12 CD) noted.', 'IBAN')).toHaveLength(0);
+  });
+
   it('cue-anchored path stays silent without the cue word (precision)', () => {
     // Same held-out IBAN-shape values, no preceding "IBAN" cue → the strict
     // path correctly refuses them and the cued path never fires. Proves the
