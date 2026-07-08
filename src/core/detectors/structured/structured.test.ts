@@ -186,6 +186,74 @@ describe('IBAN detection', () => {
     );
   });
 
+  it('cue-anchored path catches IBANs preceded by an English linking word ("IBAN is/was/number/no./reads")', () => {
+    // Held-out, strict-invalid IBAN-shape values immediately after the cue word
+    // separated by the natural-English linking tokens that support / banking
+    // prose reaches for ("My IBAN is …", "IBAN number: …", "IBAN no. …"). Prior
+    // to the linker extension, the cued path only accepted whitespace, colons,
+    // and opening brackets between cue and shape, so any interposed word broke
+    // the anchor. Each value below is mod-97-invalid so *only* the cue path can
+    // emit — proving the extension actually reaches the safety net rather than
+    // riding the strict path.
+    expect(isValidIban('DE89 3704 0044 0532 0131 00')).toBe(false); // last digit tweaked
+    expect(isValidIban('FR14 2004 1010 0505 0001 3M02 6')).toBe(false);
+    expect(isValidIban('NL91 ABNA 0417 1643 01')).toBe(false);
+    expect(isValidIban('AT61 1900 0000 0003 3708')).toBe(false);
+    expect(isValidIban('ZK00 1122 3344 5566 7788')).toBe(false);
+
+    // "IBAN is X" — the gap-report shape (values held-out from the gap feed):
+    expect(only('My IBAN is DE89 3704 0044 0532 0131 00 today.', 'IBAN')[0].text).toBe(
+      'DE89 3704 0044 0532 0131 00'
+    );
+    // "IBAN was X" — past-tense variant:
+    expect(only('Prior IBAN was FR14 2004 1010 0505 0001 3M02 6 on file.', 'IBAN')[0].text).toBe(
+      'FR14 2004 1010 0505 0001 3M02 6'
+    );
+    // "IBAN number: X" — labelled declaration, mixing linker + colon separator:
+    expect(only('Customer IBAN number: NL91 ABNA 0417 1643 01 verified.', 'IBAN')[0].text).toBe(
+      'NL91 ABNA 0417 1643 01'
+    );
+    // "IBAN no. X" — abbreviation variant:
+    expect(only('Refund IBAN no. AT61 1900 0000 0003 3708 posted.', 'IBAN')[0].text).toBe(
+      'AT61 1900 0000 0003 3708'
+    );
+    // "IBAN reads X" — infrequent but attested in transcription prose:
+    expect(only('IBAN reads ZK00 1122 3344 5566 7788 per invoice.', 'IBAN')[0].text).toBe(
+      'ZK00 1122 3344 5566 7788'
+    );
+  });
+
+  it('cue-anchored path admits # and = declaration separators', () => {
+    // Real-world shorthand: "IBAN #X" (ticket-style ref) and "IBAN=X"
+    // (form-field / URL-query style). The separator class extension must accept
+    // both. Values are held-out strict-invalid shapes.
+    expect(isValidIban('DE89 3704 0044 0532 0131 00')).toBe(false);
+    expect(isValidIban('DE89370400440532013001')).toBe(false);
+    expect(only('Wire IBAN #DE89 3704 0044 0532 0131 00 today.', 'IBAN')[0].text).toBe(
+      'DE89 3704 0044 0532 0131 00'
+    );
+    expect(only('Query IBAN=DE89370400440532013001 logged.', 'IBAN')[0].text).toBe(
+      'DE89370400440532013001'
+    );
+  });
+
+  it('linker separator does not leak on cue word + linker without IBAN shape after it', () => {
+    // Precision guards paralleling the paren/bracket precision test above: the
+    // added linker tokens must not create a new leak surface when no IBAN
+    // shape follows. The shape gate stays load-bearing.
+    expect(only('The IBAN is documented on the wiki for new agents.', 'IBAN')).toHaveLength(0);
+    expect(only('My IBAN was updated last week during the audit.', 'IBAN')).toHaveLength(0);
+    expect(only('The IBAN number is not visible on the invoice.', 'IBAN')).toHaveLength(0);
+    expect(only('IBAN reads correctly today, no action needed.', 'IBAN')).toHaveLength(0);
+    expect(only('IBAN no. issued yet — waiting on treasury.', 'IBAN')).toHaveLength(0);
+    // Linker + short 2-letter+2-digit token that stops before the IBAN body
+    // length requirement (10–30 alphanumeric groups) still must not match.
+    expect(only('IBAN is AB 12 CD noted.', 'IBAN')).toHaveLength(0);
+    // "#" / "=" without a real shape after must also stay silent.
+    expect(only('See IBAN #docs in the runbook.', 'IBAN')).toHaveLength(0);
+    expect(only('Header IBAN=redacted per policy.', 'IBAN')).toHaveLength(0);
+  });
+
   it('bracket separator does not leak on cue word without IBAN shape after it', () => {
     // Precision guards: `IBAN` followed by an opening bracket must still emit
     // nothing when the bracket does not enclose a real IBAN shape. Same guard
