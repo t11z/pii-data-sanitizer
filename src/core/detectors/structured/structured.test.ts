@@ -167,23 +167,51 @@ describe('IBAN detection', () => {
     expect(isValidIban('XQ12 3456 7890 1234 5678 9012')).toBe(false);
     // Paren-wrapped IBAN body — the failing gap-report shape:
     expect(
-      only(
-        "Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.",
-        'IBAN'
-      )[0].text
+      only("Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.", 'IBAN')[0].text
     ).toBe('AE 07 0331 2345 6789 1234 567');
     // Bracket-wrapped:
     expect(only('Refund IBAN [ZK00 1122 3344 5566 7788] on file.', 'IBAN')[0].text).toBe(
       'ZK00 1122 3344 5566 7788'
     );
     // Colon + paren — real transcripts often stack them ("IBAN: (…)"):
-    expect(
-      only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text
-    ).toBe('XQ12 3456 7890 1234 5678 9012');
+    expect(only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text).toBe(
+      'XQ12 3456 7890 1234 5678 9012'
+    );
     // Plain paren wrap on a strict-invalid IT shape:
     expect(only('Wire IBAN (IT99 X054 2811 1010 0000 0123 456) cleared.', 'IBAN')[0].text).toBe(
       'IT99 X054 2811 1010 0000 0123 456'
     );
+  });
+
+  it('cue-anchored path spans a natural-English linker between the cue word and the shape', () => {
+    // Held-out, strict-invalid IBAN-shape values distinct from every other
+    // case in this file — none memorized, all mod-97-broken (mis-keyed / OCR
+    // scenario the cue path exists for). Before the linker group was added, a
+    // linking verb or noun sitting between "IBAN" and the shape (a natural
+    // English construction, not adjacency-only punctuation) broke the cue
+    // anchor entirely, dropping the span.
+    expect(isValidIban('AT61 1900 0000 0003 3708')).toBe(false);
+    expect(isValidIban('CY99 0020 0128 0000 0012 0052 7600')).toBe(false);
+    expect(isValidIban('PL99 1090 1014 0000 0712 1981 2874')).toBe(false);
+    expect(only('His IBAN is AT61 1900 0000 0003 3708.', 'IBAN')[0].text).toBe(
+      'AT61 1900 0000 0003 3708'
+    );
+    expect(
+      only('Settlement IBAN number CY99 0020 0128 0000 0012 0052 7600 flagged.', 'IBAN')[0].text
+    ).toBe('CY99 0020 0128 0000 0012 0052 7600');
+    expect(only('Refund IBAN no. PL99 1090 1014 0000 0712 1981 2874 booked.', 'IBAN')[0].text).toBe(
+      'PL99 1090 1014 0000 0712 1981 2874'
+    );
+  });
+
+  it('linker group does not leak when no IBAN shape follows it (precision)', () => {
+    // Precision guards: the linker is a single closed-class token, not a
+    // free-form run — it must not turn "IBAN is/was/number/reads" in plain
+    // prose into a false positive when no real shape follows.
+    expect(only('The IBAN is documented on the wiki.', 'IBAN')).toHaveLength(0);
+    expect(only('My IBAN was updated last week.', 'IBAN')).toHaveLength(0);
+    expect(only('The IBAN number is not visible on invoices.', 'IBAN')).toHaveLength(0);
+    expect(only('IBAN reads correctly today.', 'IBAN')).toHaveLength(0);
   });
 
   it('bracket separator does not leak on cue word without IBAN shape after it', () => {

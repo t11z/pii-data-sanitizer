@@ -921,6 +921,41 @@
     "entities": []
   },
   {
+    "text": "His IBAN is AT61 1900 0000 0003 3708.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "AT61 1900 0000 0003 3708"
+      }
+    ]
+  },
+  {
+    "text": "Settlement IBAN number CY99 0020 0128 0000 0012 0052 7600 flagged for review.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "CY99 0020 0128 0000 0012 0052 7600"
+      }
+    ]
+  },
+  {
+    "text": "Refund IBAN no. PL99 1090 1014 0000 0712 1981 2874 booked overnight.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "PL99 1090 1014 0000 0712 1981 2874"
+      }
+    ]
+  },
+  {
+    "text": "The IBAN is documented on the wiki.",
+    "entities": []
+  },
+  {
+    "text": "The IBAN number is not visible on invoices.",
+    "entities": []
+  },
+  {
     "text": "Reference code XY 11 AAAA BBBB CCCC DDDD EEEE present.",
     "entities": []
   },

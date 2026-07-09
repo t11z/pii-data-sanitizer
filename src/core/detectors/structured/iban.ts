@@ -21,11 +21,21 @@ const IBAN_RE = /\b[A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30}\b/g;
 //
 // Separator class also admits opening brackets/parens/braces: real prose
 // routinely wraps the IBAN body right after the cue word ("IBAN (AE07 …)",
-// "IBAN [DE89 …]", "IBAN {NL91 …}" in template contexts). Adding these to the
-// class does not widen the precision surface because the IBAN shape after them
-// is still required — `[A-Z]{2}\d{2}` + 10–30 alphanumeric groups does not
-// occur incidentally in prose.
-const IBAN_CUED_RE = /\bIBAN\b[\s:([{]+([A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30})\b/g;
+// "IBAN [DE89 …]", "IBAN {NL91 …}" in template contexts), plus `#` and `=`
+// for terse forms ("IBAN#DE89 …", "IBAN=DE89 …"). Adding these to the class
+// does not widen the precision surface because the IBAN shape after them is
+// still required — `[A-Z]{2}\d{2}` + 10–30 alphanumeric groups does not occur
+// incidentally in prose.
+//
+// An optional, closed-class linking-token group sits between the cue word and
+// that separator class: natural English routinely puts a linking verb or noun
+// between "IBAN" and the value ("IBAN is …", "IBAN number: …", "IBAN no. …",
+// "IBAN reads …"), which the bare separator class doesn't span. The group is
+// closed-class and matches at most one token, so it cannot absorb an
+// arbitrary run of prose before the shape check — the load-bearing gate is
+// still the IBAN shape itself.
+const IBAN_CUED_RE =
+  /\bIBAN\b(?:\s+(?:is|was|number|no\.?|reads))?[\s:([{#=]+([A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30})\b/g;
 
 // Official IBAN length per country, from the SWIFT IBAN Registry. Mod-97 alone
 // passes ~1% of random strings by chance, so a longer-than-canonical run that
