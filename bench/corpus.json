@@ -1707,5 +1707,40 @@
   {
     "text": "Login to Admin Console required before access.",
     "entities": []
+  },
+  {
+    "text": "Please call the desk at (5551234567) tomorrow morning.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "5551234567"
+      }
+    ]
+  },
+  {
+    "text": "Customer contacted us via mobile (4155559876) yesterday.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "4155559876"
+      }
+    ]
+  },
+  {
+    "text": "Reach the on-call at (447700900123) urgently.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "447700900123"
+      }
+    ]
+  },
+  {
+    "text": "Reference (1234567890) logged in the queue.",
+    "entities": []
+  },
+  {
+    "text": "Batch id (0987654321) processed overnight.",
+    "entities": []
   }
 ]

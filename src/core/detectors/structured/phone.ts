@@ -13,6 +13,55 @@ const LETTER = /[A-Za-z]/;
 // these is safe for genuine numbers.
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}(?:[ T]\d{1,2}(?::\d{2}){0,2})?$/;
 
+// Closed-class phone-cue words that unambiguously introduce a phone number in
+// support / business prose. Used as one leg of the paren-wrapped bare-run
+// signal below — a bare 10–15-digit number in balanced parens is only accepted
+// when preceded by one of these within a short window, so short numeric
+// identifiers ("Reference (1234567890)") stay silent.
+const PHONE_CUE_WORDS = new Set<string>([
+  'call',
+  'called',
+  'calling',
+  'calls',
+  'phone',
+  'phoned',
+  'phones',
+  'mobile',
+  'cell',
+  'cellular',
+  'cellphone',
+  'contact',
+  'contacted',
+  'contacts',
+  'reach',
+  'reached',
+  'reachable',
+  'dial',
+  'dialed',
+  'dialled',
+  'ring',
+  'rang',
+  'tel',
+  'telephone',
+  'whatsapp',
+  'sms',
+  'text',
+  'texted',
+]);
+const PHONE_CUE_WINDOW = 40;
+
+/** True when a phone-cue word appears within {@link PHONE_CUE_WINDOW} characters
+ * before `pos`. Word-boundary matching is case-insensitive; the window is small
+ * enough that it does not cross a full sentence in practice. */
+function hasPhoneCueBefore(text: string, pos: number): boolean {
+  const from = Math.max(0, pos - PHONE_CUE_WINDOW);
+  const window = text.slice(from, pos).toLowerCase();
+  for (const match of window.matchAll(/[a-z]+/g)) {
+    if (PHONE_CUE_WORDS.has(match[0])) return true;
+  }
+  return false;
+}
+
 /**
  * True when the digit run is fused — across hyphens or underscores — to letters,
  * i.e. it is part of a structured reference (order #, ticket, invoice, serial,
@@ -37,9 +86,27 @@ export function detectPhones(text: string): Span[] {
     const value = match[0];
     const digits = value.replace(/\D/g, '');
     if (digits.length < 7 || digits.length > 15) continue;
+    const trimmed = value.trim();
+    const start = match.index + (value.length - value.trimStart().length);
+    const end = start + trimmed.length;
     // Require a clear phone signal (international prefix or grouping) so plain
-    // numbers/IDs are not swept up.
-    const hasSignal = value.trimStart().startsWith('+') || /[().\-/ ]/.test(value);
+    // numbers/IDs are not swept up. A bare 10–15-digit run wrapped in balanced
+    // parens `(N)` and preceded by a phone-cue word (call, phone, mobile, …)
+    // also qualifies — that is the customary shape for a mobile written as
+    // "customer called (9825551234) re:" in support prose. All three legs are
+    // required together: the paren wrap by itself is too loose (any reference
+    // number can wrap), the cue by itself is too loose (bare 10-digit IDs
+    // near "call center id" would fire), and the 10-digit floor rules out
+    // short ticket / invoice numbers.
+    const wrappedInParens =
+      start > 0 && end < text.length && text[start - 1] === '(' && text[end] === ')';
+    const hasSignal =
+      value.trimStart().startsWith('+') ||
+      /[().\-/ ]/.test(value) ||
+      (wrappedInParens &&
+        digits.length >= 10 &&
+        digits.length <= 15 &&
+        hasPhoneCueBefore(text, start - 1));
     if (!hasSignal) continue;
     // Reject card-shaped digit groupings. ISO/IEC 7812-1 PANs are 13–19 digits.
     // A space-only digit run with ≥13 digits and a 4-digit leading group
@@ -57,9 +124,6 @@ export function detectPhones(text: string): Span[] {
       const groups = value.trim().split(/\s+/);
       if (groups.length === 1 || groups[0].length === 4) continue;
     }
-    const start = match.index + (value.length - value.trimStart().length);
-    const trimmed = value.trim();
-    const end = start + trimmed.length;
     // Skip ISO dates / timestamps (e.g. "2026-03-17" or "2026-03-17 14").
     if (ISO_DATE.test(trimmed)) continue;
     // Skip digit runs embedded in an alphanumeric identifier (order/ticket/
