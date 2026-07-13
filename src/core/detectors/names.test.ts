@@ -1725,3 +1725,89 @@ describe('AKA-in-parens frame ("<Name> (<Alias>)")', () => {
     }
   });
 });
+
+describe('apostrophe-prefix surnames ("O\'…" / "D\'…" / "L\'…")', () => {
+  // Irish `O'`, Italian / French `D'` / `L'` particles glue a single-letter
+  // prefix onto a family root ("O'Neill", "D'Angelo"). The tokenizer keeps the
+  // whole thing as one Latin token via WORD_RE, but the ingested surname
+  // sources index only the root, not the apostrophe-glued surface — so any
+  // path that depends on `anyHit` on this token silently loses the surname.
+  // Splitting on a position-1 apostrophe mirrors the pre-existing hyphen
+  // fallback and generalizes to every apostrophe-prefixed surname whose root
+  // the DB carries, including many the shipped dictionary genuinely does not
+  // list ("O'Neill", "O'Hara", "D'Angelo", "D'Amico"), so the assertions below
+  // ride on the heuristic — not on memorized dictionary entries.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('proves the apostrophe-prefixed surnames are held out (absent from the full DB)', () => {
+    // If any of these enter the DB later, the assertions below stop proving
+    // generalization and the held-out values must be re-pointed. Their roots
+    // MUST remain present (that's what the fallback matches against).
+    const heldOutCompound = ["o'neill", "o'hara", "d'angelo", "d'amico"];
+    for (const word of heldOutCompound) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+    const roots = ['neill', 'hara', 'angelo', 'amico'];
+    for (const word of roots) {
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} root must be in the DB`).toBe(true);
+    }
+  });
+
+  it('detects a full name whose surname is apostrophe-prefixed (chain path)', () => {
+    // Given (Sean) is DB-known, so it anchors the chain; the fix makes the
+    // apostrophe-glued surname a DB hit via the root and the chain absorbs it.
+    expect(personsFull("Sean O'Neill filed the ticket.")).toContain("Sean O'Neill");
+    expect(personsFull("Marco D'Angelo confirmed the transfer.")).toContain("Marco D'Angelo");
+  });
+
+  it('detects when the given is out-of-DB via backward-unknown-cap (the gap case)', () => {
+    // The exact shape from bench/self-improve/gaps.json: "Niamh" is out-of-DB
+    // (verified in the assertion above via its root check equivalents), and
+    // "O'Sullivan" was previously an unknown token too. With the fix its ext
+    // tier flows through, `knownNameAfter` returns true, and the backward
+    // unknown-cap anchor promotes "Niamh" as the chain lead.
+    expect(personsFull("Follow-up by Niamh O'Sullivan: refund issued.")).toContain(
+      "Niamh O'Sullivan"
+    );
+    // Curly apostrophe (U+2019) must behave identically — real-world text
+    // (autocorrected pastes, CRM UIs) frequently rewrites the ASCII form.
+    expect(personsFull('Follow-up by Niamh O’Sullivan: refund issued.')).toContain(
+      'Niamh O’Sullivan'
+    );
+  });
+
+  it('detects an apostrophe-prefixed surname after a title (single-token path)', () => {
+    // Title anchor lets the lone surname clear the threshold on the new hit.
+    expect(personsFull("Dr. O'Hara reviewed the file.")).toContain("O'Hara");
+    expect(personsFull("Ms. D'Amico approved the refund.")).toContain("D'Amico");
+  });
+
+  it('does not fire on lowercase contractions', () => {
+    // isCapitalized filters these long before the apostrophe fallback runs;
+    // guarding here so a future refactor cannot silently regress the class.
+    expect(personsFull("Please don't escalate this ticket further.")).toHaveLength(0);
+    expect(personsFull("It's ready for review now.")).toHaveLength(0);
+  });
+
+  it('leaves the trailing possessive clitic to the tokenizer', () => {
+    // "James's" is trimmed by POSSESSIVE_CLITIC in tokenize.ts to "James", so
+    // this is entirely orthogonal to the apostrophe-prefix fallback. Assert
+    // only the trimmed name detects; the fix does not create a duplicate span.
+    const spans = personsFull("James's laptop was returned to the office.");
+    expect(spans).toContain('James');
+    expect(spans).not.toContain("James's");
+  });
+
+  it('does not fire on middle-apostrophe non-name tokens (position > 1)', () => {
+    // The fallback is restricted to a single-letter prefix — position-2+
+    // apostrophes never activate it, so tokens like "Ta'if" / "Hawai'i" /
+    // "Rock'n'Roll" cannot smuggle a root DB collision into a name span.
+    expect(personsFull("The meeting was held in Ta'if last week.")).not.toContain("Ta'if");
+    expect(personsFull("They vacationed at Hawai'i for the summer.")).not.toContain("Hawai'i");
+  });
+});

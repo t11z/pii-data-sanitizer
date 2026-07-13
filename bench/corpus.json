@@ -1707,5 +1707,49 @@
   {
     "text": "Login to Admin Console required before access.",
     "entities": []
+  },
+  {
+    "text": "Sean O'Neill filed the ticket earlier this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Sean O'Neill"
+      }
+    ]
+  },
+  {
+    "text": "Marco D'Angelo confirmed receipt of the payment.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Marco D'Angelo"
+      }
+    ]
+  },
+  {
+    "text": "Follow-up by Niamh O'Sullivan: refund issued to the customer.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Niamh O'Sullivan"
+      }
+    ]
+  },
+  {
+    "text": "Ms. D'Amico approved the refund earlier today.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "D'Amico"
+      }
+    ]
+  },
+  {
+    "text": "The meeting in Ta'if last week ran long.",
+    "entities": []
+  },
+  {
+    "text": "They vacationed at Hawai'i for the whole summer.",
+    "entities": []
   }
 ]

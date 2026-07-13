@@ -50,11 +50,35 @@ function lookup(
   return false;
 }
 
+/**
+ * If `l` is a single-letter + apostrophe morphological prefix ("o'sullivan",
+ * "d'angelo", "l'écuyer") — the Irish `O'`, Italian/French `D'`/`L'`/`M'`
+ * particle shape the tokenizer glues into one Latin token via `WORD_RE` — return
+ * the tail after the apostrophe. Other apostrophe placements (contractions like
+ * "don't", middle-apostrophe place-names like "ta'if" / "hawai'i") do not match
+ * this shape, so the fallback stays narrow. Both U+0027 (`'`) and U+2019 (`’`)
+ * are recognized to mirror the tokenizer's joiner set.
+ *
+ * The DB indexes the root ("sullivan", "angelo") but not every apostrophe-glued
+ * surface form ("o'sullivan", "d'angelo"); this parallels the hyphen fallback
+ * one line below in `givenHit`/`familyHit`. Restricted to position 1 on purpose:
+ * a general "any apostrophe splits into parts" rule would let arbitrary
+ * internal-apostrophe tokens (`Rock'n'Roll`) collide with the ext dictionary.
+ */
+function apostrophePrefixTail(l: string): string | null {
+  if (l.length <= 2) return null;
+  const c = l.charCodeAt(1);
+  if (c !== 0x27 /* ' */ && c !== 0x2019 /* ’ */) return null;
+  return l.slice(2);
+}
+
 export function givenHit(source: NameSource, token: string, script: Script): boolean {
   const l = token.toLowerCase();
   const has = source.hasGiven.bind(source);
   if (lookup(has, l, script)) return true;
   if (l.includes('-')) return l.split('-').some((p) => lookup(has, p, script));
+  const apostropheTail = apostrophePrefixTail(l);
+  if (apostropheTail) return lookup(has, apostropheTail, script);
   return false;
 }
 
@@ -63,6 +87,8 @@ export function familyHit(source: NameSource, token: string, script: Script): bo
   const has = source.hasFamily.bind(source);
   if (lookup(has, l, script)) return true;
   if (l.includes('-')) return l.split('-').some((p) => lookup(has, p, script));
+  const apostropheTail = apostrophePrefixTail(l);
+  if (apostropheTail) return lookup(has, apostropheTail, script);
   return false;
 }
 
@@ -76,6 +102,12 @@ function tierOf(source: NameSource, token: Token): Tier | null {
   if (!matchTier) return 'core'; // sources without tier info count as core
   const l = token.text.toLowerCase();
   const parts = l.includes('-') ? [l, ...l.split('-')] : [l];
+  // Mirror the apostrophe-prefix fallback used by hit-lookups so a token matched
+  // through its post-apostrophe root ("o'sullivan" → "sullivan") reports the
+  // root's tier rather than null — otherwise the ext-tier corroborator gate in
+  // knownNameAfter drops the whole chain even though the surname is known.
+  const apostropheTail = apostrophePrefixTail(l);
+  if (apostropheTail) parts.push(apostropheTail);
   // Mirror the diacritic-fold fallback used for membership so a name matched only
   // via folding ("García") still reports its real tier instead of null — null
   // would make scoring treat it as ext-only and re-penalize it below threshold.
