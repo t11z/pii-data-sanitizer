@@ -1707,5 +1707,22 @@
   {
     "text": "Login to Admin Console required before access.",
     "entities": []
+  },
+  {
+    "text": "Refund queued to ES9121 4111 1111 1111 1111 later today; ticket closed.",
+    "entities": []
+  },
+  {
+    "text": "Wire to DE84 4111 1111 1111 1111 tomorrow per Finance.",
+    "entities": []
+  },
+  {
+    "text": "Standard ISO9001 4111 1111 1111 1111 batch reconciled overnight.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "4111 1111 1111 1111"
+      }
+    ]
   }
 ]
