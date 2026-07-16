@@ -709,4 +709,14 @@ describe('date of birth detection (cue-gated)', () => {
   it('does not flag an incidental date with no birth cue', () => {
     expect(only('The incident on 2024-01-15 was reviewed.', 'DATE_OF_BIRTH')).toHaveLength(0);
   });
+
+  it('detects a dash-joined DD-Mon-YYYY date (held-out from the fix case)', () => {
+    // "03-Apr-1985" is the fix case; "17-Nov-1990" is a different day, month,
+    // and year to prove the join separator generalizes rather than matching
+    // one memorized string.
+    expect(only('Patient DOB: 03-Apr-1985, admitted for checkup.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '03-Apr-1985'
+    );
+    expect(only('born on 17-Nov-1990 in Leeds.', 'DATE_OF_BIRTH')[0].text).toBe('17-Nov-1990');
+  });
 });
