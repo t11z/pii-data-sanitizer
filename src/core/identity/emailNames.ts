@@ -80,18 +80,27 @@ export function deriveNamesFromEmail(localPart: string, source: NameSource): Der
   return out;
 }
 
-// A Title-Case Latin token: leading capital (ASCII or common-Latin precomposed)
-// then a lowercase run, optionally extended by hyphenated Title-Case parts. ASCII-
-// uppercase tails are intentionally excluded so an all-caps acronym ("URL", "API")
-// never anchors a chain via this path.
+// A Title-Case Latin token: leading capital (ASCII, Latin-1 Supplement, or Latin
+// Extended-A/B) then a lowercase run, optionally extended by hyphenated Title-Case
+// parts. Extended-A/B (Ā-ɏ) covers the stroked / hooked / accented
+// letters that Latin-1 Supplement omits — Polish ł/ą/ń, Czech č/š, Croatian đ,
+// Hungarian ő, Turkish ı/ğ, Vietnamese ơ/ư — without which the chain misses
+// otherwise well-formed names ("Mirosław Szachniewicz", "Łukasz Wójcik").
+// Extended-A mixes upper- and lower-case even/odd codepoints in the same block,
+// so both position classes accept the whole range; case correctness is enforced
+// upstream by isCapitalized on the token surface. ASCII-uppercase tails are
+// intentionally excluded from the ASCII lower class so an all-caps acronym
+// ("URL", "API") never anchors a chain via this path.
+const LATIN_UPPER = 'A-Z\\u00C0-\\u00D6\\u00D8-\\u00DE\\u0100-\\u024F';
+const LATIN_LOWER = 'a-z\\u00DF-\\u00F6\\u00F8-\\u00FF\\u0100-\\u024F';
+const LATIN_ANY = 'A-Za-z\\u00C0-\\u00D6\\u00D8-\\u00DE\\u00DF-\\u00F6\\u00F8-\\u00FF\\u0100-\\u024F';
 const TITLECASE_TOKEN =
-  '[A-Z\\u00C0-\\u00D6\\u00D8-\\u00DE][a-z\\u00DF-\\u00F6\\u00F8-\\u00FF]+(?:-[A-Z\\u00C0-\\u00D6\\u00D8-\\u00DE][a-z\\u00DF-\\u00F6\\u00F8-\\u00FF]+)*';
+  `[${LATIN_UPPER}][${LATIN_LOWER}]+(?:-[${LATIN_UPPER}][${LATIN_LOWER}]+)*`;
 // Run anchored at end of the substring before the email opener: 2–3 Title-Case
 // tokens joined by single spaces, with a non-letter delimiter (or start-of-string)
 // in front, so we never bite into the middle of a longer chain like "Eng Petrov".
 const RUN_BEFORE_EMAIL = new RegExp(
-  `(?:^|[^A-Za-z\\u00C0-\\u00D6\\u00D8-\\u00DE\\u00DF-\\u00F6\\u00F8-\\u00FF])` +
-    `(${TITLECASE_TOKEN}(?:\\s+${TITLECASE_TOKEN}){1,2})\\s*$`
+  `(?:^|[^${LATIN_ANY}])(${TITLECASE_TOKEN}(?:\\s+${TITLECASE_TOKEN}){1,2})\\s*$`
 );
 
 function isPersonShapedToken(token: string): boolean {
@@ -109,34 +118,49 @@ function isPersonShapedToken(token: string): boolean {
 }
 
 /**
+ * True when the raw chain-token surface form contains a character that Latin-fold
+ * strips. Any such character (ł, ø, ß, ć, ó, ö, ñ, é, ...) is a strong marker of
+ * a non-English personal name — brand / business phrases in support prose stay
+ * ASCII in practice — and gates the single-segment email-adjacency shape below.
+ */
+function hasLatinDiacritic(token: string): boolean {
+  const lower = token.toLowerCase();
+  return foldLatin(lower) !== lower;
+}
+
+/**
  * Email-adjacency anchor: when a 2–3 token Latin Title-Case run sits immediately
  * before a bracketed email — `<Run> (<email>)` / `<Run> <<email>>` / `<Run>
- * [<email>]` — AND the email's local-part is in the CRM-canonical "name + initial"
- * form (one full-word segment of ≥ 4 chars that exactly matches one chain token's
- * lowercased form, plus one or two single-character initial segments matching the
- * other chain token's leading letter), the run is a person name regardless of
- * whether the tokens are in the database.
+ * [<email>]` — the prose token and the email handle are aligned by template, and
+ * the run is a person name regardless of whether the tokens are in the database.
  *
- * The signal is structural: a CRM/support template embedded the person's name in
- * both the prose and the email handle, so two unrelated false positives would
- * have to collude (the wrong Title-Case run AND the wrong email convention) to
- * fire. The "name + initial" shape — `dimitris.p@`, `g.müller@`, `m.kowalska@` —
- * is overwhelmingly a person convention in business correspondence; entity
- * mailboxes use `info@`, `sales@`, `<word>.<word>@` or generic functional names,
- * never `<word>.<initial>@`. That gate is what keeps a city/brand pair like
- * "Atlanta Marriott (atlanta.marriott@…)" from anchoring while still catching any
- * language's first/last name pair that follows the template (Greek, Japanese
- * transliterated, Slavic, African — none of which are guaranteed to live in the
- * curated dictionary).
+ * Two local-part shapes anchor the chain, both structural and language-agnostic:
  *
- * Precision layers:
+ * 1. **Name + initial** — `dimitris.p@`, `g.müller@`, `m.kowalska@`: one full-word
+ *    segment (≥ 4 chars) that fold-matches one chain token, plus one or two
+ *    single-character initial segments that match the leading letter of the
+ *    *other* chain token. Overwhelmingly a person convention in business
+ *    correspondence; the initial is what rules out `<word>.<word>@` collisions
+ *    like `atlanta.marriott@` (both segments full words, no initial → no anchor).
+ *
+ * 2. **Single-segment given / family + diacritic tell** — `miroslaw@example.pl`
+ *    for "Mirosław Szachniewicz", `kacperowicz@…` for "Öystein Kacperowicz": one
+ *    segment (≥ 4 chars) that fold-matches exactly one chain token, AND at least
+ *    one chain token in the run carries a Latin diacritic (ł, ö, ø, ß, ć, ñ, …).
+ *    The diacritic tell is what keeps `ford@ford.com` next to "Ford Motor" or
+ *    `apple@apple.com` next to "Apple Music" from anchoring: brand phrases in
+ *    English prose stay ASCII, so the single-segment path never fires on them.
+ *    Bare-ASCII single-segment matches (`sarah@…` next to "Sarah Johnson") are
+ *    already covered by the DB-gated `deriveNamesFromEmail` path, so declining
+ *    them here loses no recall — this branch exists to close the OOV
+ *    non-English gap those DB-only paths cannot.
+ *
+ * Shared precision layers for both shapes:
  * - Chain tokens must not be titles, role words, structural nouns, or ambiguous
  *   vocabulary (the same gates used in name detection — they catch
  *   "Customer Service", "Berlin Office", "Mark Smith" entity-like phrases).
  * - The email must not have any functional mailbox segment (info@, support@,
  *   service@, …): role addresses never denote a person.
- * - Initials must align with their adjacent chain token's first letter, so a
- *   random `g.X@` next to "Atlanta Marriott" does not anchor.
  *
  * Returned derived names feed the second-pass `detectNames` via `withDerivedNames`
  * — the chain is then admitted, scored, and overlap-resolved by the existing
@@ -169,39 +193,71 @@ export function deriveNamesFromAdjacentEmails(
     if (at < 1) continue;
     const localPart = email.text.slice(0, at).toLowerCase();
     const segments = localPart.split(SEP).filter(Boolean);
-    if (segments.length < 2) continue;
+    if (segments.length === 0) continue;
     if (isFunctionalMailbox(localPart) || segments.some(isFunctionalMailbox)) continue;
 
-    // Require the CRM "name + initial" shape: exactly one word segment (>= 4 chars)
-    // that matches a chain token, plus one or two initial segments (1 char) that
-    // match the leading letter of the *other* chain token. This is the precision
-    // lever that distinguishes "Dimitris Papadopoulos (dimitris.p@…)" from
-    // "Atlanta Marriott (atlanta.marriott@…)".
-    const wordSegments = segments.filter((s) => s.length >= 4);
-    const initialSegments = segments.filter((s) => s.length === 1);
-    if (wordSegments.length !== 1) continue;
-    if (initialSegments.length === 0) continue;
-    if (wordSegments.length + initialSegments.length !== segments.length) continue;
-
     const lowered = tokens.map((t) => foldLatin(t.toLowerCase()));
-    const wordSeg = foldLatin(wordSegments[0]);
-    const wordIdx = lowered.findIndex((l) => l === wordSeg);
-    if (wordIdx < 0) continue;
+    let anchored = false;
 
-    // Every initial segment must match the leading letter of *some* other chain
-    // token, and each chain token can satisfy at most one initial — so a stray
-    // `g.X@` next to a non-G chain never anchors.
-    const usedTokens = new Set<number>([wordIdx]);
-    let initialsOk = true;
-    for (const init of initialSegments) {
-      const idx = lowered.findIndex((l, i) => !usedTokens.has(i) && l[0] === foldLatin(init));
-      if (idx < 0) {
-        initialsOk = false;
-        break;
+    if (segments.length >= 2) {
+      // Shape 1 — CRM "name + initial": exactly one word segment (>= 4 chars) that
+      // fold-matches a chain token, plus one or two initial segments (1 char) that
+      // match the leading letter of a *different* chain token. Rules out
+      // `atlanta.marriott@` (two full words) and `g.X@` next to a non-G chain.
+      const wordSegments = segments.filter((s) => s.length >= 4);
+      const initialSegments = segments.filter((s) => s.length === 1);
+      if (
+        wordSegments.length === 1 &&
+        initialSegments.length >= 1 &&
+        wordSegments.length + initialSegments.length === segments.length
+      ) {
+        const wordSeg = foldLatin(wordSegments[0]);
+        const wordIdx = lowered.findIndex((l) => l === wordSeg);
+        if (wordIdx >= 0) {
+          const usedTokens = new Set<number>([wordIdx]);
+          let initialsOk = true;
+          for (const init of initialSegments) {
+            const idx = lowered.findIndex(
+              (l, i) => !usedTokens.has(i) && l[0] === foldLatin(init)
+            );
+            if (idx < 0) {
+              initialsOk = false;
+              break;
+            }
+            usedTokens.add(idx);
+          }
+          if (initialsOk) anchored = true;
+        }
       }
-      usedTokens.add(idx);
+    } else {
+      // Shape 2 — single-segment given/family with diacritic tell: the whole
+      // local-part fold-matches exactly one chain token AND some chain token has
+      // a Latin diacritic. The diacritic tell narrows to non-English personal
+      // names (the OOV population this branch exists to serve) and excludes the
+      // English brand-pair shape `ford@` / `apple@` where both chain tokens are
+      // plain ASCII. A second gate — the OTHER chain token(s) together have
+      // ≥ 6 characters — rejects short common-noun pairs where a diacritic is
+      // present but the tokens are dictionary vocabulary ("Café Rouge",
+      // "Écran Plat"), because real OOV personal names in the diacritic-heavy
+      // languages this branch serves (Polish, Czech, Hungarian, Ukrainian,
+      // Turkish, Romanian) carry surnames well past the 5-char boundary
+      // ("Szachniewicz", "Kacperowicz", "Grębowicz", "Wróblewska").
+      const seg = segments[0];
+      if (seg.length >= 4) {
+        const foldedSeg = foldLatin(seg);
+        const wordIdx = lowered.findIndex((l) => l === foldedSeg);
+        const matches = lowered.filter((l) => l === foldedSeg).length;
+        if (matches === 1 && tokens.some(hasLatinDiacritic)) {
+          const restLen = tokens.reduce(
+            (sum, tok, idx) => sum + (idx === wordIdx ? 0 : tok.length),
+            0
+          );
+          if (restLen >= 6) anchored = true;
+        }
+      }
     }
-    if (!initialsOk) continue;
+
+    if (!anchored) continue;
 
     tokens.forEach((tok, idx) => {
       const folded = foldLatin(tok.toLowerCase());
