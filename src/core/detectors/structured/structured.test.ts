@@ -38,6 +38,38 @@ describe('email detection', () => {
     expect(only('Café@home served lunch', 'EMAIL')).toHaveLength(0);
     expect(only('Ping üser@localhost from the shell', 'EMAIL')).toHaveLength(0);
   });
+
+  it('captures IDN (Unicode) domain labels in full', () => {
+    // Held-out IDN hosts (none appear in the corpus or the gap's Norwegian
+    // sørensen-consulting.no): a German ø-domain, a hyphenated French/German
+    // domain, and a Czech/Polish ł-domain. Each matches only because the
+    // domain char class is Unicode-aware — this proves the heuristic
+    // generalises to any Latin-diacritic IDN, not just one written form.
+    expect(only('Info at info@bücher.example by noon.', 'EMAIL')[0].text).toBe(
+      'info@bücher.example'
+    );
+    expect(only('Reach a.b@café-münchen.de by Friday', 'EMAIL')[0].text).toBe(
+      'a.b@café-münchen.de'
+    );
+    expect(only('Order confirmation from post@lékárna-praha.cz today', 'EMAIL')[0].text).toBe(
+      'post@lékárna-praha.cz'
+    );
+  });
+
+  it('keeps the ASCII TLD anchor as a precision guard for IDN domains', () => {
+    // The final label (TLD) is kept ASCII with a 2+ letter floor even though
+    // the leading labels accept Unicode. That anchor is what stops loose
+    // "Café.München" prose fragments right after an `@` from matching. If
+    // someone genuinely wants an IDN TLD, they write the Punycode form on the
+    // wire — which is ASCII and matches the anchor naturally.
+    expect(only('Note: mention@café.münchen served coffee', 'EMAIL')).toHaveLength(0);
+    // A one-letter TLD (Unicode or ASCII) must still be rejected — the
+    // 2+ letter floor is load-bearing.
+    expect(only('Send to user@bücher.x for review', 'EMAIL')).toHaveLength(0);
+    // A domain label cannot start or end with a hyphen, even in Unicode form.
+    expect(only('Attempt to reach user@-bücher.de fails', 'EMAIL')).toHaveLength(0);
+    expect(only('Attempt to reach user@bücher-.de fails', 'EMAIL')).toHaveLength(0);
+  });
 });
 
 describe('IBAN detection', () => {
