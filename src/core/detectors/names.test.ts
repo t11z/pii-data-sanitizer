@@ -1725,3 +1725,91 @@ describe('AKA-in-parens frame ("<Name> (<Alias>)")', () => {
     }
   });
 });
+
+describe('title-tail cue guard (dual-use honorific/surname at end of chain)', () => {
+  // Many honorifics in titles.ts coincide with common surnames in Arabic,
+  // Persian, South-Asian and Spanish naming — "hajj", "haji", "don", "sayed",
+  // "sayyid", "rev", "sir", "lord", "lady", "imam", "ustad", "shri", "smt", …
+  // Before this guard, TITLE_GAP's optional dot accepted the sentence-ending
+  // period after such a token when it closed a name chain, so the next
+  // capitalized word inherited a spurious titleBefore boost and got emitted at
+  // ~0.65 confidence: "Customer Leila Hajj. Email:…" → FP "Email",
+  // "Customer Ayla Hajj. Reference:…" → FP "Reference". The class is broad and
+  // real support prose exercises it (any ticket log that names a customer with
+  // an Arabic-family surname and then starts the next sentence with a Cap
+  // label). The guard suppresses the title / role / handoff / source-frame
+  // lookback when the immediately-preceding token was just consumed as the
+  // tail of a preceding emitted name span — a token can be either name-tail
+  // or cue, never both for adjacent candidates.
+  //
+  // Held-out proof: the *follower* words that would have leaked as FPs are
+  // absent from the full committed DB (see the held-out assertion at the end),
+  // and one of the anchor chains uses a DB-absent given name too, so the
+  // detections and non-detections here are both heuristic-driven.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not fire a spurious PERSON on the next Cap word after "<Name Title>."', () => {
+    expect(
+      personsFull('Customer Sven Hajj. Kwargs unreachable in staging.')
+    ).toEqual(['Sven Hajj']);
+    expect(
+      personsFull('Customer Ines Don. Turnabout requested by legal.')
+    ).toEqual(['Ines Don']);
+    expect(
+      personsFull('Escalated to Aylin Sayed. Zellwerk failed integration test.')
+    ).toEqual(['Aylin Sayed']);
+    expect(
+      personsFull('Support note from Priya Rev. Splindley pipeline aborted overnight.')
+    ).toEqual(['Priya Rev']);
+  });
+
+  it('does not fire on the exact minimized FP shape from the coverage report', () => {
+    // Verbatim from the discovery feed — the coverage evaluator surfaced
+    // "Email" as a PERSON here. After the guard the chain "Leila Hajj"
+    // detects and no follower does.
+    expect(
+      personsFull(
+        'Final response: Eng. Andreas Christopoulos and customer Leila Hajj. Email: leila.hajj@beirut.lb, card 3530 1113 3330 0000, IPv6 fe80::1. Status: CLOSED.'
+      )
+    ).toEqual(['Andreas Christopoulos', 'Leila Hajj']);
+  });
+
+  it('still detects a real title cue in isolation ("Dr. Anjali Qwertz")', () => {
+    // Single-token title anchor path is unaffected: prev="Dr." was NEVER
+    // emitted as part of a name span (the outer loop's parts===1+isTitle guard
+    // skips it before it can become an emitted tail), so titleBefore still
+    // fires for the following candidate.
+    expect(personsFull('Please ask Dr. Anjali Qwertz about it.')).toContain('Anjali Qwertz');
+  });
+
+  it('still detects a title-first chain that CONTAINS the dual-use token as prefix', () => {
+    // "Sheikh Yusuf ..." — the honorific opens the chain and is absorbed as
+    // part of a multi-token name. This path never depends on a preceding
+    // emitted span, so the guard doesn't touch it.
+    expect(personsFull('Sheikh Yusuf al-Qaradawi visited the branch today.')).toContain(
+      'Sheikh Yusuf al-Qaradawi'
+    );
+  });
+
+  it('proves the title-tail follower words are absent from the full DB', () => {
+    // The precision fix rides on the structural cue-suppression rule, not on
+    // dictionary knowledge of the follower. If any of these ever land in the
+    // DB later, the negative assertions above stop being a heuristic proof
+    // and the values must be re-pointed to fresh out-of-DB tokens.
+    const heldOut = ['kwargs', 'turnabout', 'zellwerk', 'splindley', 'sven'];
+    for (const word of heldOut) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+    // And the title-tail tokens that trigger the guard MUST be in TITLES —
+    // if any of them are removed from titles.ts, the FP class stops existing
+    // and these regression cases lose their point.
+    for (const t of ['hajj', 'don', 'sayed', 'rev']) {
+      expect(fullSource.hasGiven(t, 'Latin'), `${t} should be a DB name`).toBe(true);
+    }
+  });
+});

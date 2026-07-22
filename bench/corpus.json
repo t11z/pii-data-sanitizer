@@ -1707,5 +1707,41 @@
   {
     "text": "Login to Admin Console required before access.",
     "entities": []
+  },
+  {
+    "text": "Customer Sven Hajj. Kwargs unreachable in staging.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Sven Hajj"
+      }
+    ]
+  },
+  {
+    "text": "Customer Ines Don. Turnabout requested by legal.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Ines Don"
+      }
+    ]
+  },
+  {
+    "text": "Escalated to Aylin Sayed. Zellwerk failed integration test.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Aylin Sayed"
+      }
+    ]
+  },
+  {
+    "text": "Support note from Priya Rev. Splindley pipeline aborted overnight.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Priya Rev"
+      }
+    ]
   }
 ]
