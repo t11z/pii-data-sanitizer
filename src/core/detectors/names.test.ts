@@ -877,6 +877,69 @@ describe('title/role-anchored particle-hyphen start (joined "al-Surname")', () =
   });
 });
 
+describe('apostrophe-prefixed surnames (Irish "O\'", Italian/French "D\'")', () => {
+  // The DB indexes the family root ("sullivan", "neill", "hara", "angelo",
+  // "amico") but the ingest sources don't carry the glued apostrophe surface
+  // form ("o'sullivan"), so a plain dictionary lookup on the whole token
+  // misses it. Verified against the FULL committed dictionary: the exact
+  // compound below is confirmed absent while its root is confirmed present,
+  // so detection rides on the apostrophe-root fallback, not memorization of
+  // a compound the DB happens to carry.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('proves the compound surface form is absent while the root is present', () => {
+    const pairs: Array<[string, string]> = [
+      ["o'sullivan", 'sullivan'],
+      ["o'neill", 'neill'],
+      ["o'hara", 'hara'],
+      ["d'angelo", 'angelo'],
+      ["d'amico", 'amico'],
+    ];
+    for (const [compound, root] of pairs) {
+      expect(
+        fullSource.hasFamily(compound, 'Latin') || fullSource.hasGiven(compound, 'Latin'),
+        `${compound} should be absent as a compound`
+      ).toBe(false);
+      expect(
+        fullSource.hasFamily(root, 'Latin') || fullSource.hasGiven(root, 'Latin'),
+        `${root} should be present as the DB root`
+      ).toBe(true);
+    }
+  });
+
+  it('chains a DB-known given name into an apostrophe-prefixed surname', () => {
+    expect(personsFull("Sean O'Neill called about his account.")).toContain("Sean O'Neill");
+    expect(personsFull("Marco D'Angelo confirmed the order.")).toContain("Marco D'Angelo");
+  });
+
+  it('anchors backward from an unknown given name onto the surname root', () => {
+    // "Niamh" is out of the DB, so only the apostrophe-root fallback on
+    // "O'Sullivan" (family root "sullivan") lets the backward-unknown-cap
+    // anchor see a corroborating name part.
+    expect(personsFull("Follow-up by Niamh O'Sullivan: refund issued to the customer.")).toContain(
+      "Niamh O'Sullivan"
+    );
+  });
+
+  it('detects a single apostrophe-prefixed surname after a title', () => {
+    expect(personsFull("Dr. O'Hara confirmed the diagnosis.")).toContain("O'Hara");
+  });
+
+  it('does not treat contractions or mid-word apostrophes as name parts', () => {
+    expect(personsFull("I don't know if it's true.")).toHaveLength(0);
+    expect(personsFull("We visited Ta'if last year.")).toHaveLength(0);
+    expect(personsFull("Rock'n'Roll is a genre.")).toHaveLength(0);
+  });
+
+  it('does not start a name on a lone apostrophe-prefixed surname without a cue', () => {
+    expect(personsFull("O'Hara reviewed the file.")).toHaveLength(0);
+  });
+});
+
 describe('Persian/Urdu "ul-" particle in compound surnames', () => {
   // "Naveed ul-Haq", "Mahbub ul-Haq", "Zia ul-Haq", "Inayat ul-Allah": the
   // Arabic article transliterated with sun-letter assimilation. The tokenizer
