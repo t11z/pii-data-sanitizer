@@ -26,7 +26,11 @@ permissions:
 jobs:
   # Reviews the diff of an open pull request and comments findings on the PR.
   pr-review:
-    if: github.event_name == 'pull_request'
+    # Fork PRs can't read the OAuth secret; skip cleanly instead of failing.
+    # (docs/self-improve.md already documents that fork PRs aren't auto-reviewed.)
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -39,12 +43,24 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0 # full history so the diff against the base branch is available
+      - name: Ensure base ref is available for the diff
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        # fetch-depth: 0 normally brings all branches, but make the guarantee
+        # explicit so the /security-review diff never depends on checkout
+        # internals. The fetch lives here because the command's allowed-tools
+        # deliberately exclude `git fetch`.
+        run: git fetch origin "$BASE_REF"
       - name: Run /security-review on the PR diff
         uses: anthropics/claude-code-action@v1
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Security judgment calls warrant the strongest model; pinned so
+          # results are comparable run-to-run instead of drifting with the
+          # action default.
+          claude_args: '--model claude-opus-4-8'
           prompt: '/security-review'
           # Self-improvement PRs are opened by claude[bot]; allow that bot so the
           # action's anti-loop actor guard doesn't fail the check on exactly the
@@ -70,4 +86,6 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Same pin as the pr-review job — see the comment there.
+          claude_args: '--model claude-opus-4-8'
           prompt: '/security-review --full'
