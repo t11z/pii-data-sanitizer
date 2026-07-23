@@ -491,6 +491,42 @@ describe('MAC detection', () => {
     expect(only('bad 00:1A-2B:3C:4D:5E here', 'MAC')).toHaveLength(0);
   });
 
+  // Held-out values (not in any corpus/gap case): prove the compact-triple-group
+  // heuristic generalizes rather than memorizing the specific gap addresses.
+  it('detects a hyphenated compact (triple-group) MAC', () => {
+    const spans = only('filter applied to de1f-2a3b-4c5d online', 'MAC');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('de1f-2a3b-4c5d');
+  });
+
+  it('detects a Cisco dot-notation MAC that ends a sentence', () => {
+    // The trailing period is sentence punctuation, not part of the address; the
+    // old `(?![\w.])` guard swallowed it and dropped the whole MAC.
+    const spans = only('Isolated port with MAC 9c8d.7e6f.5a4b.', 'MAC');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('9c8d.7e6f.5a4b');
+  });
+
+  it('detects a hyphenated compact MAC that ends a sentence', () => {
+    const spans = only('Reinstalled adapter de1f-2a3b-4c5d.', 'MAC');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('de1f-2a3b-4c5d');
+  });
+
+  it('does not match a fragment of a longer dotted hex run', () => {
+    // A four-group run is not a valid triple-group MAC; grabbing the first
+    // three groups would be a false positive.
+    expect(only('checksum 1234.5678.9abc.def0 stored', 'MAC')).toHaveLength(0);
+  });
+
+  it('does not match a fragment of a longer hyphenated hex run', () => {
+    expect(only('serial de1f-2a3b-4c5d-6e7f logged', 'MAC')).toHaveLength(0);
+  });
+
+  it('rejects a compact triple-group with mixed dot/hyphen separators', () => {
+    expect(only('bad de1f.2a3b-4c5d here', 'MAC')).toHaveLength(0);
+  });
+
   it('does not flag a bare 12-hex run without separators', () => {
     expect(only('token 001A2B3C4D5E issued', 'MAC')).toHaveLength(0);
   });
