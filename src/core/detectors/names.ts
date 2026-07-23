@@ -76,14 +76,26 @@ function tierOf(source: NameSource, token: Token): Tier | null {
   if (!matchTier) return 'core'; // sources without tier info count as core
   const l = token.text.toLowerCase();
   const parts = l.includes('-') ? [l, ...l.split('-')] : [l];
-  // Mirror the diacritic-fold fallback used for membership so a name matched only
-  // via folding ("García") still reports its real tier instead of null — null
-  // would make scoring treat it as ext-only and re-penalize it below threshold.
+  // Mirror the diacritic-fold semantic already used for membership (`lookup()`
+  // above): on Latin script the accented and folded spellings are the SAME
+  // name, so tier reporting must too. Ingest coverage happens to split common
+  // Latin diacritic names across tiers — 'garcía' / 'lópez' / 'josé' / 'maría'
+  // land in `ext` while their folded forms 'garcia' / 'lopez' / 'jose' /
+  // 'maria' are in the curated `core` pack — so returning the raw lookup on
+  // its own mis-tiers the accented form as ext and the single-token ext
+  // penalty in scoring drops it below threshold. Query BOTH forms and return
+  // the stronger tier (core > ext > null); a diacritic-free token folds to
+  // itself so this short-circuits to the raw tier, leaving ASCII paths
+  // (including the ext-corroborator backward anchor) unchanged.
   const tierLookup = (p: string): Tier | null => {
     const t = matchTier.call(source, p, token.script);
-    if (t || token.script !== 'Latin') return t;
+    if (token.script !== 'Latin') return t;
     const folded = foldLatin(p);
-    return folded !== p ? matchTier.call(source, folded, token.script) : null;
+    if (folded === p) return t;
+    const tFolded = matchTier.call(source, folded, token.script);
+    if (t === 'core' || tFolded === 'core') return 'core';
+    if (t === 'ext' || tFolded === 'ext') return 'ext';
+    return null;
   };
   let best: Tier | null = null;
   for (const p of parts) {

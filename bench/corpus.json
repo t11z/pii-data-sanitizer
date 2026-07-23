@@ -1707,5 +1707,40 @@
   {
     "text": "Login to Admin Console required before access.",
     "entities": []
+  },
+  {
+    "text": "Support ref contact: Rodríguez.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Rodríguez"
+      }
+    ]
+  },
+  {
+    "text": "José confirmed the shipment yesterday afternoon.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "José"
+      }
+    ]
+  },
+  {
+    "text": "Spanish ref contact: Rodríguez-López.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Rodríguez-López"
+      }
+    ]
+  },
+  {
+    "text": "Não podemos aceitar isso hoje.",
+    "entities": []
+  },
+  {
+    "text": "Está pronto para revisar imediatamente.",
+    "entities": []
   }
 ]
