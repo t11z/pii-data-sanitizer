@@ -45,6 +45,10 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Security judgment calls warrant the strongest model; pinned so
+          # results are comparable run-to-run instead of drifting with the
+          # action default.
+          claude_args: '--model claude-opus-4-8'
           prompt: '/security-review'
           # Self-improvement PRs are opened by claude[bot]; allow that bot so the
           # action's anti-loop actor guard doesn't fail the check on exactly the
@@ -70,4 +74,6 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # Same pin as the pr-review job — see the comment there.
+          claude_args: '--model claude-opus-4-8'
           prompt: '/security-review --full'
