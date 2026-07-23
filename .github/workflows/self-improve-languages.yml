@@ -28,6 +28,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # PAT (when configured) so branches pushed by the loop trigger CI on
+          # the resulting PR — GitHub suppresses workflow runs for pushes/PRs
+          # made with the default GITHUB_TOKEN. Falls back to the default token
+          # when the SELF_IMPROVE_PAT secret is absent.
+          token: ${{ secrets.SELF_IMPROVE_PAT || github.token }}
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -37,4 +43,6 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          # PAT-or-default so the PR opened by gh inside the action triggers CI.
+          github_token: ${{ secrets.SELF_IMPROVE_PAT || github.token }}
           prompt: '/self-improve-languages ${{ github.event.inputs.focus }} — research strategically and prefer extending the ingestion pipeline; open a PR only if it adds at least 1000 net-new names.'
