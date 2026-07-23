@@ -31,7 +31,8 @@ runs **daily** (or on demand) to actively surface gaps the corpus doesn't cover 
 
 1. **Generate (Haiku).** `/self-improve-coverage-generate` writes a synthetic,
    PII-dense **TAC case feed** — support tickets with TAC engineers and customer
-   persons from European, Indian and Persian cultures, plus all six PII types — to
+   persons from European, Indian and Persian cultures, plus all ten PII types
+   (`ALL_PII_TYPES` in `src/core/types.ts`) — to
    `bench/self-improve/generated.json`, with ground-truth labels. **Synthetic data
    only**; nothing real is ever generated.
 2. **Evaluate (deterministic).** `npm run bench:coverage`
