@@ -76,6 +76,27 @@ generalizes rather than memorizing the synthetic feed.
 also runs `npm run lint`, `npm run check`, `npm test`, and `npm run build`. A
 self-improvement PR can only be merged once all of these are green.
 
+## PR stewardship
+
+Loop PRs are opened, never merged — and never abandoned. A scheduled Claude
+session (a "Routine", configured outside this repository) shepherds open
+self-improvement work to green:
+
+1. **Scan.** List open PRs/issues labeled `self-improvement` (and `languages`).
+2. **Triage checks.** For each PR with failing or missing checks, pull the
+   failing job logs and the PR diff into context.
+3. **Fix forward.** Push the smallest corrective commit to the PR branch under
+   the same guardrails as the loops themselves (never touch `bench/proven/`,
+   full gate green, additive/corrective only). If a fix would violate a
+   guardrail, comment the blocker on the PR instead of forcing it.
+4. **Report.** Leave at most one status comment per visit (checks re-run, fix
+   pushed, or human attention needed) — no comment spam.
+5. **Never merges.** Merging stays a human decision, same as every loop.
+
+The Routine authenticates with its own credentials; nothing in this repo's
+workflows depends on it. If it is off, the loops still work — PRs just wait
+for a human instead.
+
 ## Case study: a real gap → fix cycle
 
 The loop is not a demo — it ships. A worked example from the discovery layer
