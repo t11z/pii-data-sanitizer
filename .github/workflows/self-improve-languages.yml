@@ -23,6 +23,11 @@ permissions:
   pull-requests: write
   id-token: write # required by anthropics/claude-code-action@v1 (OIDC token)
 
+# One run at a time so a slow run and the next schedule never stack duplicate PRs.
+concurrency:
+  group: self-improve-languages
+  cancel-in-progress: false
+
 jobs:
   expand:
     runs-on: ubuntu-latest
@@ -48,4 +53,7 @@ jobs:
           # Pin to current Opus rather than the action default, so all
           # self-improve loops run the same reviewed model.
           claude_args: '--model claude-opus-4-8'
-          prompt: '/self-improve-languages ${{ github.event.inputs.focus }} — research strategically and prefer extending the ingestion pipeline; open a PR only if it adds at least 1000 net-new names.'
+          # All behaviour and guardrails (incl. the ≥1000 net-new-names gate)
+          # live in .claude/commands/self-improve-languages.md — pass only the
+          # focus so the two can't drift apart.
+          prompt: '/self-improve-languages ${{ github.event.inputs.focus }}'

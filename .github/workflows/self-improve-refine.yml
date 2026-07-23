@@ -23,6 +23,11 @@ permissions:
   pull-requests: write
   id-token: write # required by anthropics/claude-code-action@v1 (OIDC token)
 
+# One run at a time so a slow run and the next schedule never stack duplicate PRs.
+concurrency:
+  group: self-improve-refine
+  cancel-in-progress: false
+
 jobs:
   refine:
     runs-on: ubuntu-latest

@@ -86,6 +86,11 @@ them to a commit.
    gh label create self-improvement \
      --color 1d76db \
      --description "Automated coverage self-improvement (agent analyzing & improving)" || true
+   # The routing path (rules 2/3) files `languages` issues — make sure that
+   # label exists too, or gh issue create fails on a fresh repo.
+   gh label create languages \
+     --color 0e8a16 \
+     --description "Name-database expansion handled by the /self-improve-languages loop" || true
    gh issue create --label self-improvement \
      --title "coverage: <short description>" \
      --body "<gap evidence, root cause, generalizing fix>"

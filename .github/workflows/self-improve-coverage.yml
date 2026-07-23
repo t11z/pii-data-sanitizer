@@ -54,6 +54,12 @@ jobs:
           cache: npm
       - run: npm ci
 
+      # bench/self-improve/ is git-ignored, so it doesn't exist on a fresh
+      # checkout. Write and the evaluator create it on demand; this makes the
+      # guarantee explicit instead of relying on tool internals.
+      - name: Ensure discovery scratch dir exists
+        run: mkdir -p bench/self-improve
+
       - name: Generate synthetic TAC case feed (Haiku)
         uses: anthropics/claude-code-action@v1
         with:
