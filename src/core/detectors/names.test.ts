@@ -29,6 +29,65 @@ describe('multi-part Latin names', () => {
   });
 });
 
+describe('apostrophe-elided surnames ("d\'Arcy", "l\'Anglais")', () => {
+  // Anglo-Norman / French surnames the ingest sources index by their solid,
+  // apostrophe-elided spelling ("darcy", "death", "langlais") — NOT by the
+  // post-particle root ("arcy", "eath", "anglais"). The surface token also
+  // carries a lowercase particle letter ("d", "l"), so it fails the plain
+  // capitalization gate. Both are handled together: `apostropheRoots` probes the
+  // elided form as well as the post-particle root, and `particleApostropheName`
+  // treats the lowercase-particle-plus-Cap-tail shape as a name token — the
+  // apostrophe sibling of the existing "al-Rashid" hyphen-particle handling.
+  //
+  // Everything below is held out against the FULL committed DB (core + ext):
+  // the surface forms and the post-particle roots are all absent, so detection
+  // can only come from the elided-form heuristic, never from memorizing the
+  // surface token.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects an unknown given before an elided apostrophe surname (backward anchor)', () => {
+    // "death" / "langlais" are ext-tier; "eath" / "anglais" (the post-particle
+    // root the old lookup tried) are absent. Before the fix these dropped
+    // silently while the equally ext solid forms ("Vitya Death") detected.
+    expect(personsFull("Vitya d'Eath requested a refund.")).toContain("Vitya d'Eath");
+    expect(personsFull("Wojciech l'Anglais arrived this morning.")).toContain("Wojciech l'Anglais");
+  });
+
+  it('detects an elided apostrophe surname after a role cue', () => {
+    expect(personsFull("Engineer Vitya d'Eath resolved the ticket.")).toContain("Vitya d'Eath");
+  });
+
+  it('stays DB-gated: a non-name apostrophe token is not swept in', () => {
+    // Same shape, but neither the elided form nor the post-particle root is a
+    // known name, so without a title/role licence the chain must not promote —
+    // proving the rescue is a dictionary lookup, not blanket shape acceptance.
+    expect(personsFull("Vitya d'Zzuk requested a refund.")).toHaveLength(0);
+    expect(personsFull("Wojciech l'Zzax arrived this morning.")).toHaveLength(0);
+  });
+
+  it('proves the elided held-out surnames are absent in surface + root form', () => {
+    // Surface ("d'eath") and post-particle root ("eath") MUST be out-of-DB, so
+    // the detections above rely solely on the elided solid form ("death").
+    const absent: Array<[string, 'Latin']> = [
+      ["d'eath", 'Latin'],
+      ['eath', 'Latin'],
+      ["l'anglais", 'Latin'],
+      ['anglais', 'Latin'],
+    ];
+    for (const [word, script] of absent) {
+      expect(fullSource.hasGiven(word, script), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, script), `${word} should be out-of-DB`).toBe(false);
+    }
+    // ...while the elided solid forms the heuristic maps onto ARE present (ext).
+    expect(fullSource.matchTier('death', 'Latin')).toBe('ext');
+    expect(fullSource.matchTier('langlais', 'Latin')).toBe('ext');
+  });
+});
+
 describe('particle chains across scripts (transliterated)', () => {
   it('detects Arabic-style "al-" surnames', () => {
     expect(persons('We spoke to Omar al Farouk briefly.')).toContain('Omar al Farouk');
@@ -152,9 +211,7 @@ describe('backward unknown-cap anchor ("<unknown given> <ext surname>")', () => 
     // Vitya — Russian diminutive of Viktor, absent from the DB. Volkov — ext.
     expect(personsFull('Vitya Volkov requested a refund.')).toContain('Vitya Volkov');
     // Wojciech — common Polish given, absent. Lindqvist — ext.
-    expect(personsFull('Wojciech Lindqvist arrived this morning.')).toContain(
-      'Wojciech Lindqvist'
-    );
+    expect(personsFull('Wojciech Lindqvist arrived this morning.')).toContain('Wojciech Lindqvist');
   });
 
   it('detects the unknown given even mid-sentence (no sentence-start dependency)', () => {
@@ -173,9 +230,7 @@ describe('backward unknown-cap anchor ("<unknown given> <ext surname>")', () => 
     // openers extension these would slurp the following name into a single FP
     // span ("Email Volkov today" → "Email Volkov").
     expect(personsFull('Email Volkov today about the refund.')).not.toContain('Email Volkov');
-    expect(personsFull('Visit Petrenko before the meeting ends.')).not.toContain(
-      'Visit Petrenko'
-    );
+    expect(personsFull('Visit Petrenko before the meeting ends.')).not.toContain('Visit Petrenko');
     expect(personsFull('Meet Lindqvist at the lobby this afternoon.')).not.toContain(
       'Meet Lindqvist'
     );

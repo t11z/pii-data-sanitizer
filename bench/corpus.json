@@ -1756,5 +1756,27 @@
         "text": "Marco D'Angelo"
       }
     ]
+  },
+  {
+    "text": "Vitya d'Eath requested a refund.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Vitya d'Eath"
+      }
+    ]
+  },
+  {
+    "text": "Wojciech l'Anglais arrived this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Wojciech l'Anglais"
+      }
+    ]
+  },
+  {
+    "text": "Vitya d'Zzuk requested a refund.",
+    "entities": []
   }
 ]

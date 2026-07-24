@@ -51,20 +51,30 @@ function lookup(
 }
 
 /**
- * Strips a single-letter apostrophe prefix — `O'`, `D'`, `L'`, `M'` — returning
- * the bare root ("sullivan" from "o'sullivan"). Restricted to the apostrophe
- * sitting at index 1 of the lowercased token: that is exactly the Irish `O'`,
- * Italian/French `D'`, French `L'`/`M'` particle shape the ingest sources
- * glue into one lexeme but don't index compound. Every other apostrophe
- * placement (contractions like "don't", place-names like "Ta'if") either has
- * the apostrophe elsewhere or is filtered upstream by `isCapitalized`, so
- * this fallback can't loosen matching beyond that one morphological class.
- * Mirrors the existing hyphen-split fallback below for the same reason: the
- * DB indexes the root, not the compound surface form.
+ * Roots to try for a single-letter apostrophe-prefixed token — `O'`, `D'`,
+ * `L'`, `M'`. Restricted to the apostrophe sitting at index 1 of the lowercased
+ * token: that is exactly the Irish `O'`, Italian/French `D'`, French `L'`/`M'`
+ * particle shape the ingest sources glue into one lexeme but don't index by the
+ * compound surface form. Every other apostrophe placement (contractions like
+ * "don't", place-names like "Ta'if") either has the apostrophe elsewhere or is
+ * filtered upstream by `isCapitalized`, so this fallback can't loosen matching
+ * beyond that one morphological class.
+ *
+ * Two spellings coexist across sources for this class, so we try BOTH:
+ *   - the post-particle root — "sullivan" from "o'sullivan" — for surnames the
+ *     DB indexes with the particle stripped (the Irish/patronymic convention);
+ *   - the apostrophe-elided solid form — "darcy" from "d'arcy", "death" from
+ *     "d'eath" — for the Anglo-Norman surnames the DB indexes as one word (the
+ *     apostrophe is orthographic, not a separable particle). Without this, a
+ *     name like "d'Arcy" only probed "arcy" (absent) and was missed even though
+ *     "darcy" is on file. Mirrors the hyphen-split fallback: probe the forms the
+ *     DB actually stores, not just the compound surface form.
  */
-function apostropheRoot(lowered: string): string | null {
-  if (lowered[1] !== "'" && lowered[1] !== '’') return null;
-  return lowered.length > 2 ? lowered.slice(2) : null;
+function apostropheRoots(lowered: string): string[] {
+  if (lowered[1] !== "'" && lowered[1] !== '’') return [];
+  if (lowered.length <= 2) return [];
+  const tail = lowered.slice(2);
+  return [tail, lowered[0] + tail];
 }
 
 export function givenHit(source: NameSource, token: string, script: Script): boolean {
@@ -72,9 +82,7 @@ export function givenHit(source: NameSource, token: string, script: Script): boo
   const has = source.hasGiven.bind(source);
   if (lookup(has, l, script)) return true;
   if (l.includes('-')) return l.split('-').some((p) => lookup(has, p, script));
-  const root = apostropheRoot(l);
-  if (root) return lookup(has, root, script);
-  return false;
+  return apostropheRoots(l).some((root) => lookup(has, root, script));
 }
 
 export function familyHit(source: NameSource, token: string, script: Script): boolean {
@@ -82,9 +90,7 @@ export function familyHit(source: NameSource, token: string, script: Script): bo
   const has = source.hasFamily.bind(source);
   if (lookup(has, l, script)) return true;
   if (l.includes('-')) return l.split('-').some((p) => lookup(has, p, script));
-  const root = apostropheRoot(l);
-  if (root) return lookup(has, root, script);
-  return false;
+  return apostropheRoots(l).some((root) => lookup(has, root, script));
 }
 
 function anyHit(source: NameSource, token: Token): boolean {
@@ -97,8 +103,7 @@ function tierOf(source: NameSource, token: Token): Tier | null {
   if (!matchTier) return 'core'; // sources without tier info count as core
   const l = token.text.toLowerCase();
   const parts = l.includes('-') ? [l, ...l.split('-')] : [l];
-  const apRoot = apostropheRoot(l);
-  if (apRoot) parts.push(apRoot);
+  parts.push(...apostropheRoots(l));
   // Mirror the diacritic-fold fallback used for membership so a name matched only
   // via folding ("García") still reports its real tier instead of null — null
   // would make scoring treat it as ext-only and re-penalize it below threshold.
@@ -147,9 +152,28 @@ function particleHyphenName(token: Token): boolean {
   return isParticle(head) && isCapitalized(tail);
 }
 
+/**
+ * The apostrophe sibling of `particleHyphenName`: a single-letter elided
+ * particle glued by an apostrophe to a capitalized tail — "d'Arcy", "l'Amour",
+ * "d'Eath". The particle letter is lowercase, so `isCapitalized` sees the token
+ * as uncapitalized and the chain would break on it — exactly the failure
+ * `particleHyphenName` fixes for "al-Rashid". Gated on the apostrophe at index 1
+ * (the O'/D'/L'/M' class), the same morphological shape `apostropheRoots`
+ * probes, so shape recognition and DB membership stay in lock-step. Shape only:
+ * `nameLike`/the extension gates still require a DB hit (or an explicit context
+ * cue) before promoting, so a non-name like "O'Clock" is not swept in.
+ */
+function particleApostropheName(token: Token): boolean {
+  if (token.script !== 'Latin') return false;
+  const t = token.text;
+  if (t[1] !== "'" && t[1] !== '’') return false;
+  return t.length > 2 && isCapitalized(t.slice(2));
+}
+
 function nameLike(token: Token, source: NameSource, allowUnknownCap: boolean): boolean {
   if (token.script === 'Latin') {
-    if (!isCapitalized(token.text) && !particleHyphenName(token)) return false;
+    if (!isCapitalized(token.text) && !particleHyphenName(token) && !particleApostropheName(token))
+      return false;
     // Short ALL-CAPS Latin runs are acronyms / initialisms in prose (ID, PIN,
     // DOB, URL, HQ, ...), never a name part — even when the lowercased form
     // coincidentally appears in the long-tail surname list. Rejecting them here
@@ -256,7 +280,8 @@ function nameContinuation(tokens: Token[], i: number, text: string): boolean {
   // Arabic-style sentence start "Muhammad al-Rashid called." is dropped, while
   // the morphologically equivalent bare-Cap form "Bahar Qorvanni called." is
   // accepted by the same path: an asymmetry, not a precision lever.
-  if (!isCapitalized(next.text) && !particleHyphenName(next)) return false;
+  if (!isCapitalized(next.text) && !particleHyphenName(next) && !particleApostropheName(next))
+    return false;
   if (adjoinsDigit(next, text)) return false;
   // A short ALL-CAPS continuation is an acronym label (the "Tech ID" / "Sales QA"
   // shape), not a corroborating second name part — never let it rescue an
@@ -297,7 +322,8 @@ function knownNameAfter(tokens: Token[], i: number, source: NameSource, text: st
   if (!next) return false;
   if (!SINGLE_GAP.test(text.slice(tokens[j].end, next.start))) return false;
   if (next.script !== 'Latin') return false;
-  if (!isCapitalized(next.text) && !particleHyphenName(next)) return false;
+  if (!isCapitalized(next.text) && !particleHyphenName(next) && !particleApostropheName(next))
+    return false;
   if (adjoinsDigit(next, text)) return false;
   if (isLikelyAcronym(next.text)) return false;
   if (isNonNameWord(next.text) || isRoleWord(next.text) || isTitle(next.text)) return false;
