@@ -167,19 +167,16 @@ describe('IBAN detection', () => {
     expect(isValidIban('XQ12 3456 7890 1234 5678 9012')).toBe(false);
     // Paren-wrapped IBAN body — the failing gap-report shape:
     expect(
-      only(
-        "Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.",
-        'IBAN'
-      )[0].text
+      only("Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.", 'IBAN')[0].text
     ).toBe('AE 07 0331 2345 6789 1234 567');
     // Bracket-wrapped:
     expect(only('Refund IBAN [ZK00 1122 3344 5566 7788] on file.', 'IBAN')[0].text).toBe(
       'ZK00 1122 3344 5566 7788'
     );
     // Colon + paren — real transcripts often stack them ("IBAN: (…)"):
-    expect(
-      only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text
-    ).toBe('XQ12 3456 7890 1234 5678 9012');
+    expect(only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text).toBe(
+      'XQ12 3456 7890 1234 5678 9012'
+    );
     // Plain paren wrap on a strict-invalid IT shape:
     expect(only('Wire IBAN (IT99 X054 2811 1010 0000 0123 456) cleared.', 'IBAN')[0].text).toBe(
       'IT99 X054 2811 1010 0000 0123 456'
@@ -740,6 +737,24 @@ describe('date of birth detection (cue-gated)', () => {
 
   it('detects a German month-name date', () => {
     expect(only('Geburtsdatum: 12. März 1985.', 'DATE_OF_BIRTH')[0].text).toBe('12. März 1985');
+  });
+
+  it('detects a date after the closed-form "Birthdate" label', () => {
+    // Held-out value — a common form-field label the "date of birth" wording missed.
+    expect(only('Birthdate: 1977-04-19 confirmed.', 'DATE_OF_BIRTH')[0].text).toBe('1977-04-19');
+  });
+
+  it('detects a date after the spaced "Birth date" label', () => {
+    expect(only('Birth date 09/23/1964 at intake.', 'DATE_OF_BIRTH')[0].text).toBe('09/23/1964');
+  });
+
+  it('detects a date after the German "Geburtstag" cue', () => {
+    expect(only('Geburtstag: 14. Juli 1980.', 'DATE_OF_BIRTH')[0].text).toBe('14. Juli 1980');
+  });
+
+  it('does not treat "birthday" as a birth cue (event, not DOB)', () => {
+    // Precision guard: "birthday party" must not turn an adjacent event date into a DOB.
+    expect(only('The office birthday party is on 2025-06-01.', 'DATE_OF_BIRTH')).toHaveLength(0);
   });
 
   it('does not flag an incidental date with no birth cue', () => {

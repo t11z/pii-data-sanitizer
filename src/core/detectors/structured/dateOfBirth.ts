@@ -4,7 +4,9 @@ import type { Span } from '../../types';
 // Plain dates (timestamps, expiry dates, appointments) are intentionally NOT flagged —
 // gating on the cue keeps precision high in logs and tickets full of incidental dates.
 
-const CUE = String.raw`(?:date\s+of\s+birth|d\.?\s*o\.?\s*b\.?|born(?:\s+on)?|geburtsdatum|geboren(?:\s+am)?|geb\.?)`;
+// "birth\s*date" covers the closed "birthdate" and the spaced "birth date" — a
+// ubiquitous form-field label that the "date of birth" wording alone misses.
+const CUE = String.raw`(?:date\s+of\s+birth|birth\s*date|d\.?\s*o\.?\s*b\.?|born(?:\s+on)?|geburtsdatum|geburtstag|geboren(?:\s+am)?|geb\.?)`;
 
 const MONTH_EN = String.raw`(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?`;
 const MONTH_DE = String.raw`(?:januar|februar|m[äa]rz|april|mai|juni|juli|august|september|oktober|november|dezember)`;
