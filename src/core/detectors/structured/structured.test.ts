@@ -167,19 +167,16 @@ describe('IBAN detection', () => {
     expect(isValidIban('XQ12 3456 7890 1234 5678 9012')).toBe(false);
     // Paren-wrapped IBAN body — the failing gap-report shape:
     expect(
-      only(
-        "Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.",
-        'IBAN'
-      )[0].text
+      only("Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.", 'IBAN')[0].text
     ).toBe('AE 07 0331 2345 6789 1234 567');
     // Bracket-wrapped:
     expect(only('Refund IBAN [ZK00 1122 3344 5566 7788] on file.', 'IBAN')[0].text).toBe(
       'ZK00 1122 3344 5566 7788'
     );
     // Colon + paren — real transcripts often stack them ("IBAN: (…)"):
-    expect(
-      only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text
-    ).toBe('XQ12 3456 7890 1234 5678 9012');
+    expect(only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text).toBe(
+      'XQ12 3456 7890 1234 5678 9012'
+    );
     // Plain paren wrap on a strict-invalid IT shape:
     expect(only('Wire IBAN (IT99 X054 2811 1010 0000 0123 456) cleared.', 'IBAN')[0].text).toBe(
       'IT99 X054 2811 1010 0000 0123 456'
@@ -722,6 +719,28 @@ describe('passport detection (cue-gated)', () => {
 
   it('does not flag a following word with no digit as a number', () => {
     expect(only('Passport please bring it tomorrow.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  // Held-out values (absent from the corpus/feed): a 10-char number must be caught,
+  // not silently dropped for exceeding the old 9-char cap. The trailing 10th char
+  // used to leave no `\b` after char 9, so the whole match failed rather than
+  // capturing a prefix — proving this is a length-class fix, not memorization.
+  it('detects a 10-character passport number after an English cue', () => {
+    expect(only('Passport No. Z5T8W2R6Q9 on file.', 'PASSPORT')[0].text).toBe('Z5T8W2R6Q9');
+  });
+
+  it('detects an 11-character passport number after a German cue', () => {
+    expect(only('Reisepass K3M9P1N7B4D vorgelegt.', 'PASSPORT')[0].text).toBe('K3M9P1N7B4D');
+  });
+
+  it('detects a 12-character passport number after a "Passnummer" cue', () => {
+    expect(only('Passnummer AB1234567890 hinterlegt.', 'PASSPORT')[0].text).toBe('AB1234567890');
+  });
+
+  // Precision guard: even with the wider bound, an over-long (13+ char) or
+  // uncued/lowercase token must not be claimed as a passport number.
+  it('does not flag an over-long token beyond the 12-char bound', () => {
+    expect(only('Passport No. ABC1234567890 on file.', 'PASSPORT')).toHaveLength(0);
   });
 });
 
