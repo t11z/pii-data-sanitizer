@@ -742,7 +742,32 @@ describe('date of birth detection (cue-gated)', () => {
     expect(only('Geburtsdatum: 12. März 1985.', 'DATE_OF_BIRTH')[0].text).toBe('12. März 1985');
   });
 
+  it('detects a hyphen-separated numeric date after a birth cue', () => {
+    // Held-out hyphenated day/month-first dates (not the specific "01-15-1995"
+    // that surfaced the gap): a US-style MM-DD-YYYY and a German-cued DD-MM-YYYY.
+    // These match only because the numeric date form now accepts '-' alongside
+    // '.'/'/', so the pass proves the widened separator generalizes rather than
+    // memorizing one value.
+    expect(only('born 12-31-1980 per intake form.', 'DATE_OF_BIRTH')[0].text).toBe('12-31-1980');
+    expect(only('geboren am 3-7-1966 laut Ausweis.', 'DATE_OF_BIRTH')[0].text).toBe('3-7-1966');
+  });
+
+  it('claims a cued hyphen date over the looser PHONE detector', () => {
+    // The date is digit-grouped, so the PHONE detector also matches it; the
+    // higher-confidence DOB span must win overlap resolution so the whole run
+    // is a single DATE_OF_BIRTH and no PHONE false positive leaks through.
+    const spans = detect('Customer (born 08-24-1971) opened a ticket.');
+    expect(spans.filter((s) => s.type === 'DATE_OF_BIRTH')[0].text).toBe('08-24-1971');
+    expect(spans.filter((s) => s.type === 'PHONE')).toHaveLength(0);
+  });
+
   it('does not flag an incidental date with no birth cue', () => {
     expect(only('The incident on 2024-01-15 was reviewed.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
+
+  it('keeps the cue gate for hyphen dates: no cue, no DATE_OF_BIRTH', () => {
+    // Widening the separator must not loosen the cue requirement: a bare
+    // hyphenated date with no birth cue stays out of DATE_OF_BIRTH.
+    expect(only('Maintenance window 03-14-2026 was announced.', 'DATE_OF_BIRTH')).toHaveLength(0);
   });
 });
