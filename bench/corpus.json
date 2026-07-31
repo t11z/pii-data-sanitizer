@@ -1101,6 +1101,28 @@
     ]
   },
   {
+    "text": "DOB on file: 1990-07-22 confirmed by the agent.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1990-07-22"
+      }
+    ]
+  },
+  {
+    "text": "Date of birth recorded as 04/11/1979 in the customer profile.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "04/11/1979"
+      }
+    ]
+  },
+  {
+    "text": "He was born in a small coastal village; the audit on 2024-01-15 found issues.",
+    "entities": []
+  },
+  {
     "text": "The server logged 192.168.0.10 at 2024-03-01 without incident.",
     "entities": [
       {

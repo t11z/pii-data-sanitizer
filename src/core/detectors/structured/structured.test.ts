@@ -167,19 +167,16 @@ describe('IBAN detection', () => {
     expect(isValidIban('XQ12 3456 7890 1234 5678 9012')).toBe(false);
     // Paren-wrapped IBAN body — the failing gap-report shape:
     expect(
-      only(
-        "Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.",
-        'IBAN'
-      )[0].text
+      only("Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.", 'IBAN')[0].text
     ).toBe('AE 07 0331 2345 6789 1234 567');
     // Bracket-wrapped:
     expect(only('Refund IBAN [ZK00 1122 3344 5566 7788] on file.', 'IBAN')[0].text).toBe(
       'ZK00 1122 3344 5566 7788'
     );
     // Colon + paren — real transcripts often stack them ("IBAN: (…)"):
-    expect(
-      only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text
-    ).toBe('XQ12 3456 7890 1234 5678 9012');
+    expect(only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text).toBe(
+      'XQ12 3456 7890 1234 5678 9012'
+    );
     // Plain paren wrap on a strict-invalid IT shape:
     expect(only('Wire IBAN (IT99 X054 2811 1010 0000 0123 456) cleared.', 'IBAN')[0].text).toBe(
       'IT99 X054 2811 1010 0000 0123 456'
@@ -744,5 +741,45 @@ describe('date of birth detection (cue-gated)', () => {
 
   it('does not flag an incidental date with no birth cue', () => {
     expect(only('The incident on 2024-01-15 was reviewed.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
+
+  // The cue and the date are often separated by a short connective phrase in
+  // support prose. Held-out values (dates + phrasings absent from the corpus)
+  // prove the cue binds the date across up to three filler words, not just a
+  // bare colon/space.
+  it('binds a DOB cue across "on file:" filler', () => {
+    expect(only('DOB on file: 1990-07-22 noted.', 'DATE_OF_BIRTH')[0].text).toBe('1990-07-22');
+  });
+
+  it('binds a DOB cue across "recorded as" filler', () => {
+    expect(only('Date of birth recorded as 04/11/1979 in the file.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '04/11/1979'
+    );
+  });
+
+  it('binds a DOB cue across "listed as" filler', () => {
+    expect(only('DOB listed as 22.08.1991 per record.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '22.08.1991'
+    );
+  });
+
+  // Precision guards: the filler run is bounded (≤3 short words, no sentence
+  // punctuation), so a distant date can't be bridged to a far-off cue.
+  it('does not bridge a cue to a date more than three words away', () => {
+    expect(
+      only(
+        'He was born in a small coastal village; the audit on 2024-01-15 found issues.',
+        'DATE_OF_BIRTH'
+      )
+    ).toHaveLength(0);
+  });
+
+  it('does not bridge a cue across a sentence boundary', () => {
+    expect(
+      only(
+        'Customer born. Separately, a meeting was scheduled 05.06.2020 downtown.',
+        'DATE_OF_BIRTH'
+      )
+    ).toHaveLength(0);
   });
 });

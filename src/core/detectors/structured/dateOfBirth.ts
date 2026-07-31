@@ -21,9 +21,19 @@ const DATE = [
   `${DAY}\\.?\\s+${MONTH},?\\s+${YEAR}`,
 ].join('|');
 
-// Cue, then a colon or whitespace, then the date (the date is the trailing capture group
-// so its offset is the match end minus its own length).
-const DOB_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)(${DATE})`, 'gi');
+// Between the cue and the date, support-desk prose commonly slips a short
+// connective phrase: "DOB on file: …", "date of birth recorded as …",
+// "DOB listed as …". Allow up to three short alphabetic filler tokens (each
+// optionally closed by a colon) so the cue still binds the date across them.
+// The bound is deliberately tight — three words, no digits, no sentence
+// punctuation — so the date stays adjacent to its cue and an unrelated date
+// further down the sentence can't be bridged in. The cue gate itself already
+// keeps incidental dates out.
+const FILLER = String.raw`(?:[a-z]{2,10}[\s:]+){0,3}`;
+
+// Cue, then a colon / whitespace / short connective run, then the date (the date
+// is the trailing capture group so its offset is the match end minus its own length).
+const DOB_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+${FILLER})(${DATE})`, 'gi');
 
 export function detectDatesOfBirth(text: string): Span[] {
   const spans: Span[] = [];
