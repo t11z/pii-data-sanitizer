@@ -167,19 +167,16 @@ describe('IBAN detection', () => {
     expect(isValidIban('XQ12 3456 7890 1234 5678 9012')).toBe(false);
     // Paren-wrapped IBAN body — the failing gap-report shape:
     expect(
-      only(
-        "Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.",
-        'IBAN'
-      )[0].text
+      only("Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.", 'IBAN')[0].text
     ).toBe('AE 07 0331 2345 6789 1234 567');
     // Bracket-wrapped:
     expect(only('Refund IBAN [ZK00 1122 3344 5566 7788] on file.', 'IBAN')[0].text).toBe(
       'ZK00 1122 3344 5566 7788'
     );
     // Colon + paren — real transcripts often stack them ("IBAN: (…)"):
-    expect(
-      only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text
-    ).toBe('XQ12 3456 7890 1234 5678 9012');
+    expect(only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text).toBe(
+      'XQ12 3456 7890 1234 5678 9012'
+    );
     // Plain paren wrap on a strict-invalid IT shape:
     expect(only('Wire IBAN (IT99 X054 2811 1010 0000 0123 456) cleared.', 'IBAN')[0].text).toBe(
       'IT99 X054 2811 1010 0000 0123 456'
@@ -635,6 +632,17 @@ describe('phone detection', () => {
     expect(only('Reference 1234567890123 attached.', 'PHONE')).toHaveLength(0); // 13d fused
     expect(only('Account 987654321098765 verified.', 'PHONE')).toHaveLength(0); // 15d fused
   });
+
+  it('rejects a phone-shaped run marked as a case/ticket reference (# / №)', () => {
+    // A '#'/'№' marker makes the digits a case/ticket/order identifier, not a phone.
+    // Held-out numbers, distinct from the SSN-shaped gap case. Once the NATIONAL_ID
+    // detector defers a '#'-marked 3-2-4 run, the phone detector must not pick it up
+    // instead — the marker guard applies to both.
+    expect(only('Case #567-89-1234 closed.', 'PHONE')).toHaveLength(0);
+    expect(only('Reported issue № 12 345 678 by user.', 'PHONE')).toHaveLength(0);
+    // The marker only kills the run it directly precedes: a real phone elsewhere survives.
+    expect(only('Order #100. Call +1 202 555 0142 now.', 'PHONE')[0].text).toBe('+1 202 555 0142');
+  });
 });
 
 describe('credit card beats phone on overlap', () => {
@@ -704,6 +712,24 @@ describe('national id detection', () => {
     // both sides, so the candidate is a slice of a structured ID, not an SSN.
     expect(only('Ticket REF-234-56-7890-2026 attached.', 'NATIONAL_ID')).toHaveLength(0);
     expect(only('Order 234-56-7890-X is queued.', 'NATIONAL_ID')).toHaveLength(0);
+  });
+
+  it('does not flag a 3-2-4 run marked as a case/ticket reference (# / №)', () => {
+    // Held-out, allocation-VALID SSN shapes (they pass isValidSsn) that are only
+    // rejected because a reference marker precedes them — proving the guard is the
+    // '#'/'№' cue, not the number. '#' is the universal support-desk marker for a
+    // case/ticket/order id, so a marked 3-2-4 run is a reference, never an SSN.
+    expect(only('Case #567-89-1234 closed.', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('Ticket #123-45-6789 escalated.', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('Bug № 234-56-7890 reopened.', 'NATIONAL_ID')).toHaveLength(0); // marker + space
+  });
+
+  it('still detects a genuine SSN when # appears elsewhere in the sentence', () => {
+    // The marker only suppresses the run it directly precedes; a real, cued SSN
+    // in the same sentence must survive. Held-out valid number.
+    expect(only('Note #4: employee SSN 345-67-8901 verified.', 'NATIONAL_ID')[0].text).toBe(
+      '345-67-8901'
+    );
   });
 });
 

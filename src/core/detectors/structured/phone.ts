@@ -1,4 +1,5 @@
 import type { Span } from '../../types';
+import { precededByRefMarker } from './refMarker';
 
 // Candidate runs: an optional leading '+', then digits and common separators.
 const PHONE_RE = /(?<![\w+])\+?\d[\d().\-/ ]{5,}\d(?![\w])/g;
@@ -65,6 +66,9 @@ export function detectPhones(text: string): Span[] {
     // Skip digit runs embedded in an alphanumeric identifier (order/ticket/
     // invoice/serial numbers like "ORD-2025-001847-X") — not phone numbers.
     if (fusedToLetters(text, start, end)) continue;
+    // Skip runs marked as a case/ticket/order reference ("Case #567-89-1234",
+    // "№ 12 345 678") — the '#'/'№' marker makes it an identifier, not a phone.
+    if (precededByRefMarker(text, start)) continue;
     spans.push({
       start,
       end,

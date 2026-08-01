@@ -1074,6 +1074,14 @@
     ]
   },
   {
+    "text": "Case #567-89-1234 was closed after review.",
+    "entities": []
+  },
+  {
+    "text": "Ticket № 345-67-8901 escalated to tier 2.",
+    "entities": []
+  },
+  {
     "text": "Traveler passport number L898902C3 was logged at the gate.",
     "entities": [
       {
