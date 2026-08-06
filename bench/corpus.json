@@ -1696,6 +1696,24 @@
     ]
   },
   {
+    "text": "Sarah Manager reviewed the ticket this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Sarah"
+      }
+    ]
+  },
+  {
+    "text": "The escalation was handled by Anna Director yesterday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Anna"
+      }
+    ]
+  },
+  {
     "text": "Maria López (CEO) approved the refund this morning.",
     "entities": [
       {

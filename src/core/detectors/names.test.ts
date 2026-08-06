@@ -233,6 +233,50 @@ describe('backward unknown-cap anchor ("<unknown given> <ext surname>")', () => 
   });
 });
 
+describe('structural role noun after a name is not absorbed as a surname', () => {
+  // "Manager", "Director", "Lead", "Head", "Chief" are real ext-tier census
+  // surnames AND structural role nouns (NON_NAME_WORDS). When one follows a
+  // given name in prose ("Sarah Manager reviewed it"), the DB hit used to let
+  // the chain absorb the role noun and emit a two-token PERSON span. The
+  // chain-extension guard now breaks on any NON_NAME_WORD regardless of DB
+  // membership, so only the real given name is emitted.
+  //
+  // Held out from the fix's corpus cases (Sarah/Anna): the role nouns below
+  // pair with DIFFERENT given names, proving the guard generalizes rather than
+  // memorizing the two benchmarked strings. Uses the FULL committed DB so the
+  // role nouns are genuine ext-tier hits (asserted at the end) — the guard,
+  // not absence from the dictionary, is what stops the absorption.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('emits only the given name, not "<Given> <RoleNoun>"', () => {
+    // All givens are core-tier, so each detects on its own (0.65) once the
+    // guard stops the chain from swallowing the trailing role noun.
+    expect(personsFull('Michael Manager reviewed the ticket.')).toEqual(['Michael']);
+    expect(personsFull('David Director signed the form.')).toEqual(['David']);
+    expect(personsFull('Thomas Lead handled the escalation.')).toEqual(['Thomas']);
+    expect(personsFull('Robert Head confirmed the refund.')).toEqual(['Robert']);
+    expect(personsFull('James Chief approved the request.')).toEqual(['James']);
+  });
+
+  it('still detects a genuine two-token name (guard is noun-specific)', () => {
+    // Same shape, but the second token is a real surname, not a structural
+    // noun — the chain must still extend.
+    expect(personsFull('Michael Anderson reviewed the ticket.')).toContain('Michael Anderson');
+  });
+
+  it('proves the role nouns are genuine ext-tier DB hits (guard, not membership)', () => {
+    for (const noun of ['manager', 'director', 'lead', 'head', 'chief']) {
+      const hit =
+        fullSource.hasGiven(noun, 'Latin') || fullSource.hasFamily(noun, 'Latin');
+      expect(hit, `${noun} should be in the committed DB`).toBe(true);
+    }
+  });
+});
+
 describe('role cue with label colon ("<RoleNoun>: <Name>")', () => {
   // Ticket / log / form prose introduces a name with a label colon after the
   // role noun ("Engineer: Per Aarvik", "Customer: Mary Jones",
