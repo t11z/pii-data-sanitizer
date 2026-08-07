@@ -15,12 +15,15 @@ const DAY = String.raw`\d{1,2}(?:st|nd|rd|th)?`;
 const YEAR = String.raw`\d{2,4}`;
 
 // Date forms: ISO, numeric DD.MM.YYYY / MM/DD/YYYY, "Month D, YYYY", "D Month YYYY",
-// and the German "D. Month YYYY".
+// and the German "D. Month YYYY". The month-name forms join on whitespace OR a
+// dash ("03-Apr-1985"), since dash-joined DD-Mon-YYYY is the standard date form
+// in medical/records contexts (HL7, many EHR exports) alongside the spaced one.
+const JOIN = String.raw`[\s-]+`;
 const DATE = [
   String.raw`\d{4}-\d{1,2}-\d{1,2}`,
   String.raw`\d{1,2}[./]\d{1,2}[./]\d{2,4}`,
-  `${MONTH}\\s+${DAY},?\\s+${YEAR}`,
-  `${DAY}\\.?\\s+${MONTH},?\\s+${YEAR}`,
+  `${MONTH}${JOIN}${DAY},?${JOIN}${YEAR}`,
+  `${DAY}\\.?${JOIN}${MONTH},?${JOIN}${YEAR}`,
 ].join('|');
 
 // Cue, then a colon or whitespace, then the date (the date is the trailing capture group
