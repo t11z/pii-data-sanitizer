@@ -167,19 +167,16 @@ describe('IBAN detection', () => {
     expect(isValidIban('XQ12 3456 7890 1234 5678 9012')).toBe(false);
     // Paren-wrapped IBAN body — the failing gap-report shape:
     expect(
-      only(
-        "Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.",
-        'IBAN'
-      )[0].text
+      only("Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.", 'IBAN')[0].text
     ).toBe('AE 07 0331 2345 6789 1234 567');
     // Bracket-wrapped:
     expect(only('Refund IBAN [ZK00 1122 3344 5566 7788] on file.', 'IBAN')[0].text).toBe(
       'ZK00 1122 3344 5566 7788'
     );
     // Colon + paren — real transcripts often stack them ("IBAN: (…)"):
-    expect(
-      only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text
-    ).toBe('XQ12 3456 7890 1234 5678 9012');
+    expect(only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text).toBe(
+      'XQ12 3456 7890 1234 5678 9012'
+    );
     // Plain paren wrap on a strict-invalid IT shape:
     expect(only('Wire IBAN (IT99 X054 2811 1010 0000 0123 456) cleared.', 'IBAN')[0].text).toBe(
       'IT99 X054 2811 1010 0000 0123 456'
@@ -704,6 +701,24 @@ describe('national id detection', () => {
     // both sides, so the candidate is a slice of a structured ID, not an SSN.
     expect(only('Ticket REF-234-56-7890-2026 attached.', 'NATIONAL_ID')).toHaveLength(0);
     expect(only('Order 234-56-7890-X is queued.', 'NATIONAL_ID')).toHaveLength(0);
+  });
+
+  it('detects an SSN glued to a textual cue label via a hyphen', () => {
+    // Held-out SSN values (none equal to the space-cued case above): the leading
+    // hyphen here separates a *letter* label from a standalone SSN, so it is a
+    // cued SSN, not a slice of a longer number. The '-' abutting a letter must
+    // not trigger the phone-slice guard.
+    expect(only('Dispute for (ssn-078-32-4692) opened.', 'NATIONAL_ID')[0].text).toBe(
+      '078-32-4692'
+    );
+    expect(only('SSN-123-45-6789 verified.', 'NATIONAL_ID')[0].text).toBe('123-45-6789');
+    expect(only('id-256-78-9012 on file.', 'NATIONAL_ID')[0].text).toBe('256-78-9012');
+  });
+
+  it('still rejects a 3-2-4 slice of a longer purely-numeric dashed run', () => {
+    // Held-out numeric run: the hyphen before the 3-2-4 chunk abuts a *digit*, so
+    // the candidate really is a slice of a longer dashed number — keep rejecting.
+    expect(only('Batch 12-345-67-8901 processed.', 'NATIONAL_ID')).toHaveLength(0);
   });
 });
 
