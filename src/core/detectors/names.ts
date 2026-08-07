@@ -670,10 +670,12 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
         const gap2 = after ? text.slice(tokens[k].end, after.start) : '';
         if (after && SINGLE_GAP.test(gap2) && nameLike(after, source, true)) {
           const hit = anyHit(source, after);
-          // Mirror the direct-extension guard: an unknown structural noun after a
-          // particle run ("van der Department", "de la Invoice") must not become a
-          // name part.
-          if (!hit && isNonNameWord(after.text)) break;
+          // Mirror the direct-extension guard: a structural noun after a particle
+          // run ("van der Department", "de la Invoice") must not become a name
+          // part — including the ext-tier structural surnames ("van der Manager",
+          // "de la Director") that are DB hits, so the guard cannot be gated on
+          // `!hit` (see the direct-extension guard below for the full rationale).
+          if (isNonNameWord(after.text)) break;
           if (adjoinsDigit(after, text)) break;
           if (isNumberLabel(after, text)) break;
           if (hit) {
@@ -689,9 +691,18 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
 
       if (nameLike(next, source, allowUnknownCap || dbHits > 0)) {
         const hit = anyHit(source, next);
-        // Don't extend an unknown (non-DB) capitalized token that is a structural
-        // noun — keeps "Customer Service Team" from chaining into a fake name.
-        if (!hit && isNonNameWord(next.text)) break;
+        // Don't extend a capitalized token that is a structural noun — keeps
+        // "Customer Service Team" from chaining into a fake name. The guard is
+        // deliberately NOT gated on `!hit`: several structural nouns
+        // ("Manager", "Director", "Lead", "Head", "Chief") are also real
+        // ext-tier census surnames, so a DB hit does not vouch for them here.
+        // Without this, "Sarah Manager", "Anna Director", "Maria Lead" chain
+        // the role noun in as a surname and emit a two-token PERSON span; with
+        // it the chain stops and the real given name is emitted on its own.
+        // The trade-off (dropping the rare genuine surname "Head" / "Lead")
+        // is the same one NON_NAME_WORDS already makes on the parens and
+        // continuation paths — see roleWords.ts.
+        if (isNonNameWord(next.text)) break;
         if (adjoinsDigit(next, text)) break;
         // Don't absorb a trailing "number" abbreviation ("Priya No. 4471") — the
         // label collides with an ext surname but is not a name part.
