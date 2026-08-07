@@ -2119,5 +2119,27 @@
   {
     "text": "The passport office at desk 12 reopens Monday.",
     "entities": []
+  },
+  {
+    "text": "Customer profile shows born 01-15-1995 on file.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "01-15-1995"
+      }
+    ]
+  },
+  {
+    "text": "Patient chart: DOB 22-11-1978, admitted overnight.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "22-11-1978"
+      }
+    ]
+  },
+  {
+    "text": "Firmware v2024-11-02 shipped to all nodes.",
+    "entities": []
   }
 ]
