@@ -12,12 +12,23 @@ import type { Span } from '../../types';
 const MAC_SEP_RE =
   /(?<![\w:-])[0-9A-Fa-f]{2}([:-])(?:[0-9A-Fa-f]{2}\1){4}[0-9A-Fa-f]{2}(?![\w:-])/g;
 
-// Cisco dot notation: three 4-hex groups separated by dots.
-const MAC_DOT_RE = /(?<![\w.])[0-9A-Fa-f]{4}\.[0-9A-Fa-f]{4}\.[0-9A-Fa-f]{4}(?![\w.])/g;
+// Compact triple-group notation: three 4-hex groups joined by a single
+// consistent '.' (Cisco standard) or '-' (compact hyphenated form). The `\1`
+// backreference forbids a mixed separator, mirroring MAC_SEP_RE.
+//
+// The trailing guard is deliberately narrower than a blanket `(?![\w.-])`: it
+// rejects only a *continuation* of a longer dotted/hyphenated hex run
+// (`.[hex]` / `-[hex]`, e.g. the first three groups of `1122.3344.5566.7788`)
+// while still allowing a sentence-ending separator. A MAC that closes a
+// sentence ("… 1122.3344.5566.") must not be dropped — the old `(?![\w.])`
+// guard swallowed the trailing period and lost the whole address, which then
+// leaked out as a PHONE.
+const MAC_COMPACT_RE =
+  /(?<![\w.-])[0-9A-Fa-f]{4}([.-])[0-9A-Fa-f]{4}\1[0-9A-Fa-f]{4}(?![\w]|[.-][0-9A-Fa-f])/g;
 
 export function detectMacs(text: string): Span[] {
   const spans: Span[] = [];
-  for (const re of [MAC_SEP_RE, MAC_DOT_RE]) {
+  for (const re of [MAC_SEP_RE, MAC_COMPACT_RE]) {
     for (const match of text.matchAll(re)) {
       spans.push({
         start: match.index,
