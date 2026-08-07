@@ -31,7 +31,8 @@ runs **daily** (or on demand) to actively surface gaps the corpus doesn't cover 
 
 1. **Generate (Haiku).** `/self-improve-coverage-generate` writes a synthetic,
    PII-dense **TAC case feed** — support tickets with TAC engineers and customer
-   persons from European, Indian and Persian cultures, plus all six PII types — to
+   persons from European, Indian and Persian cultures, plus all ten PII types
+   (`ALL_PII_TYPES` in `src/core/types.ts`) — to
    `bench/self-improve/generated.json`, with ground-truth labels. **Synthetic data
    only**; nothing real is ever generated.
 2. **Evaluate (deterministic).** `npm run bench:coverage`
@@ -75,6 +76,27 @@ generalizes rather than memorizing the synthetic feed.
 also runs `npm run lint`, `npm run check`, `npm test`, and `npm run build`. A
 self-improvement PR can only be merged once all of these are green.
 
+## PR stewardship
+
+Loop PRs are opened, never merged — and never abandoned. A scheduled Claude
+session (a "Routine", configured outside this repository) shepherds open
+self-improvement work to green:
+
+1. **Scan.** List open PRs/issues labeled `self-improvement` (and `languages`).
+2. **Triage checks.** For each PR with failing or missing checks, pull the
+   failing job logs and the PR diff into context.
+3. **Fix forward.** Push the smallest corrective commit to the PR branch under
+   the same guardrails as the loops themselves (never touch `bench/proven/`,
+   full gate green, additive/corrective only). If a fix would violate a
+   guardrail, comment the blocker on the PR instead of forcing it.
+4. **Report.** Leave at most one status comment per visit (checks re-run, fix
+   pushed, or human attention needed) — no comment spam.
+5. **Never merges.** Merging stays a human decision, same as every loop.
+
+The Routine authenticates with its own credentials; nothing in this repo's
+workflows depends on it. If it is off, the loops still work — PRs just wait
+for a human instead.
+
 ## Case study: a real gap → fix cycle
 
 The loop is not a demo — it ships. A worked example from the discovery layer
@@ -114,6 +136,21 @@ simply don't authenticate; a maintainer can also trigger them manually via
 The discovery workflow additionally needs `issues: write` permission (already set
 in `self-improve-coverage.yml`) so it can create and label the issue. It reuses the
 same `CLAUDE_CODE_OAUTH_TOKEN` — no extra secret is required.
+
+Optionally add a `SELF_IMPROVE_PAT` repository secret — a fine-grained personal
+access token scoped to this repository with **Contents: Read and write**,
+**Pull requests: Read and write**, and **Issues: Read and write** (Metadata: Read
+is implied). The loop workflows use it for the checkout (branch pushes) and for
+`gh` (issue/PR creation). Why: GitHub suppresses `pull_request`/`push` workflow
+runs for events created with the default `GITHUB_TOKEN`, so without the PAT the
+loops' PRs get **no CI and no security review** until a maintainer re-triggers
+them (push to the branch, or close/reopen). With the PAT, `ci.yml` and the
+security pr-review run automatically — as the PAT owner. The workflows fall back
+to `GITHUB_TOKEN` when the secret is absent, so nothing breaks without it.
+Caveat: a fix PR that itself modifies `.github/workflows/` would additionally
+require the token to have workflow permissions; the loops normally touch only
+`src/`, `bench/corpus.json`, and `scripts/`, and rejecting workflow edits is a
+welcome guard rather than a problem.
 
 ## Security review
 
