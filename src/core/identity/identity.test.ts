@@ -129,6 +129,55 @@ describe('email-adjacency anchor for OOV names', () => {
     // multi-token chain so a city/label next to a person email never fires.
     expect(persons('Eldorin (eldorin.v@example.com) emailed.')).toEqual([]);
   });
+
+  // Single-segment shape ("<name>@" with no initial). Held-out values —
+  // `mirosław`, `szachniewicz`, `öystein`, `kacperowicz`, `grębowicz` — are
+  // absent from the small `source()` above AND from the full committed
+  // dictionary, so only the diacritic-tell anchor path can admit these chains.
+  it('admits a 2-token OOV chain when a diacritic-bearing token and single-segment email align', () => {
+    // "mirosław" folds to "miroslaw" (Latin ł→l) and matches "Mirosław"; the ł
+    // in the chain is the non-English tell that the diacritic gate keys on.
+    expect(
+      persons('Trace looped back. Mirosław Szachniewicz (miroslaw@example.pl) debugged.')
+    ).toEqual(['Mirosław Szachniewicz']);
+  });
+
+  it('admits the single-segment shape when the local-part matches the surname', () => {
+    // Same shape, but the matching token is the family name; the diacritic tell
+    // lives on the given name (Ö), which still satisfies the "any chain token
+    // has a diacritic" gate.
+    expect(persons('Öystein Kacperowicz (kacperowicz@example.pl) escalated.')).toEqual([
+      'Öystein Kacperowicz',
+    ]);
+  });
+
+  it('admits the single-segment shape across bracket variants and with a preceding role cue', () => {
+    // The role-abbr prefix ("Sr. Eng.") is orthogonal to the anchor; the chain
+    // still admits solely because the diacritic + single-segment email align.
+    expect(
+      persons('Sr. Eng. Łukasz Grębowicz [grebowicz@example.pl] reviewed the case.')
+    ).toEqual(['Łukasz Grębowicz']);
+  });
+
+  it('does NOT anchor on the diacritic + short-common-noun chain (e.g. "Café Rouge")', () => {
+    // Chain has a diacritic (é in Café) and the single-segment local-part
+    // matches "cafe", but the other chain token ("Rouge", 5 chars) is a short
+    // common noun; the ≥6-char non-matched-length gate blocks the brand shape.
+    expect(persons('Café Rouge (cafe@caferouge.com) confirmed the reservation.')).toEqual([]);
+  });
+
+  it('does NOT anchor when the chain has no diacritic (ASCII brand pair)', () => {
+    // "Novak" / "Peterson" are absent from this test's small source, both ASCII,
+    // no diacritic anywhere in the chain — the single-segment path declines so
+    // the same shape ("Ford Motor (ford@...)") never turns a brand into a person.
+    expect(persons('Novak Peterson (novak@example.com) responded.')).toEqual([]);
+  });
+
+  it("does NOT anchor when the single-segment local-part matches no chain token", () => {
+    // The local-part is a full word but doesn't align with either chain token
+    // (surface or folded), so the anchor never fires even with a diacritic.
+    expect(persons('Öystein Kacperowicz (janusz@example.pl) escalated.')).toEqual([]);
+  });
 });
 
 describe('identity grouping', () => {
