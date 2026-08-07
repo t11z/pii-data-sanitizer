@@ -223,6 +223,27 @@ function adjoinsDigit(token: Token, text: string): boolean {
   const next = text.charCodeAt(token.end);
   return next >= 48 && next <= 57;
 }
+/**
+ * The "number" abbreviation — "No."/"Nr." (trailing dot) and the ordinal
+ * ligatures "Nº"/"N°" — as it appears in support / KYC / CRM prose: "Passport
+ * No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº 7788". The tokenizer keeps the
+ * letters as a standalone capitalized token, and because "No"/"Nr" *also* sit in
+ * the long-tail ext surname list (Korean/Vietnamese "No", …), the chain detector
+ * reads the label as a real surname and drags the preceding structural noun
+ * ("Passport", "Account", "Serial") in with it — a whole class of false PERSON
+ * spans ("Passport No", "Account Nr"). Recognising the abbreviation structurally
+ * — the letters immediately followed by '.', or the °-ligature form — blocks the
+ * class without touching the dictionary. A genuine "No"/"Nr" *surname* is written
+ * without the abbreviation dot ("Kevin No called"), so it still detects; only the
+ * rare surname sitting sentence-final directly before a '.' is given up, an
+ * acceptable trade under the precision-first rule.
+ */
+function isNumberLabel(token: Token, text: string): boolean {
+  if (token.script !== 'Latin') return false;
+  const l = token.text.toLowerCase();
+  if ((l === 'no' || l === 'nr') && text.charCodeAt(token.end) === 46 /* '.' */) return true;
+  return l === 'nº' || l === 'n°';
+}
 // Whitespace plus an optional abbreviation dot, so "Dr. Smith" (the common form)
 // gets the title boost — not just "Dr Smith". Never spans a line break.
 const TITLE_GAP = /^[^\S\n\r]*\.?[^\S\n\r]*$/;
@@ -295,6 +316,7 @@ function nameContinuation(tokens: Token[], i: number, text: string): boolean {
   if (!isCapitalized(next.text) && !particleHyphenName(next) && !particleApostropheName(next))
     return false;
   if (adjoinsDigit(next, text)) return false;
+  if (isNumberLabel(next, text)) return false;
   // A short ALL-CAPS continuation is an acronym label (the "Tech ID" / "Sales QA"
   // shape), not a corroborating second name part — never let it rescue an
   // otherwise-weak ext-tier sentence-start anchor.
@@ -337,6 +359,7 @@ function knownNameAfter(tokens: Token[], i: number, source: NameSource, text: st
   if (!isCapitalized(next.text) && !particleHyphenName(next) && !particleApostropheName(next))
     return false;
   if (adjoinsDigit(next, text)) return false;
+  if (isNumberLabel(next, text)) return false;
   if (isLikelyAcronym(next.text)) return false;
   if (isNonNameWord(next.text) || isRoleWord(next.text) || isTitle(next.text)) return false;
   if (!anyHit(source, next)) return false;
@@ -357,6 +380,9 @@ function nameStart(
   // Structured-identifier prefix fused with a digit run ("XR250", "CZ6508"):
   // never a person name, even if it happens to match the dictionary.
   if (adjoinsDigit(tok, text)) return null;
+  // The "number" abbreviation ("No."/"Nr."/"Nº") is a structural label, never a
+  // name anchor — even though "No"/"Nr" collide with ext-tier surnames.
+  if (isNumberLabel(tok, text)) return null;
 
   // A token can be either the tail of a name span OR a title/role cue for the
   // next candidate — never both at once. Many honorifics coincide with common
@@ -649,6 +675,7 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
           // name part.
           if (!hit && isNonNameWord(after.text)) break;
           if (adjoinsDigit(after, text)) break;
+          if (isNumberLabel(after, text)) break;
           if (hit) {
             dbHits++;
             tiers.push(tierOf(source, after));
@@ -666,6 +693,9 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
         // noun — keeps "Customer Service Team" from chaining into a fake name.
         if (!hit && isNonNameWord(next.text)) break;
         if (adjoinsDigit(next, text)) break;
+        // Don't absorb a trailing "number" abbreviation ("Priya No. 4471") — the
+        // label collides with an ext surname but is not a name part.
+        if (isNumberLabel(next, text)) break;
         if (hit) {
           dbHits++;
           tiers.push(tierOf(source, next));

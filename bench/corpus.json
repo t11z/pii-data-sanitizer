@@ -2045,5 +2045,35 @@
   {
     "text": "Vitya d'Zzuk requested a refund.",
     "entities": []
+  },
+  {
+    "text": "Passport No. A2B4D7K9 provided by the customer for verification.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "A2B4D7K9"
+      }
+    ]
+  },
+  {
+    "text": "Account No. 4471-AA was flagged for review.",
+    "entities": []
+  },
+  {
+    "text": "Serial Nº 7788 was recorded at intake.",
+    "entities": []
+  },
+  {
+    "text": "Docket Nr. 55-01 was escalated to the team.",
+    "entities": []
+  },
+  {
+    "text": "Kevin No called about the outage this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Kevin No"
+      }
+    ]
   }
 ]

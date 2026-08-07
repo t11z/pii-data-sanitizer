@@ -288,6 +288,55 @@ describe('backward unknown-cap anchor ("<unknown given> <ext surname>")', () => 
   });
 });
 
+describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
+  // Support / KYC / CRM prose labels an identifier with the "number"
+  // abbreviation — "Passport No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº
+  // 7788". "No"/"Nr" also sit in the long-tail ext surname list (Korean/
+  // Vietnamese "No"), so the backward unknown-cap anchor read the abbreviation
+  // as a surname and dragged the preceding structural noun in with it, emitting
+  // a false PERSON span ("Passport No", "Account Nr"). The fix recognises the
+  // abbreviation structurally (letters + trailing '.', or the °-ligature), never
+  // by dictionary membership.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not read a "<Label> No./Nr./Nº <id>" abbreviation as a name', () => {
+    // Held-out label nouns (none is a name) prove the guard generalizes beyond
+    // the one "Passport No." case that surfaced it.
+    expect(personsFull('Passport No. A2B4D7K9 provided by customer.')).toHaveLength(0);
+    expect(personsFull('Account No. 4471-AA on file.')).toHaveLength(0);
+    expect(personsFull('Serial No. ZQ8871 reported by the team.')).toHaveLength(0);
+    expect(personsFull('Docket Nr. 55-01 was escalated.')).toHaveLength(0);
+    expect(personsFull('Reference Nº 7788 pending review.')).toHaveLength(0);
+  });
+
+  it('does not absorb a trailing number label into a real name chain', () => {
+    // The label follows a genuine given name; only the name must survive.
+    expect(personsFull('Customer Priya No. 4471 was verified.')).not.toContain('Priya No');
+  });
+
+  it('still detects a real "No" surname when it is not the abbreviation', () => {
+    // No trailing dot → the ext-tier surname "No" is a real name part, so the
+    // guard leaves the chain intact. Held out from the DB: "Kevin" is core, the
+    // detection rides on the "<given> <ext surname>" chain, not on this rule.
+    expect(personsFull('Kevin No called about the outage.')).toContain('Kevin No');
+  });
+
+  it('proves the label nouns are absent from the DB and "No" is a real ext surname', () => {
+    // The guard is structural, not vocabulary: the label nouns are NOT in the
+    // committed dictionary, so a surviving span could only come from "No"/"Nr"
+    // being read as the ext surname it genuinely is.
+    for (const w of ['passport', 'account', 'serial', 'docket', 'reference']) {
+      expect(fullSource.hasGiven(w, 'Latin'), `${w} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(w, 'Latin'), `${w} should be out-of-DB`).toBe(false);
+    }
+    expect(fullSource.matchTier('no', 'Latin')).toBe('ext');
+  });
+});
+
 describe('role cue with label colon ("<RoleNoun>: <Name>")', () => {
   // Ticket / log / form prose introduces a name with a label colon after the
   // role noun ("Engineer: Per Aarvik", "Customer: Mary Jones",
