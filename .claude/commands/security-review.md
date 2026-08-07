@@ -17,9 +17,12 @@ It is better to miss a theoretical issue than to flood the report with noise.
 ## Scope
 
 - **Default (PR review):** review only the changes in the current pull request.
-  Determine the diff with
-  `git diff --merge-base origin/${BASE_REF:-main}...HEAD` (fall back to
-  `git diff origin/main...HEAD`). Do **not** flag pre-existing issues outside the diff.
+  Determine the diff with `git diff "origin/${BASE_REF:-main}...HEAD"` — the
+  three-dot form already diffs from the merge base, and the workflow fetches the
+  base ref before this command runs. (Do not add `--merge-base`: combining it
+  with a range is a fatal git error.) If that fails, fall back to
+  `git merge-base "origin/${BASE_REF:-main}" HEAD` and
+  `git diff <merge-base> HEAD`. Do **not** flag pre-existing issues outside the diff.
 - **`--full` (weekly full scan):** review the whole repository, prioritising code
   changed in the last 7 days (`git log --since="7 days ago"`). Concentrate on
   `src/` (detectors, rendering), `scripts/build-db/` (name-DB ingestion/build),

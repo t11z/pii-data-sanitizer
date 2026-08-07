@@ -6,12 +6,17 @@ const PHONE_RE = /(?<![\w+])\+?\d[\d().\-/ ]{5,}\d(?![\w])/g;
 const ID_CHAR = /[A-Za-z0-9_-]/;
 const LETTER = /[A-Za-z]/;
 
-// ISO-8601 date or the leading date-plus-hour of a timestamp. The candidate
-// regex stops at ':' (not a separator), so a timestamp like
-// "2026-03-17 14:08:51" surfaces as the candidate "2026-03-17 14" — a date,
-// not a phone. No real phone number starts with a YYYY-MM-DD block, so dropping
-// these is safe for genuine numbers.
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}(?:[ T]\d{1,2}(?::\d{2}){0,2})?$/;
+// A date-shaped candidate: YYYY[.-/]MM[.-/]DD (ISO / dotted / slashed) or its
+// DMY/MDY inversion, with an optional trailing sequence number
+// ("invoice 2024.07.10-12", "ref 2024-11-08-7") and the leading date-plus-hour
+// of an ISO timestamp. The PHONE_RE candidate stops at ':' (not a separator),
+// so a timestamp like "2026-03-17 14:08:51" surfaces as "2026-03-17 14" — a
+// date, not a phone. A four-digit block at one end is the tight anchor: real
+// phones with a 4-digit component always sit next to at least one 3+-digit
+// component, never two <=2-digit components, so no genuine phone shares this
+// shape. Dropping these is safe for real numbers.
+const DATE_SHAPE =
+  /^(?:\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}|\d{1,2}[.\-/]\d{1,2}[.\-/]\d{4})(?:[.\-/]\d{1,4})?(?:[ T]\d{1,2}(?::\d{2}){0,2})?$/;
 
 // Closed-class phone-cue words that unambiguously introduce a phone number in
 // support / business prose. Used as one leg of the paren-wrapped bare-run
@@ -124,8 +129,9 @@ export function detectPhones(text: string): Span[] {
       const groups = value.trim().split(/\s+/);
       if (groups.length === 1 || groups[0].length === 4) continue;
     }
-    // Skip ISO dates / timestamps (e.g. "2026-03-17" or "2026-03-17 14").
-    if (ISO_DATE.test(trimmed)) continue;
+    // Skip date-shaped candidates: bare dates, ISO timestamps, and
+    // invoice/case refs suffixed with a short sequence number.
+    if (DATE_SHAPE.test(trimmed)) continue;
     // Skip digit runs embedded in an alphanumeric identifier (order/ticket/
     // invoice/serial numbers like "ORD-2025-001847-X") — not phone numbers.
     if (fusedToLetters(text, start, end)) continue;

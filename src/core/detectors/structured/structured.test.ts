@@ -183,6 +183,74 @@ describe('IBAN detection', () => {
     );
   });
 
+  it('cue-anchored path catches IBANs preceded by an English linking word ("IBAN is/was/number/no./reads")', () => {
+    // Held-out, strict-invalid IBAN-shape values immediately after the cue word
+    // separated by the natural-English linking tokens that support / banking
+    // prose reaches for ("My IBAN is …", "IBAN number: …", "IBAN no. …"). Prior
+    // to the linker extension, the cued path only accepted whitespace, colons,
+    // and opening brackets between cue and shape, so any interposed word broke
+    // the anchor. Each value below is mod-97-invalid so *only* the cue path can
+    // emit — proving the extension actually reaches the safety net rather than
+    // riding the strict path.
+    expect(isValidIban('DE89 3704 0044 0532 0131 00')).toBe(false); // last digit tweaked
+    expect(isValidIban('FR14 2004 1010 0505 0001 3M02 6')).toBe(false);
+    expect(isValidIban('NL91 ABNA 0417 1643 01')).toBe(false);
+    expect(isValidIban('AT61 1900 0000 0003 3708')).toBe(false);
+    expect(isValidIban('ZK00 1122 3344 5566 7788')).toBe(false);
+
+    // "IBAN is X" — the gap-report shape (values held-out from the gap feed):
+    expect(only('My IBAN is DE89 3704 0044 0532 0131 00 today.', 'IBAN')[0].text).toBe(
+      'DE89 3704 0044 0532 0131 00'
+    );
+    // "IBAN was X" — past-tense variant:
+    expect(only('Prior IBAN was FR14 2004 1010 0505 0001 3M02 6 on file.', 'IBAN')[0].text).toBe(
+      'FR14 2004 1010 0505 0001 3M02 6'
+    );
+    // "IBAN number: X" — labelled declaration, mixing linker + colon separator:
+    expect(only('Customer IBAN number: NL91 ABNA 0417 1643 01 verified.', 'IBAN')[0].text).toBe(
+      'NL91 ABNA 0417 1643 01'
+    );
+    // "IBAN no. X" — abbreviation variant:
+    expect(only('Refund IBAN no. AT61 1900 0000 0003 3708 posted.', 'IBAN')[0].text).toBe(
+      'AT61 1900 0000 0003 3708'
+    );
+    // "IBAN reads X" — infrequent but attested in transcription prose:
+    expect(only('IBAN reads ZK00 1122 3344 5566 7788 per invoice.', 'IBAN')[0].text).toBe(
+      'ZK00 1122 3344 5566 7788'
+    );
+  });
+
+  it('cue-anchored path admits # and = declaration separators', () => {
+    // Real-world shorthand: "IBAN #X" (ticket-style ref) and "IBAN=X"
+    // (form-field / URL-query style). The separator class extension must accept
+    // both. Values are held-out strict-invalid shapes.
+    expect(isValidIban('DE89 3704 0044 0532 0131 00')).toBe(false);
+    expect(isValidIban('DE89370400440532013001')).toBe(false);
+    expect(only('Wire IBAN #DE89 3704 0044 0532 0131 00 today.', 'IBAN')[0].text).toBe(
+      'DE89 3704 0044 0532 0131 00'
+    );
+    expect(only('Query IBAN=DE89370400440532013001 logged.', 'IBAN')[0].text).toBe(
+      'DE89370400440532013001'
+    );
+  });
+
+  it('linker separator does not leak on cue word + linker without IBAN shape after it', () => {
+    // Precision guards paralleling the paren/bracket precision test above: the
+    // added linker tokens must not create a new leak surface when no IBAN
+    // shape follows. The shape gate stays load-bearing.
+    expect(only('The IBAN is documented on the wiki for new agents.', 'IBAN')).toHaveLength(0);
+    expect(only('My IBAN was updated last week during the audit.', 'IBAN')).toHaveLength(0);
+    expect(only('The IBAN number is not visible on the invoice.', 'IBAN')).toHaveLength(0);
+    expect(only('IBAN reads correctly today, no action needed.', 'IBAN')).toHaveLength(0);
+    expect(only('IBAN no. issued yet — waiting on treasury.', 'IBAN')).toHaveLength(0);
+    // Linker + short 2-letter+2-digit token that stops before the IBAN body
+    // length requirement (10–30 alphanumeric groups) still must not match.
+    expect(only('IBAN is AB 12 CD noted.', 'IBAN')).toHaveLength(0);
+    // "#" / "=" without a real shape after must also stay silent.
+    expect(only('See IBAN #docs in the runbook.', 'IBAN')).toHaveLength(0);
+    expect(only('Header IBAN=redacted per policy.', 'IBAN')).toHaveLength(0);
+  });
+
   it('bracket separator does not leak on cue word without IBAN shape after it', () => {
     // Precision guards: `IBAN` followed by an opening bracket must still emit
     // nothing when the bracket does not enclose a real IBAN shape. Same guard
@@ -488,6 +556,42 @@ describe('MAC detection', () => {
     expect(only('bad 00:1A-2B:3C:4D:5E here', 'MAC')).toHaveLength(0);
   });
 
+  // Held-out values (not in any corpus/gap case): prove the compact-triple-group
+  // heuristic generalizes rather than memorizing the specific gap addresses.
+  it('detects a hyphenated compact (triple-group) MAC', () => {
+    const spans = only('filter applied to de1f-2a3b-4c5d online', 'MAC');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('de1f-2a3b-4c5d');
+  });
+
+  it('detects a Cisco dot-notation MAC that ends a sentence', () => {
+    // The trailing period is sentence punctuation, not part of the address; the
+    // old `(?![\w.])` guard swallowed it and dropped the whole MAC.
+    const spans = only('Isolated port with MAC 9c8d.7e6f.5a4b.', 'MAC');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('9c8d.7e6f.5a4b');
+  });
+
+  it('detects a hyphenated compact MAC that ends a sentence', () => {
+    const spans = only('Reinstalled adapter de1f-2a3b-4c5d.', 'MAC');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('de1f-2a3b-4c5d');
+  });
+
+  it('does not match a fragment of a longer dotted hex run', () => {
+    // A four-group run is not a valid triple-group MAC; grabbing the first
+    // three groups would be a false positive.
+    expect(only('checksum 1234.5678.9abc.def0 stored', 'MAC')).toHaveLength(0);
+  });
+
+  it('does not match a fragment of a longer hyphenated hex run', () => {
+    expect(only('serial de1f-2a3b-4c5d-6e7f logged', 'MAC')).toHaveLength(0);
+  });
+
+  it('rejects a compact triple-group with mixed dot/hyphen separators', () => {
+    expect(only('bad de1f.2a3b-4c5d here', 'MAC')).toHaveLength(0);
+  });
+
   it('does not flag a bare 12-hex run without separators', () => {
     expect(only('token 001A2B3C4D5E issued', 'MAC')).toHaveLength(0);
   });
@@ -530,6 +634,34 @@ describe('phone detection', () => {
       only('The incident started on 2026-03-17 and was resolved later.', 'PHONE')
     ).toHaveLength(0);
     expect(only('Logged at 2026-03-17 09:15 UTC for review.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('does not flag date-shaped invoice / case references as a phone number', () => {
+    // Beyond the ISO-only form, real-world refs use dotted or slashed dates
+    // ("invoice 2024.07.10-12", "case 2026/01/22-3") and DMY / MDY inversions
+    // ("14.03.2025-08", "08/22/2024-3"), sometimes with a trailing sequence
+    // number. Held-out separator/orientation/sequence combinations (distinct
+    // from the ISO-dash case above) prove the guard is structural — the
+    // shape "4-digit year block + two <=2-digit blocks (± trailing seq)" —
+    // and generalizes to any date orientation the source engineer might use.
+    expect(only('invoice 2024.07.10-12 shows wrong amount', 'PHONE')).toHaveLength(0);
+    expect(only('case 2026/01/22-3 pending review.', 'PHONE')).toHaveLength(0);
+    expect(only('ref 2024-11-08-7 overdue.', 'PHONE')).toHaveLength(0);
+    expect(only('batch 14.03.2025-08 released.', 'PHONE')).toHaveLength(0);
+    expect(only('contract 08/22/2024-3 open.', 'PHONE')).toHaveLength(0);
+    expect(only('Meeting on 2025.03.14 was rescheduled.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('still detects real phones whose surrounding prose contains a date', () => {
+    // Precision guard for the widened date-shape reject: adding dotted /
+    // slashed / trailing-sequence date shapes to the guard must NOT swallow
+    // a real phone that happens to share a line with a date.
+    const spans1 = only('On 2024.07.10 the customer called +81 3-6205-4000.', 'PHONE');
+    expect(spans1).toHaveLength(1);
+    expect(spans1[0].text).toBe('+81 3-6205-4000');
+    const spans2 = only('Case 2026/01/22-3 — reach +33 1 42 68 53 00 today.', 'PHONE');
+    expect(spans2).toHaveLength(1);
+    expect(spans2[0].text).toBe('+33 1 42 68 53 00');
   });
 
   it('keeps a real phone in a line that also has an order number', () => {
