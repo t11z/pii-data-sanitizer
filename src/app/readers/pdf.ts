@@ -6,12 +6,15 @@ export async function extractPdfText(buf: ArrayBuffer): Promise<string> {
   // Same-origin, bundled worker — never a CDN, so nothing leaves the device.
   pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
-  const doc = await pdfjs.getDocument({
+  // pdfjs-dist v6 moved destroy() from the resolved PDFDocumentProxy onto the
+  // loading task itself, so the task handle must be kept around for cleanup.
+  const loadingTask = pdfjs.getDocument({
     data: new Uint8Array(buf),
     // WASM is only used for image decoding, which text extraction never does.
     // Disabling it keeps the strict CSP (script-src 'self', no wasm-unsafe-eval).
     useWasm: false,
-  }).promise;
+  });
+  const doc = await loadingTask.promise;
 
   try {
     const pages: string[] = [];
@@ -22,7 +25,7 @@ export async function extractPdfText(buf: ArrayBuffer): Promise<string> {
     }
     return pages.join('\n\n').trim();
   } finally {
-    await doc.destroy();
+    await loadingTask.destroy();
   }
 }
 
