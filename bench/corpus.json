@@ -1930,5 +1930,27 @@
   {
     "text": "The batch was staged on 17-Nov-1990 for release.",
     "entities": []
+  },
+  {
+    "text": "New registration confirmed for order@bücher-store.example about the shipment.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "text": "order@bücher-store.example"
+      }
+    ]
+  },
+  {
+    "text": "Escalation reply from support@lékárna-praha.cz mentions the follow-up ticket.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "text": "support@lékárna-praha.cz"
+      }
+    ]
+  },
+  {
+    "text": "See details at mention@café.münchen printed on the sign outside.",
+    "entities": []
   }
 ]
