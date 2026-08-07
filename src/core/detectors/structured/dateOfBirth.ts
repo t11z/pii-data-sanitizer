@@ -4,7 +4,9 @@ import type { Span } from '../../types';
 // Plain dates (timestamps, expiry dates, appointments) are intentionally NOT flagged —
 // gating on the cue keeps precision high in logs and tickets full of incidental dates.
 
-const CUE = String.raw`(?:date\s+of\s+birth|d\.?\s*o\.?\s*b\.?|born(?:\s+on)?|geburtsdatum|geboren(?:\s+am)?|geb\.?)`;
+// "birth\s*date" covers the closed "birthdate" and the spaced "birth date" — a
+// ubiquitous form-field label that the "date of birth" wording alone misses.
+const CUE = String.raw`(?:date\s+of\s+birth|birth\s*date|d\.?\s*o\.?\s*b\.?|born(?:\s+on)?|geburtsdatum|geburtstag|geboren(?:\s+am)?|geb\.?)`;
 
 const MONTH_EN = String.raw`(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?`;
 const MONTH_DE = String.raw`(?:januar|februar|m[äa]rz|april|mai|juni|juli|august|september|oktober|november|dezember)`;
@@ -12,13 +14,28 @@ const MONTH = `(?:${MONTH_EN}|${MONTH_DE})`;
 const DAY = String.raw`\d{1,2}(?:st|nd|rd|th)?`;
 const YEAR = String.raw`\d{2,4}`;
 
-// Date forms: ISO, numeric DD.MM.YYYY / MM/DD/YYYY, "Month D, YYYY", "D Month YYYY",
-// and the German "D. Month YYYY".
+// Date forms: ISO, numeric day/month-first DD.MM.YYYY / MM-DD-YYYY / DD/MM/YY,
+// "Month D, YYYY", "D Month YYYY", and the German "D. Month YYYY".
+//
+// The day/month-first numeric form accepts '-', '.', or '/' as the separator.
+// Hyphenated numeric dates ("born 01-15-1995") are as common in prose as
+// dotted ones, and without '-' here they slip past DOB and get swept up by the
+// looser PHONE detector instead. Year-first ISO dates keep their own dedicated
+// alternative (listed first, so it wins); a day/month-first run can never
+// match an ISO date because a 4-digit year cannot satisfy the leading \d{1,2}.
+//
+// The month-name forms join on whitespace OR a dash ("03-Apr-1985"), since
+// dash-joined DD-Mon-YYYY is the standard date form in medical/records
+// contexts (HL7, many EHR exports) alongside the spaced one.
+//
+// Precision is held by the birth cue, which every date form is gated behind —
+// a bare "01-15-1995" or "03-Apr-1985" with no cue is still ignored.
+const JOIN = String.raw`[\s-]+`;
 const DATE = [
   String.raw`\d{4}-\d{1,2}-\d{1,2}`,
-  String.raw`\d{1,2}[./]\d{1,2}[./]\d{2,4}`,
-  `${MONTH}\\s+${DAY},?\\s+${YEAR}`,
-  `${DAY}\\.?\\s+${MONTH},?\\s+${YEAR}`,
+  String.raw`\d{1,2}[-./]\d{1,2}[-./]\d{2,4}`,
+  `${MONTH}${JOIN}${DAY},?${JOIN}${YEAR}`,
+  `${DAY}\\.?${JOIN}${MONTH},?${JOIN}${YEAR}`,
 ].join('|');
 
 // Between the cue and the date, support-desk prose commonly slips a short

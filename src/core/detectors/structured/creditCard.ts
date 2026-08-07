@@ -1,6 +1,26 @@
 import type { Span } from '../../types';
+import { IBAN_LENGTH_BY_COUNTRY } from './iban';
 
 const CARD_RE = /(?<![\w-])\d(?:[ -]?\d){12,18}(?![\w-])/g;
+
+// A CC candidate that immediately follows a printed IBAN's first group is a
+// substring of an IBAN body, not a payment card. When the IBAN itself fails
+// mod-97 / country-length (mis-keyed, OCR-corrupted, non-standard groupings),
+// no IBAN span emits and the overlap resolver cannot shield the cascade FP —
+// see `bench/corpus.json` for the cued-IBAN companion cases where the IBAN
+// span DOES emit and shielding works. This guard closes the uncued class:
+// an ISO IBAN country code followed by its check digits (and optionally the
+// first BBAN chars) up to a separator, immediately before the candidate.
+// The letters must belong to `IBAN_LENGTH_BY_COUNTRY` so arbitrary 2-letter
+// prefixes ("ISO9001 …", "PO12345 …") are not affected.
+const IBAN_PREFIX_LOOKBACK = 12;
+function precededByIbanBodyPrefix(text: string, start: number): boolean {
+  const lookback = Math.max(0, start - IBAN_PREFIX_LOOKBACK);
+  const before = text.slice(lookback, start);
+  const match = before.match(/(?:^|[^A-Za-z0-9])([A-Z]{2})\d{2,4}[ -]$/);
+  if (!match) return false;
+  return match[1] in IBAN_LENGTH_BY_COUNTRY;
+}
 
 /** Luhn (mod-10) checksum. */
 export function isValidLuhn(digits: string): boolean {
@@ -59,6 +79,7 @@ export function detectCreditCards(text: string): Span[] {
     const grouped = /[ -]/.test(value);
     if (!grouped && digits.length !== 15 && digits.length !== 16) continue;
     if (grouped && !hasNetworkGrouping(value)) continue;
+    if (precededByIbanBodyPrefix(text, match.index)) continue;
     spans.push({
       start: match.index,
       end: match.index + value.length,
