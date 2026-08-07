@@ -41,17 +41,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # PAT (when configured) so branches pushed by the loop trigger CI on
+          # the resulting PR — GitHub suppresses workflow runs for pushes/PRs
+          # made with the default GITHUB_TOKEN. Falls back to the default token
+          # when the SELF_IMPROVE_PAT secret is absent (the loop still works,
+          # but CI must be re-triggered manually on its PRs).
+          token: ${{ secrets.SELF_IMPROVE_PAT || github.token }}
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
       - run: npm ci
 
+      # bench/self-improve/ is git-ignored, so it doesn't exist on a fresh
+      # checkout. Write and the evaluator create it on demand; this makes the
+      # guarantee explicit instead of relying on tool internals.
+      - name: Ensure discovery scratch dir exists
+        run: mkdir -p bench/self-improve
+
       - name: Generate synthetic TAC case feed (Haiku)
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: '--model claude-haiku-4-5-20251001'
+          # Haiku: generation is cheap bulk text with a strict output contract —
+          # no deep reasoning needed. Alias (not a dated snapshot) so the pin
+          # tracks the current Haiku instead of silently aging out.
+          claude_args: '--model claude-haiku-4-5'
           prompt: '/self-improve-coverage-generate ${{ github.event.inputs.focus }}'
 
       - name: Evaluate coverage gaps
@@ -61,5 +77,13 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          claude_args: '--model claude-opus-4-7'
+          # Same PAT-or-default logic as the checkout: gh (issue/PR creation)
+          # inside the action authenticates with this token, and PRs created
+          # with the default GITHUB_TOKEN would not trigger ci.yml or the
+          # security review. The generate step above stays on the default token
+          # on purpose — it only writes a local file (least privilege).
+          github_token: ${{ secrets.SELF_IMPROVE_PAT || github.token }}
+          # Current Opus for root-cause analysis + the code change (the strongest
+          # reviewed model; claude-opus-4-7 was the previous-generation pin).
+          claude_args: '--model claude-opus-4-8'
           prompt: '/self-improve-coverage ${{ github.event.inputs.focus }}'
