@@ -1566,6 +1566,41 @@
     ]
   },
   {
+    "text": "TAC #7301 — Mirosław Szachniewicz (miroslaw@example.pl) requested a refund.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Mirosław Szachniewicz"
+      },
+      {
+        "type": "EMAIL",
+        "text": "miroslaw@example.pl"
+      }
+    ]
+  },
+  {
+    "text": "Customer Öystein Kacperowicz (kacperowicz@example.pl) escalated the case.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Öystein Kacperowicz"
+      },
+      {
+        "type": "EMAIL",
+        "text": "kacperowicz@example.pl"
+      }
+    ]
+  },
+  {
+    "text": "Café Rouge (cafe@caferouge.com) confirmed the reservation.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "text": "cafe@caferouge.com"
+      }
+    ]
+  },
+  {
     "text": "Vendor support: Rajesh Kumar called from +91 98765 43210. Tech QXR: BUILD-7.5.0-alpha attached.",
     "entities": [
       {
