@@ -1791,5 +1791,31 @@
   {
     "text": "My IBAN was updated last week during the compliance audit.",
     "entities": []
+  },
+  {
+    "text": "Customer complaint from Raj Kumar-Singh: invoice 2024.07.10-12 shows wrong amount.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Raj Kumar-Singh"
+      }
+    ]
+  },
+  {
+    "text": "Case 2026/01/22-3 pending; reach the customer at +33 1 42 68 53 00 today.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+33 1 42 68 53 00"
+      }
+    ]
+  },
+  {
+    "text": "Batch 14.03.2025-08 released overnight.",
+    "entities": []
+  },
+  {
+    "text": "Ref 2024-11-08-7 overdue per policy.",
+    "entities": []
   }
 ]

@@ -639,6 +639,34 @@ describe('phone detection', () => {
     expect(only('Logged at 2026-03-17 09:15 UTC for review.', 'PHONE')).toHaveLength(0);
   });
 
+  it('does not flag date-shaped invoice / case references as a phone number', () => {
+    // Beyond the ISO-only form, real-world refs use dotted or slashed dates
+    // ("invoice 2024.07.10-12", "case 2026/01/22-3") and DMY / MDY inversions
+    // ("14.03.2025-08", "08/22/2024-3"), sometimes with a trailing sequence
+    // number. Held-out separator/orientation/sequence combinations (distinct
+    // from the ISO-dash case above) prove the guard is structural — the
+    // shape "4-digit year block + two <=2-digit blocks (± trailing seq)" —
+    // and generalizes to any date orientation the source engineer might use.
+    expect(only('invoice 2024.07.10-12 shows wrong amount', 'PHONE')).toHaveLength(0);
+    expect(only('case 2026/01/22-3 pending review.', 'PHONE')).toHaveLength(0);
+    expect(only('ref 2024-11-08-7 overdue.', 'PHONE')).toHaveLength(0);
+    expect(only('batch 14.03.2025-08 released.', 'PHONE')).toHaveLength(0);
+    expect(only('contract 08/22/2024-3 open.', 'PHONE')).toHaveLength(0);
+    expect(only('Meeting on 2025.03.14 was rescheduled.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('still detects real phones whose surrounding prose contains a date', () => {
+    // Precision guard for the widened date-shape reject: adding dotted /
+    // slashed / trailing-sequence date shapes to the guard must NOT swallow
+    // a real phone that happens to share a line with a date.
+    const spans1 = only('On 2024.07.10 the customer called +81 3-6205-4000.', 'PHONE');
+    expect(spans1).toHaveLength(1);
+    expect(spans1[0].text).toBe('+81 3-6205-4000');
+    const spans2 = only('Case 2026/01/22-3 — reach +33 1 42 68 53 00 today.', 'PHONE');
+    expect(spans2).toHaveLength(1);
+    expect(spans2[0].text).toBe('+33 1 42 68 53 00');
+  });
+
   it('keeps a real phone in a line that also has an order number', () => {
     const spans = only(
       'Order #ORD-2025-001847-X needs review; call +39 02 1234 5678 today.',
