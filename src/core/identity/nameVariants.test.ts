@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { detect, sanitize } from '../index';
-import { nameSourceFromSources } from '../db/fromSources';
+import { nameSourceFromSources, nameSourceFromBuildInputs } from '../db/fromSources';
 
 const nameSource = nameSourceFromSources();
 
@@ -33,6 +33,44 @@ describe('name variants from a detected full name', () => {
 
   it('does not match a variant glued inside a longer word', () => {
     expect(persons(`${heldOut} the zzzqwertzsen file`)).not.toContain('zzzqwertz');
+  });
+
+  it('does not flag an email local part as a person (slug immediately before "@")', () => {
+    // "Orvist Pemberdint" is detected via the "Dr." title; its "orvist.pemberdint"
+    // slug is also the local part of an internal-domain address the email detector
+    // does not match. The local part is owned by the email address, not a second
+    // person mention, so no PERSON span may cover it. Held-out from the DB, so the
+    // guard — not a dictionary hit — is what's under test.
+    const text = 'Dr. Orvist Pemberdint (orvist.pemberdint@internal) approved the change.';
+    expect(persons(text)).toEqual(['Orvist Pemberdint']);
+    expect(persons(text)).not.toContain('orvist.pemberdint');
+  });
+
+  it('guards both slug orders before "@" (given.family and family.given)', () => {
+    const text = 'Prof. Galwyn Fenworth was cc’d as fenworth.galwyn@corp on the thread.';
+    expect(persons(text)).toEqual(['Galwyn Fenworth']);
+    expect(persons(text)).not.toContain('fenworth.galwyn');
+  });
+
+  it('still detects the same slug when it is a URL path part, not an email local part', () => {
+    // Precision guard must not cost recall: the slug in a URL (no trailing "@")
+    // is still a name variant.
+    const text = 'Dr. Orvist Pemberdint. Link: https://x.example.com/u/orvist.pemberdint done.';
+    expect(persons(text)).toContain('orvist.pemberdint');
+  });
+
+  it('proves the email-local-part held-out names are absent from the full DB', () => {
+    const fullSource = nameSourceFromBuildInputs();
+    const heldOutNames: Array<[string, 'Latin']> = [
+      ['orvist', 'Latin'],
+      ['pemberdint', 'Latin'],
+      ['galwyn', 'Latin'],
+      ['fenworth', 'Latin'],
+    ];
+    for (const [word, script] of heldOutNames) {
+      expect(fullSource.hasGiven(word, script), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, script), `${word} should be out-of-DB`).toBe(false);
+    }
   });
 });
 

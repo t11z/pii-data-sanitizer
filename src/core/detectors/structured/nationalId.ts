@@ -1,4 +1,5 @@
 import type { Span } from '../../types';
+import { precededByRefMarker } from './refMarker';
 
 // National identification numbers. Each branch is gated by a structural/checksum
 // rule so a bare digit run is never flagged as an ID on length alone.
@@ -79,6 +80,9 @@ export function detectNationalIds(text: string): Span[] {
     // which is the strongest SSN signal there is — keep it.
     if (before === '-' && /\d/.test(twoBefore)) continue;
     if (after === '-') continue;
+    // Reject case/ticket/order references written as "#567-89-1234" / "№ 567-89-1234":
+    // the marker makes it an identifier, not an SSN.
+    if (precededByRefMarker(text, m.index)) continue;
     spans.push({
       start: m.index,
       end: m.index + m[0].length,

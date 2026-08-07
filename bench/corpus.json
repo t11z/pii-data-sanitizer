@@ -1087,6 +1087,14 @@
     ]
   },
   {
+    "text": "Case #567-89-1234 was closed after review.",
+    "entities": []
+  },
+  {
+    "text": "Ticket № 345-67-8901 escalated to tier 2.",
+    "entities": []
+  },
+  {
     "text": "Traveler passport number L898902C3 was logged at the gate.",
     "entities": [
       {
@@ -1112,6 +1120,50 @@
         "text": "04.07.1968"
       }
     ]
+  },
+  {
+    "text": "Verification note: Birthdate: 1977-04-19 confirmed against the ID scan.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1977-04-19"
+      }
+    ]
+  },
+  {
+    "text": "Form field — Birth date 09/23/1964 — captured at intake.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "09/23/1964"
+      }
+    ]
+  },
+  {
+    "text": "The team booked the office birthday party for 2025-06-01.",
+    "entities": []
+  },
+  {
+    "text": "DOB on file: 1990-07-22 confirmed by the agent.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1990-07-22"
+      }
+    ]
+  },
+  {
+    "text": "Date of birth recorded as 04/11/1979 in the customer profile.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "04/11/1979"
+      }
+    ]
+  },
+  {
+    "text": "He was born in a small coastal village; the audit on 2024-01-15 found issues.",
+    "entities": []
   },
   {
     "text": "The server logged 192.168.0.10 at 2024-03-01 without incident.",
@@ -1579,6 +1631,41 @@
     ]
   },
   {
+    "text": "TAC #7301 — Mirosław Szachniewicz (miroslaw@example.pl) requested a refund.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Mirosław Szachniewicz"
+      },
+      {
+        "type": "EMAIL",
+        "text": "miroslaw@example.pl"
+      }
+    ]
+  },
+  {
+    "text": "Customer Öystein Kacperowicz (kacperowicz@example.pl) escalated the case.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Öystein Kacperowicz"
+      },
+      {
+        "type": "EMAIL",
+        "text": "kacperowicz@example.pl"
+      }
+    ]
+  },
+  {
+    "text": "Café Rouge (cafe@caferouge.com) confirmed the reservation.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "text": "cafe@caferouge.com"
+      }
+    ]
+  },
+  {
     "text": "Vendor support: Rajesh Kumar called from +91 98765 43210. Tech QXR: BUILD-7.5.0-alpha attached.",
     "entities": [
       {
@@ -1709,6 +1796,24 @@
     ]
   },
   {
+    "text": "Sarah Manager reviewed the ticket this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Sarah"
+      }
+    ]
+  },
+  {
+    "text": "The escalation was handled by Anna Director yesterday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Anna"
+      }
+    ]
+  },
+  {
     "text": "Maria López (CEO) approved the refund this morning.",
     "entities": [
       {
@@ -1767,6 +1872,365 @@
       {
         "type": "PERSON",
         "text": "Marco D'Angelo"
+      }
+    ]
+  },
+  {
+    "text": "My IBAN is DE89 3704 0044 0532 0131 00 for the wire.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "DE89 3704 0044 0532 0131 00"
+      }
+    ]
+  },
+  {
+    "text": "Customer IBAN number: NL91 ABNA 0417 1643 01 verified today.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "NL91 ABNA 0417 1643 01"
+      }
+    ]
+  },
+  {
+    "text": "Wire IBAN #DE89 3704 0044 0532 0131 00 today please.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "DE89 3704 0044 0532 0131 00"
+      }
+    ]
+  },
+  {
+    "text": "The IBAN is documented on the wiki for new agents.",
+    "entities": []
+  },
+  {
+    "text": "My IBAN was updated last week during the compliance audit.",
+    "entities": []
+  },
+  {
+    "text": "Customer complaint from Raj Kumar-Singh: invoice 2024.07.10-12 shows wrong amount.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Raj Kumar-Singh"
+      }
+    ]
+  },
+  {
+    "text": "Case 2026/01/22-3 pending; reach the customer at +33 1 42 68 53 00 today.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+33 1 42 68 53 00"
+      }
+    ]
+  },
+  {
+    "text": "Batch 14.03.2025-08 released overnight.",
+    "entities": []
+  },
+  {
+    "text": "Ref 2024-11-08-7 overdue per policy.",
+    "entities": []
+  },
+  {
+    "text": "Please call the desk at (5551234567) tomorrow morning.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "5551234567"
+      }
+    ]
+  },
+  {
+    "text": "Customer contacted us via mobile (4155559876) yesterday.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "4155559876"
+      }
+    ]
+  },
+  {
+    "text": "Reach the on-call at (447700900123) urgently.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "447700900123"
+      }
+    ]
+  },
+  {
+    "text": "Reference (1234567890) logged in the queue.",
+    "entities": []
+  },
+  {
+    "text": "Batch id (0987654321) processed overnight.",
+    "entities": []
+  },
+  {
+    "text": "Refund queued to ES9121 4111 1111 1111 1111 later today; ticket closed.",
+    "entities": []
+  },
+  {
+    "text": "Wire to DE84 4111 1111 1111 1111 tomorrow per Finance.",
+    "entities": []
+  },
+  {
+    "text": "Standard ISO9001 4111 1111 1111 1111 batch reconciled overnight.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "4111 1111 1111 1111"
+      }
+    ]
+  },
+  {
+    "text": "Case #2024-005 forwarded to L2; call +39 02 1234 5678 for follow-up.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+39 02 1234 5678"
+      }
+    ]
+  },
+  {
+    "text": "Ticket #98765-4 escalated after Bug № 555-1234 reproduced on staging.",
+    "entities": []
+  },
+  {
+    "text": "Patient DOB: 03-Apr-1985, admitted for routine checkup.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "03-Apr-1985"
+      }
+    ]
+  },
+  {
+    "text": "The batch was staged on 17-Nov-1990 for release.",
+    "entities": []
+  },
+  {
+    "text": "New registration confirmed for order@bücher-store.example about the shipment.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "text": "order@bücher-store.example"
+      }
+    ]
+  },
+  {
+    "text": "Escalation reply from support@lékárna-praha.cz mentions the follow-up ticket.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "text": "support@lékárna-praha.cz"
+      }
+    ]
+  },
+  {
+    "text": "See details at mention@café.münchen printed on the sign outside.",
+    "entities": []
+  },
+  {
+    "text": "Customer Sven Hajj. Kwargs unreachable in staging.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Sven Hajj"
+      }
+    ]
+  },
+  {
+    "text": "Customer Ines Don. Turnabout requested by legal.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Ines Don"
+      }
+    ]
+  },
+  {
+    "text": "Escalated to Aylin Sayed. Zellwerk failed integration test.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Aylin Sayed"
+      }
+    ]
+  },
+  {
+    "text": "Support note from Priya Rev. Splindley pipeline aborted overnight.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Priya Rev"
+      }
+    ]
+  },
+  {
+    "text": "Support ref contact: Rodríguez.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Rodríguez"
+      }
+    ]
+  },
+  {
+    "text": "José confirmed the shipment yesterday afternoon.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "José"
+      }
+    ]
+  },
+  {
+    "text": "Spanish ref contact: Rodríguez-López.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Rodríguez-López"
+      }
+    ]
+  },
+  {
+    "text": "Não podemos aceitar isso hoje.",
+    "entities": []
+  },
+  {
+    "text": "Está pronto para revisar imediatamente.",
+    "entities": []
+  },
+  {
+    "text": "Vitya d'Eath requested a refund.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Vitya d'Eath"
+      }
+    ]
+  },
+  {
+    "text": "Wojciech l'Anglais arrived this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Wojciech l'Anglais"
+      }
+    ]
+  },
+  {
+    "text": "Vitya d'Zzuk requested a refund.",
+    "entities": []
+  },
+  {
+    "text": "Passport No. A2B4D7K9 provided by the customer for verification.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "A2B4D7K9"
+      }
+    ]
+  },
+  {
+    "text": "Account No. 4471-AA was flagged for review.",
+    "entities": []
+  },
+  {
+    "text": "Serial Nº 7788 was recorded at intake.",
+    "entities": []
+  },
+  {
+    "text": "Docket Nr. 55-01 was escalated to the team.",
+    "entities": []
+  },
+  {
+    "text": "Kevin No called about the outage this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Kevin No"
+      }
+    ]
+  },
+  {
+    "text": "Ticket #77120 — traveler passport number Z5T8W2R6Q9 on file for verification.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "Z5T8W2R6Q9"
+      }
+    ]
+  },
+  {
+    "text": "Reisepass K3M9P1N7B4D vorgelegt und geprüft.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "K3M9P1N7B4D"
+      }
+    ]
+  },
+  {
+    "text": "The passport office at desk 12 reopens Monday.",
+    "entities": []
+  },
+  {
+    "text": "Customer profile shows born 01-15-1995 on file.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "01-15-1995"
+      }
+    ]
+  },
+  {
+    "text": "Patient chart: DOB 22-11-1978, admitted overnight.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "22-11-1978"
+      }
+    ]
+  },
+  {
+    "text": "Firmware v2024-11-02 shipped to all nodes.",
+    "entities": []
+  },
+  {
+    "text": "Escalated by Dr. Orvist Pemberdint to the team (orvist.pemberdint@internal) for review.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Orvist Pemberdint"
+      }
+    ]
+  },
+  {
+    "text": "Contact Prof. Galwyn Fenworth about the outage (fenworth.galwyn@corp) before noon.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Galwyn Fenworth"
+      }
+    ]
+  },
+  {
+    "text": "Ticket from Dr. Brunlow Thistlewaite (brunlow.thistlewaite@example.com) resolved.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Brunlow Thistlewaite"
+      },
+      {
+        "type": "EMAIL",
+        "text": "brunlow.thistlewaite@example.com"
       }
     ]
   }
