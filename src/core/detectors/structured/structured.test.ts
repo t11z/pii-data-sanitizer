@@ -167,19 +167,16 @@ describe('IBAN detection', () => {
     expect(isValidIban('XQ12 3456 7890 1234 5678 9012')).toBe(false);
     // Paren-wrapped IBAN body — the failing gap-report shape:
     expect(
-      only(
-        "Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.",
-        'IBAN'
-      )[0].text
+      only("Customer's IBAN (AE 07 0331 2345 6789 1234 567) verified today.", 'IBAN')[0].text
     ).toBe('AE 07 0331 2345 6789 1234 567');
     // Bracket-wrapped:
     expect(only('Refund IBAN [ZK00 1122 3344 5566 7788] on file.', 'IBAN')[0].text).toBe(
       'ZK00 1122 3344 5566 7788'
     );
     // Colon + paren — real transcripts often stack them ("IBAN: (…)"):
-    expect(
-      only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text
-    ).toBe('XQ12 3456 7890 1234 5678 9012');
+    expect(only('Settlement IBAN: (XQ12 3456 7890 1234 5678 9012) posted.', 'IBAN')[0].text).toBe(
+      'XQ12 3456 7890 1234 5678 9012'
+    );
     // Plain paren wrap on a strict-invalid IT shape:
     expect(only('Wire IBAN (IT99 X054 2811 1010 0000 0123 456) cleared.', 'IBAN')[0].text).toBe(
       'IT99 X054 2811 1010 0000 0123 456'
@@ -730,6 +727,41 @@ describe('phone detection', () => {
     // phone-shaped. Held-out lengths in the 13–19 digit window.
     expect(only('Reference 1234567890123 attached.', 'PHONE')).toHaveLength(0); // 13d fused
     expect(only('Account 987654321098765 verified.', 'PHONE')).toHaveLength(0); // 15d fused
+  });
+
+  it('accepts a bare 10–15-digit run wrapped in parens after a phone-cue word', () => {
+    // Held-out digit sequences (distinct from the gap's 9825551234) prove the
+    // heuristic is structural — bare digit run wrapped in `(N)`, digit count in
+    // the mobile range 10–15, and a phone-cue word (call, phone, mobile, …)
+    // within 40 characters before the opening paren. All three legs required.
+    expect(only('Call the desk at (5551234567) tomorrow.', 'PHONE')[0].text).toBe('5551234567');
+    expect(only('Please phone (5559876543) today.', 'PHONE')[0].text).toBe('5559876543');
+    expect(only('Customer contacted us via mobile (4155559876).', 'PHONE')[0].text).toBe(
+      '4155559876'
+    );
+    // Different cue verbs / longer international-shape run.
+    expect(only('Reach the on-call at (447700900123) urgently.', 'PHONE')[0].text).toBe(
+      '447700900123'
+    );
+    expect(only('Please dial (5551239876) for support.', 'PHONE')[0].text).toBe('5551239876');
+  });
+
+  it('still rejects paren-wrapped bare digit runs when the cue leg is missing', () => {
+    // Precision guard: all three legs are required. Without a phone-cue word
+    // within 40 chars, a paren-wrapped 10-digit run is a reference / account
+    // number, not a phone. Held-out digit runs (distinct from any positive
+    // case above) prove the guard is structural.
+    expect(only('Reference (1234567890) logged.', 'PHONE')).toHaveLength(0);
+    expect(only('Batch id (0987654321) processed.', 'PHONE')).toHaveLength(0);
+    // Below the 10-digit floor: below-mobile-length runs stay out even when
+    // a cue is present.
+    expect(only('Invoice ticket (1234567) attached.', 'PHONE')).toHaveLength(0);
+    // Bare paren-wrapped run with no cue word anywhere in the window: silent.
+    expect(only('(9825551234)', 'PHONE')).toHaveLength(0);
+    // Cue further than the 40-char window: silent.
+    expect(
+      only('The support team really appreciates and truly values your input (1234567890).', 'PHONE')
+    ).toHaveLength(0);
   });
 });
 
