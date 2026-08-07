@@ -1065,6 +1065,19 @@
     ]
   },
   {
+    "text": "Dispute case opened (ssn-078-32-4692) for the customer.",
+    "entities": [
+      {
+        "type": "NATIONAL_ID",
+        "text": "078-32-4692"
+      }
+    ]
+  },
+  {
+    "text": "Firmware id-900-11-2222 released.",
+    "entities": []
+  },
+  {
     "text": "German tax ID 65929970489 is on the invoice.",
     "entities": [
       {
@@ -1072,6 +1085,14 @@
         "text": "65929970489"
       }
     ]
+  },
+  {
+    "text": "Case #567-89-1234 was closed after review.",
+    "entities": []
+  },
+  {
+    "text": "Ticket № 345-67-8901 escalated to tier 2.",
+    "entities": []
   },
   {
     "text": "Traveler passport number L898902C3 was logged at the gate.",
@@ -1120,6 +1141,28 @@
   },
   {
     "text": "The team booked the office birthday party for 2025-06-01.",
+    "entities": []
+  },
+  {
+    "text": "DOB on file: 1990-07-22 confirmed by the agent.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1990-07-22"
+      }
+    ]
+  },
+  {
+    "text": "Date of birth recorded as 04/11/1979 in the customer profile.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "04/11/1979"
+      }
+    ]
+  },
+  {
+    "text": "He was born in a small coastal village; the audit on 2024-01-15 found issues.",
     "entities": []
   },
   {
@@ -1753,6 +1796,24 @@
     ]
   },
   {
+    "text": "Sarah Manager reviewed the ticket this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Sarah"
+      }
+    ]
+  },
+  {
+    "text": "The escalation was handled by Anna Director yesterday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Anna"
+      }
+    ]
+  },
+  {
     "text": "Maria López (CEO) approved the refund this morning.",
     "entities": [
       {
@@ -2119,5 +2180,58 @@
   {
     "text": "The passport office at desk 12 reopens Monday.",
     "entities": []
+  },
+  {
+    "text": "Customer profile shows born 01-15-1995 on file.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "01-15-1995"
+      }
+    ]
+  },
+  {
+    "text": "Patient chart: DOB 22-11-1978, admitted overnight.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "22-11-1978"
+      }
+    ]
+  },
+  {
+    "text": "Firmware v2024-11-02 shipped to all nodes.",
+    "entities": []
+  },
+  {
+    "text": "Escalated by Dr. Orvist Pemberdint to the team (orvist.pemberdint@internal) for review.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Orvist Pemberdint"
+      }
+    ]
+  },
+  {
+    "text": "Contact Prof. Galwyn Fenworth about the outage (fenworth.galwyn@corp) before noon.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Galwyn Fenworth"
+      }
+    ]
+  },
+  {
+    "text": "Ticket from Dr. Brunlow Thistlewaite (brunlow.thistlewaite@example.com) resolved.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Brunlow Thistlewaite"
+      },
+      {
+        "type": "EMAIL",
+        "text": "brunlow.thistlewaite@example.com"
+      }
+    ]
   }
 ]

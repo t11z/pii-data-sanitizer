@@ -821,6 +821,17 @@ describe('phone detection', () => {
     expect(only('Account 987654321098765 verified.', 'PHONE')).toHaveLength(0); // 15d fused
   });
 
+  it('rejects a phone-shaped run marked as a case/ticket reference (# / №)', () => {
+    // A '#'/'№' marker makes the digits a case/ticket/order identifier, not a phone.
+    // Held-out numbers, distinct from the SSN-shaped gap case. Once the NATIONAL_ID
+    // detector defers a '#'-marked 3-2-4 run, the phone detector must not pick it up
+    // instead — the marker guard applies to both.
+    expect(only('Case #567-89-1234 closed.', 'PHONE')).toHaveLength(0);
+    expect(only('Reported issue № 12 345 678 by user.', 'PHONE')).toHaveLength(0);
+    // The marker only kills the run it directly precedes: a real phone elsewhere survives.
+    expect(only('Order #100. Call +1 202 555 0142 now.', 'PHONE')[0].text).toBe('+1 202 555 0142');
+  });
+
   it('accepts a bare 10–15-digit run wrapped in parens after a phone-cue word', () => {
     // Held-out digit sequences (distinct from the gap's 9825551234) prove the
     // heuristic is structural — bare digit run wrapped in `(N)`, digit count in
@@ -925,6 +936,42 @@ describe('national id detection', () => {
     expect(only('Ticket REF-234-56-7890-2026 attached.', 'NATIONAL_ID')).toHaveLength(0);
     expect(only('Order 234-56-7890-X is queued.', 'NATIONAL_ID')).toHaveLength(0);
   });
+
+  it('detects an SSN glued to a textual cue label via a hyphen', () => {
+    // Held-out SSN values (none equal to the space-cued case above): the leading
+    // hyphen here separates a *letter* label from a standalone SSN, so it is a
+    // cued SSN, not a slice of a longer number. The '-' abutting a letter must
+    // not trigger the phone-slice guard.
+    expect(only('Dispute for (ssn-078-32-4692) opened.', 'NATIONAL_ID')[0].text).toBe(
+      '078-32-4692'
+    );
+    expect(only('SSN-123-45-6789 verified.', 'NATIONAL_ID')[0].text).toBe('123-45-6789');
+    expect(only('id-256-78-9012 on file.', 'NATIONAL_ID')[0].text).toBe('256-78-9012');
+  });
+
+  it('still rejects a 3-2-4 slice of a longer purely-numeric dashed run', () => {
+    // Held-out numeric run: the hyphen before the 3-2-4 chunk abuts a *digit*, so
+    // the candidate really is a slice of a longer dashed number — keep rejecting.
+    expect(only('Batch 12-345-67-8901 processed.', 'NATIONAL_ID')).toHaveLength(0);
+  });
+
+  it('does not flag a 3-2-4 run marked as a case/ticket reference (# / №)', () => {
+    // Held-out, allocation-VALID SSN shapes (they pass isValidSsn) that are only
+    // rejected because a reference marker precedes them — proving the guard is the
+    // '#'/'№' cue, not the number. '#' is the universal support-desk marker for a
+    // case/ticket/order id, so a marked 3-2-4 run is a reference, never an SSN.
+    expect(only('Case #567-89-1234 closed.', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('Ticket #123-45-6789 escalated.', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('Bug № 234-56-7890 reopened.', 'NATIONAL_ID')).toHaveLength(0); // marker + space
+  });
+
+  it('still detects a genuine SSN when # appears elsewhere in the sentence', () => {
+    // The marker only suppresses the run it directly precedes; a real, cued SSN
+    // in the same sentence must survive. Held-out valid number.
+    expect(only('Note #4: employee SSN 345-67-8901 verified.', 'NATIONAL_ID')[0].text).toBe(
+      '345-67-8901'
+    );
+  });
 });
 
 describe('passport detection (cue-gated)', () => {
@@ -984,6 +1031,25 @@ describe('date of birth detection (cue-gated)', () => {
     expect(only('Geburtsdatum: 12. März 1985.', 'DATE_OF_BIRTH')[0].text).toBe('12. März 1985');
   });
 
+  it('detects a hyphen-separated numeric date after a birth cue', () => {
+    // Held-out hyphenated day/month-first dates (not the specific "01-15-1995"
+    // that surfaced the gap): a US-style MM-DD-YYYY and a German-cued DD-MM-YYYY.
+    // These match only because the numeric date form now accepts '-' alongside
+    // '.'/'/', so the pass proves the widened separator generalizes rather than
+    // memorizing one value.
+    expect(only('born 12-31-1980 per intake form.', 'DATE_OF_BIRTH')[0].text).toBe('12-31-1980');
+    expect(only('geboren am 3-7-1966 laut Ausweis.', 'DATE_OF_BIRTH')[0].text).toBe('3-7-1966');
+  });
+
+  it('claims a cued hyphen date over the looser PHONE detector', () => {
+    // The date is digit-grouped, so the PHONE detector also matches it; the
+    // higher-confidence DOB span must win overlap resolution so the whole run
+    // is a single DATE_OF_BIRTH and no PHONE false positive leaks through.
+    const spans = detect('Customer (born 08-24-1971) opened a ticket.');
+    expect(spans.filter((s) => s.type === 'DATE_OF_BIRTH')[0].text).toBe('08-24-1971');
+    expect(spans.filter((s) => s.type === 'PHONE')).toHaveLength(0);
+  });
+
   it('detects a date after the closed-form "Birthdate" label', () => {
     // Held-out value — a common form-field label the "date of birth" wording missed.
     expect(only('Birthdate: 1977-04-19 confirmed.', 'DATE_OF_BIRTH')[0].text).toBe('1977-04-19');
@@ -1006,6 +1072,12 @@ describe('date of birth detection (cue-gated)', () => {
     expect(only('The incident on 2024-01-15 was reviewed.', 'DATE_OF_BIRTH')).toHaveLength(0);
   });
 
+  it('keeps the cue gate for hyphen dates: no cue, no DATE_OF_BIRTH', () => {
+    // Widening the separator must not loosen the cue requirement: a bare
+    // hyphenated date with no birth cue stays out of DATE_OF_BIRTH.
+    expect(only('Maintenance window 03-14-2026 was announced.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
+
   it('detects a dash-joined DD-Mon-YYYY date (held-out from the fix case)', () => {
     // "03-Apr-1985" is the fix case; "17-Nov-1990" is a different day, month,
     // and year to prove the join separator generalizes rather than matching
@@ -1014,5 +1086,45 @@ describe('date of birth detection (cue-gated)', () => {
       '03-Apr-1985'
     );
     expect(only('born on 17-Nov-1990 in Leeds.', 'DATE_OF_BIRTH')[0].text).toBe('17-Nov-1990');
+  });
+
+  // The cue and the date are often separated by a short connective phrase in
+  // support prose. Held-out values (dates + phrasings absent from the corpus)
+  // prove the cue binds the date across up to three filler words, not just a
+  // bare colon/space.
+  it('binds a DOB cue across "on file:" filler', () => {
+    expect(only('DOB on file: 1990-07-22 noted.', 'DATE_OF_BIRTH')[0].text).toBe('1990-07-22');
+  });
+
+  it('binds a DOB cue across "recorded as" filler', () => {
+    expect(only('Date of birth recorded as 04/11/1979 in the file.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '04/11/1979'
+    );
+  });
+
+  it('binds a DOB cue across "listed as" filler', () => {
+    expect(only('DOB listed as 22.08.1991 per record.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '22.08.1991'
+    );
+  });
+
+  // Precision guards: the filler run is bounded (≤3 short words, no sentence
+  // punctuation), so a distant date can't be bridged to a far-off cue.
+  it('does not bridge a cue to a date more than three words away', () => {
+    expect(
+      only(
+        'He was born in a small coastal village; the audit on 2024-01-15 found issues.',
+        'DATE_OF_BIRTH'
+      )
+    ).toHaveLength(0);
+  });
+
+  it('does not bridge a cue across a sentence boundary', () => {
+    expect(
+      only(
+        'Customer born. Separately, a meeting was scheduled 05.06.2020 downtown.',
+        'DATE_OF_BIRTH'
+      )
+    ).toHaveLength(0);
   });
 });

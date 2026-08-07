@@ -288,6 +288,50 @@ describe('backward unknown-cap anchor ("<unknown given> <ext surname>")', () => 
   });
 });
 
+describe('structural role noun after a name is not absorbed as a surname', () => {
+  // "Manager", "Director", "Lead", "Head", "Chief" are real ext-tier census
+  // surnames AND structural role nouns (NON_NAME_WORDS). When one follows a
+  // given name in prose ("Sarah Manager reviewed it"), the DB hit used to let
+  // the chain absorb the role noun and emit a two-token PERSON span. The
+  // chain-extension guard now breaks on any NON_NAME_WORD regardless of DB
+  // membership, so only the real given name is emitted.
+  //
+  // Held out from the fix's corpus cases (Sarah/Anna): the role nouns below
+  // pair with DIFFERENT given names, proving the guard generalizes rather than
+  // memorizing the two benchmarked strings. Uses the FULL committed DB so the
+  // role nouns are genuine ext-tier hits (asserted at the end) — the guard,
+  // not absence from the dictionary, is what stops the absorption.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('emits only the given name, not "<Given> <RoleNoun>"', () => {
+    // All givens are core-tier, so each detects on its own (0.65) once the
+    // guard stops the chain from swallowing the trailing role noun.
+    expect(personsFull('Michael Manager reviewed the ticket.')).toEqual(['Michael']);
+    expect(personsFull('David Director signed the form.')).toEqual(['David']);
+    expect(personsFull('Thomas Lead handled the escalation.')).toEqual(['Thomas']);
+    expect(personsFull('Robert Head confirmed the refund.')).toEqual(['Robert']);
+    expect(personsFull('James Chief approved the request.')).toEqual(['James']);
+  });
+
+  it('still detects a genuine two-token name (guard is noun-specific)', () => {
+    // Same shape, but the second token is a real surname, not a structural
+    // noun — the chain must still extend.
+    expect(personsFull('Michael Anderson reviewed the ticket.')).toContain('Michael Anderson');
+  });
+
+  it('proves the role nouns are genuine ext-tier DB hits (guard, not membership)', () => {
+    for (const noun of ['manager', 'director', 'lead', 'head', 'chief']) {
+      const hit =
+        fullSource.hasGiven(noun, 'Latin') || fullSource.hasFamily(noun, 'Latin');
+      expect(hit, `${noun} should be in the committed DB`).toBe(true);
+    }
+  });
+});
+
 describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   // Support / KYC / CRM prose labels an identifier with the "number"
   // abbreviation — "Passport No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº
@@ -297,32 +341,32 @@ describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   // a false PERSON span ("Passport No", "Account Nr"). The fix recognises the
   // abbreviation structurally (letters + trailing '.', or the °-ligature), never
   // by dictionary membership.
-  const fullSource = nameSourceFromBuildInputs();
-  const personsFull = (text: string) =>
-    detect(text, { nameSource: fullSource })
+  const fullSource2 = nameSourceFromBuildInputs();
+  const personsFull2 = (text: string) =>
+    detect(text, { nameSource: fullSource2 })
       .filter((s) => s.type === 'PERSON')
       .map((s) => s.text);
 
   it('does not read a "<Label> No./Nr./Nº <id>" abbreviation as a name', () => {
     // Held-out label nouns (none is a name) prove the guard generalizes beyond
     // the one "Passport No." case that surfaced it.
-    expect(personsFull('Passport No. A2B4D7K9 provided by customer.')).toHaveLength(0);
-    expect(personsFull('Account No. 4471-AA on file.')).toHaveLength(0);
-    expect(personsFull('Serial No. ZQ8871 reported by the team.')).toHaveLength(0);
-    expect(personsFull('Docket Nr. 55-01 was escalated.')).toHaveLength(0);
-    expect(personsFull('Reference Nº 7788 pending review.')).toHaveLength(0);
+    expect(personsFull2('Passport No. A2B4D7K9 provided by customer.')).toHaveLength(0);
+    expect(personsFull2('Account No. 4471-AA on file.')).toHaveLength(0);
+    expect(personsFull2('Serial No. ZQ8871 reported by the team.')).toHaveLength(0);
+    expect(personsFull2('Docket Nr. 55-01 was escalated.')).toHaveLength(0);
+    expect(personsFull2('Reference Nº 7788 pending review.')).toHaveLength(0);
   });
 
   it('does not absorb a trailing number label into a real name chain', () => {
     // The label follows a genuine given name; only the name must survive.
-    expect(personsFull('Customer Priya No. 4471 was verified.')).not.toContain('Priya No');
+    expect(personsFull2('Customer Priya No. 4471 was verified.')).not.toContain('Priya No');
   });
 
   it('still detects a real "No" surname when it is not the abbreviation', () => {
     // No trailing dot → the ext-tier surname "No" is a real name part, so the
     // guard leaves the chain intact. Held out from the DB: "Kevin" is core, the
     // detection rides on the "<given> <ext surname>" chain, not on this rule.
-    expect(personsFull('Kevin No called about the outage.')).toContain('Kevin No');
+    expect(personsFull2('Kevin No called about the outage.')).toContain('Kevin No');
   });
 
   it('proves the label nouns are absent from the DB and "No" is a real ext surname', () => {
@@ -330,10 +374,10 @@ describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
     // committed dictionary, so a surviving span could only come from "No"/"Nr"
     // being read as the ext surname it genuinely is.
     for (const w of ['passport', 'account', 'serial', 'docket', 'reference']) {
-      expect(fullSource.hasGiven(w, 'Latin'), `${w} should be out-of-DB`).toBe(false);
-      expect(fullSource.hasFamily(w, 'Latin'), `${w} should be out-of-DB`).toBe(false);
+      expect(fullSource2.hasGiven(w, 'Latin'), `${w} should be out-of-DB`).toBe(false);
+      expect(fullSource2.hasFamily(w, 'Latin'), `${w} should be out-of-DB`).toBe(false);
     }
-    expect(fullSource.matchTier('no', 'Latin')).toBe('ext');
+    expect(fullSource2.matchTier('no', 'Latin')).toBe('ext');
   });
 });
 
