@@ -877,6 +877,69 @@ describe('title/role-anchored particle-hyphen start (joined "al-Surname")', () =
   });
 });
 
+describe('apostrophe-prefixed surnames (Irish "O\'", Italian/French "D\'")', () => {
+  // The DB indexes the family root ("sullivan", "neill", "hara", "angelo",
+  // "amico") but the ingest sources don't carry the glued apostrophe surface
+  // form ("o'sullivan"), so a plain dictionary lookup on the whole token
+  // misses it. Verified against the FULL committed dictionary: the exact
+  // compound below is confirmed absent while its root is confirmed present,
+  // so detection rides on the apostrophe-root fallback, not memorization of
+  // a compound the DB happens to carry.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('proves the compound surface form is absent while the root is present', () => {
+    const pairs: Array<[string, string]> = [
+      ["o'sullivan", 'sullivan'],
+      ["o'neill", 'neill'],
+      ["o'hara", 'hara'],
+      ["d'angelo", 'angelo'],
+      ["d'amico", 'amico'],
+    ];
+    for (const [compound, root] of pairs) {
+      expect(
+        fullSource.hasFamily(compound, 'Latin') || fullSource.hasGiven(compound, 'Latin'),
+        `${compound} should be absent as a compound`
+      ).toBe(false);
+      expect(
+        fullSource.hasFamily(root, 'Latin') || fullSource.hasGiven(root, 'Latin'),
+        `${root} should be present as the DB root`
+      ).toBe(true);
+    }
+  });
+
+  it('chains a DB-known given name into an apostrophe-prefixed surname', () => {
+    expect(personsFull("Sean O'Neill called about his account.")).toContain("Sean O'Neill");
+    expect(personsFull("Marco D'Angelo confirmed the order.")).toContain("Marco D'Angelo");
+  });
+
+  it('anchors backward from an unknown given name onto the surname root', () => {
+    // "Niamh" is out of the DB, so only the apostrophe-root fallback on
+    // "O'Sullivan" (family root "sullivan") lets the backward-unknown-cap
+    // anchor see a corroborating name part.
+    expect(personsFull("Follow-up by Niamh O'Sullivan: refund issued to the customer.")).toContain(
+      "Niamh O'Sullivan"
+    );
+  });
+
+  it('detects a single apostrophe-prefixed surname after a title', () => {
+    expect(personsFull("Dr. O'Hara confirmed the diagnosis.")).toContain("O'Hara");
+  });
+
+  it('does not treat contractions or mid-word apostrophes as name parts', () => {
+    expect(personsFull("I don't know if it's true.")).toHaveLength(0);
+    expect(personsFull("We visited Ta'if last year.")).toHaveLength(0);
+    expect(personsFull("Rock'n'Roll is a genre.")).toHaveLength(0);
+  });
+
+  it('does not start a name on a lone apostrophe-prefixed surname without a cue', () => {
+    expect(personsFull("O'Hara reviewed the file.")).toHaveLength(0);
+  });
+});
+
 describe('Persian/Urdu "ul-" particle in compound surnames', () => {
   // "Naveed ul-Haq", "Mahbub ul-Haq", "Zia ul-Haq", "Inayat ul-Allah": the
   // Arabic article transliterated with sun-letter assimilation. The tokenizer
@@ -1102,6 +1165,91 @@ describe('Latin diacritic folding (matches accented surface forms to folded entr
     expect(persons('We will visit Bogotá in May.')).toHaveLength(0);
     expect(persons('She prefers café au lait every morning.')).toHaveLength(0);
     expect(persons('The Über rollout shipped on schedule.')).toHaveLength(0);
+  });
+});
+
+describe('fold-tier symmetry (accented ext + folded core → treated as core)', () => {
+  // Ingest coverage for common Latin diacritic names is currently split across
+  // tiers: 'garcía' / 'lópez' / 'josé' / 'maría' / 'rodríguez' / 'martín' land
+  // in the ingested `ext` pack, while their ASCII-folded forms 'garcia' /
+  // 'lopez' / 'jose' / ... are in the curated `core` pack. Membership lookups
+  // already fold accented → ASCII (see `lookup()` in names.ts), but tier
+  // reporting used to return the raw-lookup tier and stop, so an accented
+  // single-token surname scored as ext-only and hit the parts===1 && extOnly
+  // && !titleBefore penalty (0.4, below the 0.5 threshold). The fix aligns
+  // tier reporting with the fold semantic — the stronger of the accented and
+  // folded tiers is returned — and rescues an entire class of names, not just
+  // the specific case that surfaced the gap.
+  //
+  // Verified against the FULL committed dictionary so the tier bifurcation is
+  // real, not a fixture artifact. All held-out cases use accented names that
+  // are absent from the specific gap ("García-López") — the fix generalizes
+  // beyond the trigger.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('proves the tier bifurcation exists in the full committed DB', () => {
+    // If ingest is ever reorganized so the accented form itself lands in core,
+    // these assertions catch it and remind us to re-point the held-out surfaces.
+    // matchTier is on the underlying PackNameSource; access via any-cast since
+    // the NameSource interface hides it.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const matchTier = (fullSource as any).matchTier.bind(fullSource);
+    for (const pair of [
+      ['rodríguez', 'rodriguez'],
+      ['josé', 'jose'],
+      ['maría', 'maria'],
+      ['sofía', 'sofia'],
+      ['martín', 'martin'],
+    ] as const) {
+      const [accented, folded] = pair;
+      expect(matchTier(accented, 'Latin'), `${accented} accented tier`).toBe('ext');
+      expect(matchTier(folded, 'Latin'), `${folded} folded tier`).toBe('core');
+    }
+  });
+
+  it('detects a single accented surname after a role-label colon', () => {
+    // Rodríguez — accented=ext, folded=core in the full DB. Without the tier
+    // fix this scores 0.4 and misses; with the fix the core tier applies and
+    // it scores 0.65.
+    expect(personsFull('Support ref contact: Rodríguez.')).toContain('Rodríguez');
+  });
+
+  it('detects an accented sentence-initial single-token given name', () => {
+    // José — accented=ext, folded=core. The sentence-start ext guard used to
+    // drop this because tierOf reported ext despite the folded form being
+    // core. After the fix the guard sees core and lets the chain start.
+    expect(personsFull('José confirmed the shipment yesterday.')).toContain('José');
+    expect(personsFull('María approved the refund this morning.')).toContain('María');
+  });
+
+  it('detects an accented hyphenated single-token surname after a role cue', () => {
+    // The exact gap-generating shape — a hyphenated ext/core-split surname
+    // introduced by a role-label colon. Held out against the specific gap
+    // trigger ("García-López") by using a different pairing.
+    expect(personsFull('Spanish ref contact: Rodríguez-López.')).toContain('Rodríguez-López');
+  });
+
+  it('leaves ASCII single-token detection unchanged (no diacritic → no fold path)', () => {
+    // Volkov has no diacritics; the fix short-circuits via folded===p and
+    // returns the raw tier. This keeps the backward-anchor rescue working —
+    // an unknown given ("Vitya") before an ASCII ext surname still detects
+    // together, exactly like today.
+    expect(personsFull('Vitya Volkov requested a refund.')).toContain('Vitya Volkov');
+    expect(personsFull('Wojciech Lindqvist arrived this morning.')).toContain('Wojciech Lindqvist');
+  });
+
+  it('does not turn accented non-name vocabulary into people (fold-only path)', () => {
+    // These words have matchTier(accented) === null; the folded form may hit
+    // ext ("nao", "esta") but the sentence-start ext guard still fires
+    // because tierLookup returns ext (the stronger of null and ext), never
+    // core. Ensures the fix only promotes tokens whose folded form is truly
+    // core — not any word that happens to fold to something in ext.
+    expect(personsFull('Não podemos aceitar isso hoje.')).toHaveLength(0);
+    expect(personsFull('Está pronto para revisar imediatamente.')).toHaveLength(0);
   });
 });
 
@@ -1722,6 +1870,94 @@ describe('AKA-in-parens frame ("<Name> (<Alias>)")', () => {
     for (const word of heldOut) {
       expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
       expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+});
+
+describe('title-tail cue guard (dual-use honorific/surname at end of chain)', () => {
+  // Many honorifics in titles.ts coincide with common surnames in Arabic,
+  // Persian, South-Asian and Spanish naming — "hajj", "haji", "don", "sayed",
+  // "sayyid", "rev", "sir", "lord", "lady", "imam", "ustad", "shri", "smt", …
+  // Before this guard, TITLE_GAP's optional dot accepted the sentence-ending
+  // period after such a token when it closed a name chain, so the next
+  // capitalized word inherited a spurious titleBefore boost and got emitted at
+  // ~0.65 confidence: "Customer Leila Hajj. Email:…" → FP "Email",
+  // "Customer Ayla Hajj. Reference:…" → FP "Reference". The class is broad and
+  // real support prose exercises it (any ticket log that names a customer with
+  // an Arabic-family surname and then starts the next sentence with a Cap
+  // label). The guard suppresses the title / role / handoff / source-frame
+  // lookback when the immediately-preceding token was just consumed as the
+  // tail of a preceding emitted name span — a token can be either name-tail
+  // or cue, never both for adjacent candidates.
+  //
+  // Held-out proof: the *follower* words that would have leaked as FPs are
+  // absent from the full committed DB (see the held-out assertion at the end),
+  // and one of the anchor chains uses a DB-absent given name too, so the
+  // detections and non-detections here are both heuristic-driven.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not fire a spurious PERSON on the next Cap word after "<Name Title>."', () => {
+    expect(
+      personsFull('Customer Sven Hajj. Kwargs unreachable in staging.')
+    ).toEqual(['Sven Hajj']);
+    expect(
+      personsFull('Customer Ines Don. Turnabout requested by legal.')
+    ).toEqual(['Ines Don']);
+    expect(
+      personsFull('Escalated to Aylin Sayed. Zellwerk failed integration test.')
+    ).toEqual(['Aylin Sayed']);
+    expect(
+      personsFull('Support note from Priya Rev. Splindley pipeline aborted overnight.')
+    ).toEqual(['Priya Rev']);
+  });
+
+  it('does not fire on the exact minimized FP shape from the coverage report', () => {
+    // Verbatim from the discovery feed — the coverage evaluator surfaced
+    // "Email" as a PERSON here. After the guard the chain "Leila Hajj"
+    // detects and no follower does.
+    expect(
+      personsFull(
+        'Final response: Eng. Andreas Christopoulos and customer Leila Hajj. Email: leila.hajj@beirut.lb, card 3530 1113 3330 0000, IPv6 fe80::1. Status: CLOSED.'
+      )
+    ).toEqual(['Andreas Christopoulos', 'Leila Hajj']);
+  });
+
+  it('still detects a real title cue in isolation ("Dr. Anjali Qwertz")', () => {
+    // Single-token title anchor path is unaffected: prev="Dr." was NEVER
+    // emitted as part of a name span (the outer loop's parts===1+isTitle guard
+    // skips it before it can become an emitted tail), so titleBefore still
+    // fires for the following candidate.
+    expect(personsFull('Please ask Dr. Anjali Qwertz about it.')).toContain('Anjali Qwertz');
+  });
+
+  it('still detects a title-first chain that CONTAINS the dual-use token as prefix', () => {
+    // "Sheikh Yusuf ..." — the honorific opens the chain and is absorbed as
+    // part of a multi-token name. This path never depends on a preceding
+    // emitted span, so the guard doesn't touch it.
+    expect(personsFull('Sheikh Yusuf al-Qaradawi visited the branch today.')).toContain(
+      'Sheikh Yusuf al-Qaradawi'
+    );
+  });
+
+  it('proves the title-tail follower words are absent from the full DB', () => {
+    // The precision fix rides on the structural cue-suppression rule, not on
+    // dictionary knowledge of the follower. If any of these ever land in the
+    // DB later, the negative assertions above stop being a heuristic proof
+    // and the values must be re-pointed to fresh out-of-DB tokens.
+    const heldOut = ['kwargs', 'turnabout', 'zellwerk', 'splindley', 'sven'];
+    for (const word of heldOut) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+    // And the title-tail tokens that trigger the guard MUST be in TITLES —
+    // if any of them are removed from titles.ts, the FP class stops existing
+    // and these regression cases lose their point.
+    for (const t of ['hajj', 'don', 'sayed', 'rev']) {
+      expect(fullSource.hasGiven(t, 'Latin'), `${t} should be a DB name`).toBe(true);
     }
   });
 });

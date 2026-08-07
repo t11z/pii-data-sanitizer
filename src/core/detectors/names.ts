@@ -50,11 +50,30 @@ function lookup(
   return false;
 }
 
+/**
+ * Strips a single-letter apostrophe prefix — `O'`, `D'`, `L'`, `M'` — returning
+ * the bare root ("sullivan" from "o'sullivan"). Restricted to the apostrophe
+ * sitting at index 1 of the lowercased token: that is exactly the Irish `O'`,
+ * Italian/French `D'`, French `L'`/`M'` particle shape the ingest sources
+ * glue into one lexeme but don't index compound. Every other apostrophe
+ * placement (contractions like "don't", place-names like "Ta'if") either has
+ * the apostrophe elsewhere or is filtered upstream by `isCapitalized`, so
+ * this fallback can't loosen matching beyond that one morphological class.
+ * Mirrors the existing hyphen-split fallback below for the same reason: the
+ * DB indexes the root, not the compound surface form.
+ */
+function apostropheRoot(lowered: string): string | null {
+  if (lowered[1] !== "'" && lowered[1] !== '’') return null;
+  return lowered.length > 2 ? lowered.slice(2) : null;
+}
+
 export function givenHit(source: NameSource, token: string, script: Script): boolean {
   const l = token.toLowerCase();
   const has = source.hasGiven.bind(source);
   if (lookup(has, l, script)) return true;
   if (l.includes('-')) return l.split('-').some((p) => lookup(has, p, script));
+  const root = apostropheRoot(l);
+  if (root) return lookup(has, root, script);
   return false;
 }
 
@@ -63,6 +82,8 @@ export function familyHit(source: NameSource, token: string, script: Script): bo
   const has = source.hasFamily.bind(source);
   if (lookup(has, l, script)) return true;
   if (l.includes('-')) return l.split('-').some((p) => lookup(has, p, script));
+  const root = apostropheRoot(l);
+  if (root) return lookup(has, root, script);
   return false;
 }
 
@@ -76,14 +97,28 @@ function tierOf(source: NameSource, token: Token): Tier | null {
   if (!matchTier) return 'core'; // sources without tier info count as core
   const l = token.text.toLowerCase();
   const parts = l.includes('-') ? [l, ...l.split('-')] : [l];
-  // Mirror the diacritic-fold fallback used for membership so a name matched only
-  // via folding ("García") still reports its real tier instead of null — null
-  // would make scoring treat it as ext-only and re-penalize it below threshold.
+  const apRoot = apostropheRoot(l);
+  if (apRoot) parts.push(apRoot);
+  // Mirror the diacritic-fold semantic already used for membership (`lookup()`
+  // above): on Latin script the accented and folded spellings are the SAME
+  // name, so tier reporting must too. Ingest coverage happens to split common
+  // Latin diacritic names across tiers — 'garcía' / 'lópez' / 'josé' / 'maría'
+  // land in `ext` while their folded forms 'garcia' / 'lopez' / 'jose' /
+  // 'maria' are in the curated `core` pack — so returning the raw lookup on
+  // its own mis-tiers the accented form as ext and the single-token ext
+  // penalty in scoring drops it below threshold. Query BOTH forms and return
+  // the stronger tier (core > ext > null); a diacritic-free token folds to
+  // itself so this short-circuits to the raw tier, leaving ASCII paths
+  // (including the ext-corroborator backward anchor) unchanged.
   const tierLookup = (p: string): Tier | null => {
     const t = matchTier.call(source, p, token.script);
-    if (t || token.script !== 'Latin') return t;
+    if (token.script !== 'Latin') return t;
     const folded = foldLatin(p);
-    return folded !== p ? matchTier.call(source, folded, token.script) : null;
+    if (folded === p) return t;
+    const tFolded = matchTier.call(source, folded, token.script);
+    if (t === 'core' || tFolded === 'core') return 'core';
+    if (t === 'ext' || tFolded === 'ext') return 'ext';
+    return null;
   };
   let best: Tier | null = null;
   for (const p of parts) {
@@ -284,16 +319,35 @@ function knownNameAfter(tokens: Token[], i: number, source: NameSource, text: st
   return true;
 }
 
-function nameStart(tokens: Token[], i: number, source: NameSource, text: string): StartInfo | null {
+function nameStart(
+  tokens: Token[],
+  i: number,
+  source: NameSource,
+  text: string,
+  prevEmittedTailIdx: number
+): StartInfo | null {
   const tok = tokens[i];
   if (tok.script === 'Han' || tok.script === 'Other') return null;
   // Structured-identifier prefix fused with a digit run ("XR250", "CZ6508"):
   // never a person name, even if it happens to match the dictionary.
   if (adjoinsDigit(tok, text)) return null;
 
+  // A token can be either the tail of a name span OR a title/role cue for the
+  // next candidate — never both at once. Many honorifics coincide with common
+  // family names ("Hajj", "Haji", "Don", "Sayed", "Sayyid", "Rev", "Sir",
+  // "Lord", "Lady", "Imam", "Ustad", "Shri", "Smt", …). When such a token
+  // closes a name chain we JUST emitted, TITLE_GAP would otherwise accept the
+  // sentence-ending period after it as if it were the "Dr." abbreviation dot,
+  // spuriously licensing the next capitalized word as a title-anchored name
+  // ("Customer Leila Hajj. Email:…" → FP "Email", "Customer Ayla Hajj.
+  // Reference:…" → FP "Reference"). The guard is structural: it does not care
+  // WHICH title/name is dual-use, so it generalizes to every honorific ever
+  // added to titles.ts and every surface form the tokenizer might see.
+  const prevWasEmittedNameTail = i > 0 && i - 1 === prevEmittedTailIdx;
+
   let titleBefore = false;
   let roleBefore = false;
-  if (i > 0) {
+  if (i > 0 && !prevWasEmittedNameTail) {
     const prev = tokens[i - 1];
     const between = text.slice(prev.end, tok.start);
     if (isTitle(prev.text) && TITLE_GAP.test(between)) titleBefore = true;
@@ -311,7 +365,9 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
   // Ticket" never matches). Treated as a role cue: scoring still requires parts >=
   // 2, and NON_NAME_WORDS still blocks structural chains, so "Escalated to Customer
   // Service Team" / "Weitergeleitet an Kundenservice Team" remain non-detections.
-  if (!roleBefore && i >= 2) {
+  // Same emitted-tail guard as the single-token cues above: if either frame slot
+  // was just claimed as part of a preceding name span, the frame is spurious.
+  if (!roleBefore && i >= 2 && !prevWasEmittedNameTail) {
     const prev = tokens[i - 1];
     const prev2 = tokens[i - 2];
     if (
@@ -332,7 +388,7 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
   // capitalized words after the connector ("Letter from London arrived") and
   // structural chains ("Notification from Customer Service Team") never
   // promote on the cue alone.
-  if (!roleBefore && i >= 2) {
+  if (!roleBefore && i >= 2 && !prevWasEmittedNameTail) {
     const prev = tokens[i - 1];
     const prev2 = tokens[i - 2];
     if (
@@ -508,9 +564,15 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
   const tokens = tokenize(text);
   const spans: Span[] = [];
   let i = 0;
+  // Index of the last emitted PERSON span's tail token. Threaded into nameStart
+  // so a token that was just consumed as a name-tail cannot double as a title /
+  // role / handoff / source cue for the immediately-following candidate — see
+  // the "prevWasEmittedNameTail" comment in nameStart for the class of FPs this
+  // closes. `-1` when nothing has been emitted yet.
+  let prevEmittedTailIdx = -1;
 
   while (i < tokens.length) {
-    const start = nameStart(tokens, i, source, text);
+    const start = nameStart(tokens, i, source, text, prevEmittedTailIdx);
     if (!start) {
       i++;
       continue;
@@ -632,9 +694,11 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
         confidence,
         source: 'names',
       });
+      prevEmittedTailIdx = j;
       const alias = aliasInParens(tokens, j, text);
       if (alias) {
         spans.push(alias);
+        prevEmittedTailIdx = j + 1;
         nextStart = j + 2;
       }
     }
