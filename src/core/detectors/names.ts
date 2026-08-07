@@ -51,20 +51,30 @@ function lookup(
 }
 
 /**
- * Strips a single-letter apostrophe prefix — `O'`, `D'`, `L'`, `M'` — returning
- * the bare root ("sullivan" from "o'sullivan"). Restricted to the apostrophe
- * sitting at index 1 of the lowercased token: that is exactly the Irish `O'`,
- * Italian/French `D'`, French `L'`/`M'` particle shape the ingest sources
- * glue into one lexeme but don't index compound. Every other apostrophe
- * placement (contractions like "don't", place-names like "Ta'if") either has
- * the apostrophe elsewhere or is filtered upstream by `isCapitalized`, so
- * this fallback can't loosen matching beyond that one morphological class.
- * Mirrors the existing hyphen-split fallback below for the same reason: the
- * DB indexes the root, not the compound surface form.
+ * Roots to try for a single-letter apostrophe-prefixed token — `O'`, `D'`,
+ * `L'`, `M'`. Restricted to the apostrophe sitting at index 1 of the lowercased
+ * token: that is exactly the Irish `O'`, Italian/French `D'`, French `L'`/`M'`
+ * particle shape the ingest sources glue into one lexeme but don't index by the
+ * compound surface form. Every other apostrophe placement (contractions like
+ * "don't", place-names like "Ta'if") either has the apostrophe elsewhere or is
+ * filtered upstream by `isCapitalized`, so this fallback can't loosen matching
+ * beyond that one morphological class.
+ *
+ * Two spellings coexist across sources for this class, so we try BOTH:
+ *   - the post-particle root — "sullivan" from "o'sullivan" — for surnames the
+ *     DB indexes with the particle stripped (the Irish/patronymic convention);
+ *   - the apostrophe-elided solid form — "darcy" from "d'arcy", "death" from
+ *     "d'eath" — for the Anglo-Norman surnames the DB indexes as one word (the
+ *     apostrophe is orthographic, not a separable particle). Without this, a
+ *     name like "d'Arcy" only probed "arcy" (absent) and was missed even though
+ *     "darcy" is on file. Mirrors the hyphen-split fallback: probe the forms the
+ *     DB actually stores, not just the compound surface form.
  */
-function apostropheRoot(lowered: string): string | null {
-  if (lowered[1] !== "'" && lowered[1] !== '’') return null;
-  return lowered.length > 2 ? lowered.slice(2) : null;
+function apostropheRoots(lowered: string): string[] {
+  if (lowered[1] !== "'" && lowered[1] !== '’') return [];
+  if (lowered.length <= 2) return [];
+  const tail = lowered.slice(2);
+  return [tail, lowered[0] + tail];
 }
 
 export function givenHit(source: NameSource, token: string, script: Script): boolean {
@@ -72,9 +82,7 @@ export function givenHit(source: NameSource, token: string, script: Script): boo
   const has = source.hasGiven.bind(source);
   if (lookup(has, l, script)) return true;
   if (l.includes('-')) return l.split('-').some((p) => lookup(has, p, script));
-  const root = apostropheRoot(l);
-  if (root) return lookup(has, root, script);
-  return false;
+  return apostropheRoots(l).some((root) => lookup(has, root, script));
 }
 
 export function familyHit(source: NameSource, token: string, script: Script): boolean {
@@ -82,9 +90,7 @@ export function familyHit(source: NameSource, token: string, script: Script): bo
   const has = source.hasFamily.bind(source);
   if (lookup(has, l, script)) return true;
   if (l.includes('-')) return l.split('-').some((p) => lookup(has, p, script));
-  const root = apostropheRoot(l);
-  if (root) return lookup(has, root, script);
-  return false;
+  return apostropheRoots(l).some((root) => lookup(has, root, script));
 }
 
 function anyHit(source: NameSource, token: Token): boolean {
@@ -97,16 +103,27 @@ function tierOf(source: NameSource, token: Token): Tier | null {
   if (!matchTier) return 'core'; // sources without tier info count as core
   const l = token.text.toLowerCase();
   const parts = l.includes('-') ? [l, ...l.split('-')] : [l];
-  const apRoot = apostropheRoot(l);
-  if (apRoot) parts.push(apRoot);
-  // Mirror the diacritic-fold fallback used for membership so a name matched only
-  // via folding ("García") still reports its real tier instead of null — null
-  // would make scoring treat it as ext-only and re-penalize it below threshold.
+  parts.push(...apostropheRoots(l));
+  // Mirror the diacritic-fold semantic already used for membership (`lookup()`
+  // above): on Latin script the accented and folded spellings are the SAME
+  // name, so tier reporting must too. Ingest coverage happens to split common
+  // Latin diacritic names across tiers — 'garcía' / 'lópez' / 'josé' / 'maría'
+  // land in `ext` while their folded forms 'garcia' / 'lopez' / 'jose' /
+  // 'maria' are in the curated `core` pack — so returning the raw lookup on
+  // its own mis-tiers the accented form as ext and the single-token ext
+  // penalty in scoring drops it below threshold. Query BOTH forms and return
+  // the stronger tier (core > ext > null); a diacritic-free token folds to
+  // itself so this short-circuits to the raw tier, leaving ASCII paths
+  // (including the ext-corroborator backward anchor) unchanged.
   const tierLookup = (p: string): Tier | null => {
     const t = matchTier.call(source, p, token.script);
-    if (t || token.script !== 'Latin') return t;
+    if (token.script !== 'Latin') return t;
     const folded = foldLatin(p);
-    return folded !== p ? matchTier.call(source, folded, token.script) : null;
+    if (folded === p) return t;
+    const tFolded = matchTier.call(source, folded, token.script);
+    if (t === 'core' || tFolded === 'core') return 'core';
+    if (t === 'ext' || tFolded === 'ext') return 'ext';
+    return null;
   };
   let best: Tier | null = null;
   for (const p of parts) {
@@ -147,9 +164,28 @@ function particleHyphenName(token: Token): boolean {
   return isParticle(head) && isCapitalized(tail);
 }
 
+/**
+ * The apostrophe sibling of `particleHyphenName`: a single-letter elided
+ * particle glued by an apostrophe to a capitalized tail — "d'Arcy", "l'Amour",
+ * "d'Eath". The particle letter is lowercase, so `isCapitalized` sees the token
+ * as uncapitalized and the chain would break on it — exactly the failure
+ * `particleHyphenName` fixes for "al-Rashid". Gated on the apostrophe at index 1
+ * (the O'/D'/L'/M' class), the same morphological shape `apostropheRoots`
+ * probes, so shape recognition and DB membership stay in lock-step. Shape only:
+ * `nameLike`/the extension gates still require a DB hit (or an explicit context
+ * cue) before promoting, so a non-name like "O'Clock" is not swept in.
+ */
+function particleApostropheName(token: Token): boolean {
+  if (token.script !== 'Latin') return false;
+  const t = token.text;
+  if (t[1] !== "'" && t[1] !== '’') return false;
+  return t.length > 2 && isCapitalized(t.slice(2));
+}
+
 function nameLike(token: Token, source: NameSource, allowUnknownCap: boolean): boolean {
   if (token.script === 'Latin') {
-    if (!isCapitalized(token.text) && !particleHyphenName(token)) return false;
+    if (!isCapitalized(token.text) && !particleHyphenName(token) && !particleApostropheName(token))
+      return false;
     // Short ALL-CAPS Latin runs are acronyms / initialisms in prose (ID, PIN,
     // DOB, URL, HQ, ...), never a name part — even when the lowercased form
     // coincidentally appears in the long-tail surname list. Rejecting them here
@@ -186,6 +222,27 @@ const INITIAL_DOT_GAP = /^\.[^\S\n\r]+$/;
 function adjoinsDigit(token: Token, text: string): boolean {
   const next = text.charCodeAt(token.end);
   return next >= 48 && next <= 57;
+}
+/**
+ * The "number" abbreviation — "No."/"Nr." (trailing dot) and the ordinal
+ * ligatures "Nº"/"N°" — as it appears in support / KYC / CRM prose: "Passport
+ * No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº 7788". The tokenizer keeps the
+ * letters as a standalone capitalized token, and because "No"/"Nr" *also* sit in
+ * the long-tail ext surname list (Korean/Vietnamese "No", …), the chain detector
+ * reads the label as a real surname and drags the preceding structural noun
+ * ("Passport", "Account", "Serial") in with it — a whole class of false PERSON
+ * spans ("Passport No", "Account Nr"). Recognising the abbreviation structurally
+ * — the letters immediately followed by '.', or the °-ligature form — blocks the
+ * class without touching the dictionary. A genuine "No"/"Nr" *surname* is written
+ * without the abbreviation dot ("Kevin No called"), so it still detects; only the
+ * rare surname sitting sentence-final directly before a '.' is given up, an
+ * acceptable trade under the precision-first rule.
+ */
+function isNumberLabel(token: Token, text: string): boolean {
+  if (token.script !== 'Latin') return false;
+  const l = token.text.toLowerCase();
+  if ((l === 'no' || l === 'nr') && text.charCodeAt(token.end) === 46 /* '.' */) return true;
+  return l === 'nº' || l === 'n°';
 }
 // Whitespace plus an optional abbreviation dot, so "Dr. Smith" (the common form)
 // gets the title boost — not just "Dr Smith". Never spans a line break.
@@ -256,8 +313,10 @@ function nameContinuation(tokens: Token[], i: number, text: string): boolean {
   // Arabic-style sentence start "Muhammad al-Rashid called." is dropped, while
   // the morphologically equivalent bare-Cap form "Bahar Qorvanni called." is
   // accepted by the same path: an asymmetry, not a precision lever.
-  if (!isCapitalized(next.text) && !particleHyphenName(next)) return false;
+  if (!isCapitalized(next.text) && !particleHyphenName(next) && !particleApostropheName(next))
+    return false;
   if (adjoinsDigit(next, text)) return false;
+  if (isNumberLabel(next, text)) return false;
   // A short ALL-CAPS continuation is an acronym label (the "Tech ID" / "Sales QA"
   // shape), not a corroborating second name part — never let it rescue an
   // otherwise-weak ext-tier sentence-start anchor.
@@ -297,8 +356,10 @@ function knownNameAfter(tokens: Token[], i: number, source: NameSource, text: st
   if (!next) return false;
   if (!SINGLE_GAP.test(text.slice(tokens[j].end, next.start))) return false;
   if (next.script !== 'Latin') return false;
-  if (!isCapitalized(next.text) && !particleHyphenName(next)) return false;
+  if (!isCapitalized(next.text) && !particleHyphenName(next) && !particleApostropheName(next))
+    return false;
   if (adjoinsDigit(next, text)) return false;
+  if (isNumberLabel(next, text)) return false;
   if (isLikelyAcronym(next.text)) return false;
   if (isNonNameWord(next.text) || isRoleWord(next.text) || isTitle(next.text)) return false;
   if (!anyHit(source, next)) return false;
@@ -307,16 +368,38 @@ function knownNameAfter(tokens: Token[], i: number, source: NameSource, text: st
   return true;
 }
 
-function nameStart(tokens: Token[], i: number, source: NameSource, text: string): StartInfo | null {
+function nameStart(
+  tokens: Token[],
+  i: number,
+  source: NameSource,
+  text: string,
+  prevEmittedTailIdx: number
+): StartInfo | null {
   const tok = tokens[i];
   if (tok.script === 'Han' || tok.script === 'Other') return null;
   // Structured-identifier prefix fused with a digit run ("XR250", "CZ6508"):
   // never a person name, even if it happens to match the dictionary.
   if (adjoinsDigit(tok, text)) return null;
+  // The "number" abbreviation ("No."/"Nr."/"Nº") is a structural label, never a
+  // name anchor — even though "No"/"Nr" collide with ext-tier surnames.
+  if (isNumberLabel(tok, text)) return null;
+
+  // A token can be either the tail of a name span OR a title/role cue for the
+  // next candidate — never both at once. Many honorifics coincide with common
+  // family names ("Hajj", "Haji", "Don", "Sayed", "Sayyid", "Rev", "Sir",
+  // "Lord", "Lady", "Imam", "Ustad", "Shri", "Smt", …). When such a token
+  // closes a name chain we JUST emitted, TITLE_GAP would otherwise accept the
+  // sentence-ending period after it as if it were the "Dr." abbreviation dot,
+  // spuriously licensing the next capitalized word as a title-anchored name
+  // ("Customer Leila Hajj. Email:…" → FP "Email", "Customer Ayla Hajj.
+  // Reference:…" → FP "Reference"). The guard is structural: it does not care
+  // WHICH title/name is dual-use, so it generalizes to every honorific ever
+  // added to titles.ts and every surface form the tokenizer might see.
+  const prevWasEmittedNameTail = i > 0 && i - 1 === prevEmittedTailIdx;
 
   let titleBefore = false;
   let roleBefore = false;
-  if (i > 0) {
+  if (i > 0 && !prevWasEmittedNameTail) {
     const prev = tokens[i - 1];
     const between = text.slice(prev.end, tok.start);
     if (isTitle(prev.text) && TITLE_GAP.test(between)) titleBefore = true;
@@ -334,7 +417,9 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
   // Ticket" never matches). Treated as a role cue: scoring still requires parts >=
   // 2, and NON_NAME_WORDS still blocks structural chains, so "Escalated to Customer
   // Service Team" / "Weitergeleitet an Kundenservice Team" remain non-detections.
-  if (!roleBefore && i >= 2) {
+  // Same emitted-tail guard as the single-token cues above: if either frame slot
+  // was just claimed as part of a preceding name span, the frame is spurious.
+  if (!roleBefore && i >= 2 && !prevWasEmittedNameTail) {
     const prev = tokens[i - 1];
     const prev2 = tokens[i - 2];
     if (
@@ -355,7 +440,7 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
   // capitalized words after the connector ("Letter from London arrived") and
   // structural chains ("Notification from Customer Service Team") never
   // promote on the cue alone.
-  if (!roleBefore && i >= 2) {
+  if (!roleBefore && i >= 2 && !prevWasEmittedNameTail) {
     const prev = tokens[i - 1];
     const prev2 = tokens[i - 2];
     if (
@@ -531,9 +616,15 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
   const tokens = tokenize(text);
   const spans: Span[] = [];
   let i = 0;
+  // Index of the last emitted PERSON span's tail token. Threaded into nameStart
+  // so a token that was just consumed as a name-tail cannot double as a title /
+  // role / handoff / source cue for the immediately-following candidate — see
+  // the "prevWasEmittedNameTail" comment in nameStart for the class of FPs this
+  // closes. `-1` when nothing has been emitted yet.
+  let prevEmittedTailIdx = -1;
 
   while (i < tokens.length) {
-    const start = nameStart(tokens, i, source, text);
+    const start = nameStart(tokens, i, source, text, prevEmittedTailIdx);
     if (!start) {
       i++;
       continue;
@@ -586,6 +677,7 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
           // `!hit` (see the direct-extension guard below for the full rationale).
           if (isNonNameWord(after.text)) break;
           if (adjoinsDigit(after, text)) break;
+          if (isNumberLabel(after, text)) break;
           if (hit) {
             dbHits++;
             tiers.push(tierOf(source, after));
@@ -612,6 +704,9 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
         // continuation paths — see roleWords.ts.
         if (isNonNameWord(next.text)) break;
         if (adjoinsDigit(next, text)) break;
+        // Don't absorb a trailing "number" abbreviation ("Priya No. 4471") — the
+        // label collides with an ext surname but is not a name part.
+        if (isNumberLabel(next, text)) break;
         if (hit) {
           dbHits++;
           tiers.push(tierOf(source, next));
@@ -666,9 +761,11 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
         confidence,
         source: 'names',
       });
+      prevEmittedTailIdx = j;
       const alias = aliasInParens(tokens, j, text);
       if (alias) {
         spans.push(alias);
+        prevEmittedTailIdx = j + 1;
         nextStart = j + 2;
       }
     }
