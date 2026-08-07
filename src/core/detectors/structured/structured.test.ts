@@ -663,6 +663,29 @@ describe('phone detection', () => {
     expect(only('Ticket CASE-2024-99812 escalated.', 'PHONE')).toHaveLength(0);
   });
 
+  it('does not flag a digit run directly prefixed by # (case/ticket/order refs)', () => {
+    // Held-out reference prefixes (not the gap's "Case #2024-005") — different
+    // cue words, spacing variants, the `№` European equivalent, and a bare `#`
+    // — prove the guard fires on the structural `#`/`№` marker, not on any
+    // memorized surrounding string.
+    expect(only('Ticket #98765-4 escalated to L2.', 'PHONE')).toHaveLength(0);
+    expect(only('See ref #77-8899 for details.', 'PHONE')).toHaveLength(0);
+    expect(only('Order # 12345 shipped yesterday.', 'PHONE')).toHaveLength(0); // whitespace between # and digits
+    expect(only('Bug № 555-1234 reproduced today.', 'PHONE')).toHaveLength(0); // European numero sign
+    expect(only('Merged #7788-9900 into main.', 'PHONE')).toHaveLength(0); // bare #, no cue word
+  });
+
+  it('keeps a real phone in a line that also has a #-prefixed ref', () => {
+    // Precision guard: the `#`-prefix reject must be scoped tightly to the
+    // digit run it precedes, not swallow other numbers on the same line.
+    const spans = only(
+      'Case #2024-005 forwarded to L2; call +39 02 1234 5678 for follow-up.',
+      'PHONE'
+    );
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('+39 02 1234 5678');
+  });
+
   it('does not flag an ISO timestamp as a phone number', () => {
     expect(
       only('System log entry at 2026-03-17 14:08:51 CET shows the retry.', 'PHONE')

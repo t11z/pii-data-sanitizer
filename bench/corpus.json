@@ -1869,5 +1869,18 @@
         "text": "4111 1111 1111 1111"
       }
     ]
+  },
+  {
+    "text": "Case #2024-005 forwarded to L2; call +39 02 1234 5678 for follow-up.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+39 02 1234 5678"
+      }
+    ]
+  },
+  {
+    "text": "Ticket #98765-4 escalated after Bug № 555-1234 reproduced on staging.",
+    "entities": []
   }
 ]

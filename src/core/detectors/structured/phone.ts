@@ -85,6 +85,25 @@ function fusedToLetters(text: string, start: number, end: number): boolean {
   return false;
 }
 
+/**
+ * True when the digit run is directly prefixed by `#` or `№` (with at most
+ * horizontal whitespace between). Both symbols are the universal support-ticket
+ * / issue-tracker marker introducing a reference identifier — `Case #2024-005`,
+ * `Ticket #98765-4`, `Order # 12345`, `Bug № 555-1234`. Sibling guard to
+ * `fusedToLetters`: that one blocks digit runs glued to letters through `-`/`_`
+ * (`ORD-2025-001847-X`), and this one blocks digit runs introduced by the `#`
+ * marker, which sits *outside* the character class the regex boundary and the
+ * letter-fusion walk consider. Real phones are never written with `#`/`№` glued
+ * to their leading digit, so no recall is lost.
+ */
+function precededByHash(text: string, start: number): boolean {
+  let i = start - 1;
+  while (i >= 0 && (text[i] === ' ' || text[i] === '\t')) i--;
+  if (i < 0) return false;
+  const ch = text[i];
+  return ch === '#' || ch === '№'; // '#' or '№'
+}
+
 export function detectPhones(text: string): Span[] {
   const spans: Span[] = [];
   for (const match of text.matchAll(PHONE_RE)) {
@@ -135,6 +154,9 @@ export function detectPhones(text: string): Span[] {
     // Skip digit runs embedded in an alphanumeric identifier (order/ticket/
     // invoice/serial numbers like "ORD-2025-001847-X") — not phone numbers.
     if (fusedToLetters(text, start, end)) continue;
+    // Skip digit runs directly prefixed by `#`/`№` (case/ticket/order/bug refs
+    // like "Case #2024-005", "Bug № 555-1234") — not phone numbers.
+    if (precededByHash(text, start)) continue;
     spans.push({
       start,
       end,
