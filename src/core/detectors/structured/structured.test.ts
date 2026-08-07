@@ -362,6 +362,43 @@ describe('credit card detection', () => {
     expect(only('Token 4929 88 8888 8883 logged', 'CREDIT_CARD')).toHaveLength(0);
   });
 
+  it('suppresses CC-shape substrings inside an uncued IBAN body (country-code prefix guard)', () => {
+    // Gap shape: an IBAN with irregular spacing ("ES9121 1494 5100 0714 3026")
+    // that fails mod-97 — so no IBAN span emits and the resolveOverlaps shield
+    // never fires. The inner "1494 5100 0714 3026" happens to Luhn-pass and has
+    // a canonical 4-4-4-4 grouping, and would otherwise leak as CREDIT_CARD.
+    // Held-out Luhn-valid 4-4-4-4 body ("4111 1111 1111 1111"), not the gap's
+    // digits, proves the guard is structural.
+    expect(
+      only('Refund queued to ES9121 4111 1111 1111 1111 later today.', 'CREDIT_CARD')
+    ).toHaveLength(0);
+    // Different IBAN country + shorter first-group tail, still a substring of a
+    // broken IBAN body. The country codes DE / AE / GB are all in the IBAN
+    // registry, so the guard fires for each — evidence the closed-class list
+    // (not "ES9121" specifically) is doing the work.
+    expect(only('Wire to DE84 4111 1111 1111 1111 tomorrow.', 'CREDIT_CARD')).toHaveLength(0);
+    expect(only('Booked AE07 4111 1111 1111 1111 for review.', 'CREDIT_CARD')).toHaveLength(0);
+    expect(only('Refund GB29 4111 1111 1111 1111 issued.', 'CREDIT_CARD')).toHaveLength(0);
+  });
+
+  it('does not suppress cards preceded by a non-IBAN two-letter+digits prefix', () => {
+    // Precision guard for the new IBAN-body-prefix rule: only ISO IBAN country
+    // codes (from IBAN_LENGTH_BY_COUNTRY) trigger suppression. Arbitrary 2-letter
+    // prefixes that share the "<Letters><Digits> <card>" shape must NOT hide the
+    // card — otherwise every "ISO9001 4111 …", "PO12345 4111 …", or U.S.-format
+    // account tag ("US1234 4111 …", since US is not in the IBAN registry) would
+    // silently drop a real payment.
+    expect(only('Standard ISO9001 4111 1111 1111 1111 batch.', 'CREDIT_CARD')[0].text).toBe(
+      '4111 1111 1111 1111'
+    );
+    expect(only('Purchase PO12345 4111 1111 1111 1111 booked.', 'CREDIT_CARD')[0].text).toBe(
+      '4111 1111 1111 1111'
+    );
+    expect(only('Ref US1234 4111 1111 1111 1111 filed.', 'CREDIT_CARD')[0].text).toBe(
+      '4111 1111 1111 1111'
+    );
+  });
+
   it('still detects the four canonical grouped PAN widths after the guard', () => {
     // 4-4-4-4 (16): Visa/MC/Discover/JCB/UnionPay — see 4111…/5500…/6011… above.
     // The remaining three canonical groupings (Maestro 15, Amex 15, Diners 14)

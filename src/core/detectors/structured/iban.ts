@@ -49,7 +49,7 @@ const IBAN_CUED_RE =
 // possible IBAN shape, not the specific value that triggered the gap. Unknown
 // country codes fall through (mod-97 alone), preserving recall on jurisdictions
 // not yet in the registry.
-const IBAN_LENGTH_BY_COUNTRY: Record<string, number> = {
+export const IBAN_LENGTH_BY_COUNTRY: Record<string, number> = {
   AD: 24,
   AE: 23,
   AL: 28,
