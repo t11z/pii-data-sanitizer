@@ -1168,6 +1168,91 @@ describe('Latin diacritic folding (matches accented surface forms to folded entr
   });
 });
 
+describe('fold-tier symmetry (accented ext + folded core → treated as core)', () => {
+  // Ingest coverage for common Latin diacritic names is currently split across
+  // tiers: 'garcía' / 'lópez' / 'josé' / 'maría' / 'rodríguez' / 'martín' land
+  // in the ingested `ext` pack, while their ASCII-folded forms 'garcia' /
+  // 'lopez' / 'jose' / ... are in the curated `core` pack. Membership lookups
+  // already fold accented → ASCII (see `lookup()` in names.ts), but tier
+  // reporting used to return the raw-lookup tier and stop, so an accented
+  // single-token surname scored as ext-only and hit the parts===1 && extOnly
+  // && !titleBefore penalty (0.4, below the 0.5 threshold). The fix aligns
+  // tier reporting with the fold semantic — the stronger of the accented and
+  // folded tiers is returned — and rescues an entire class of names, not just
+  // the specific case that surfaced the gap.
+  //
+  // Verified against the FULL committed dictionary so the tier bifurcation is
+  // real, not a fixture artifact. All held-out cases use accented names that
+  // are absent from the specific gap ("García-López") — the fix generalizes
+  // beyond the trigger.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('proves the tier bifurcation exists in the full committed DB', () => {
+    // If ingest is ever reorganized so the accented form itself lands in core,
+    // these assertions catch it and remind us to re-point the held-out surfaces.
+    // matchTier is on the underlying PackNameSource; access via any-cast since
+    // the NameSource interface hides it.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const matchTier = (fullSource as any).matchTier.bind(fullSource);
+    for (const pair of [
+      ['rodríguez', 'rodriguez'],
+      ['josé', 'jose'],
+      ['maría', 'maria'],
+      ['sofía', 'sofia'],
+      ['martín', 'martin'],
+    ] as const) {
+      const [accented, folded] = pair;
+      expect(matchTier(accented, 'Latin'), `${accented} accented tier`).toBe('ext');
+      expect(matchTier(folded, 'Latin'), `${folded} folded tier`).toBe('core');
+    }
+  });
+
+  it('detects a single accented surname after a role-label colon', () => {
+    // Rodríguez — accented=ext, folded=core in the full DB. Without the tier
+    // fix this scores 0.4 and misses; with the fix the core tier applies and
+    // it scores 0.65.
+    expect(personsFull('Support ref contact: Rodríguez.')).toContain('Rodríguez');
+  });
+
+  it('detects an accented sentence-initial single-token given name', () => {
+    // José — accented=ext, folded=core. The sentence-start ext guard used to
+    // drop this because tierOf reported ext despite the folded form being
+    // core. After the fix the guard sees core and lets the chain start.
+    expect(personsFull('José confirmed the shipment yesterday.')).toContain('José');
+    expect(personsFull('María approved the refund this morning.')).toContain('María');
+  });
+
+  it('detects an accented hyphenated single-token surname after a role cue', () => {
+    // The exact gap-generating shape — a hyphenated ext/core-split surname
+    // introduced by a role-label colon. Held out against the specific gap
+    // trigger ("García-López") by using a different pairing.
+    expect(personsFull('Spanish ref contact: Rodríguez-López.')).toContain('Rodríguez-López');
+  });
+
+  it('leaves ASCII single-token detection unchanged (no diacritic → no fold path)', () => {
+    // Volkov has no diacritics; the fix short-circuits via folded===p and
+    // returns the raw tier. This keeps the backward-anchor rescue working —
+    // an unknown given ("Vitya") before an ASCII ext surname still detects
+    // together, exactly like today.
+    expect(personsFull('Vitya Volkov requested a refund.')).toContain('Vitya Volkov');
+    expect(personsFull('Wojciech Lindqvist arrived this morning.')).toContain('Wojciech Lindqvist');
+  });
+
+  it('does not turn accented non-name vocabulary into people (fold-only path)', () => {
+    // These words have matchTier(accented) === null; the folded form may hit
+    // ext ("nao", "esta") but the sentence-start ext guard still fires
+    // because tierLookup returns ext (the stronger of null and ext), never
+    // core. Ensures the fix only promotes tokens whose folded form is truly
+    // core — not any word that happens to fold to something in ext.
+    expect(personsFull('Não podemos aceitar isso hoje.')).toHaveLength(0);
+    expect(personsFull('Está pronto para revisar imediatamente.')).toHaveLength(0);
+  });
+});
+
 describe('precomposed Latin folding (Nordic ø/æ, Polish ł, German ß, Icelandic ð/þ, Turkish ı)', () => {
   // NFD already handles every letter+diacritic pair that decomposes (é, ñ, ü, å),
   // but a handful of historic ligatures and stroked letters are atomic codepoints
