@@ -2097,5 +2097,27 @@
         "text": "Kevin No"
       }
     ]
+  },
+  {
+    "text": "Ticket #77120 — traveler passport number Z5T8W2R6Q9 on file for verification.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "Z5T8W2R6Q9"
+      }
+    ]
+  },
+  {
+    "text": "Reisepass K3M9P1N7B4D vorgelegt und geprüft.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "K3M9P1N7B4D"
+      }
+    ]
+  },
+  {
+    "text": "The passport office at desk 12 reopens Monday.",
+    "entities": []
   }
 ]
