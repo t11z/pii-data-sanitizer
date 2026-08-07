@@ -50,11 +50,30 @@ function lookup(
   return false;
 }
 
+/**
+ * Strips a single-letter apostrophe prefix — `O'`, `D'`, `L'`, `M'` — returning
+ * the bare root ("sullivan" from "o'sullivan"). Restricted to the apostrophe
+ * sitting at index 1 of the lowercased token: that is exactly the Irish `O'`,
+ * Italian/French `D'`, French `L'`/`M'` particle shape the ingest sources
+ * glue into one lexeme but don't index compound. Every other apostrophe
+ * placement (contractions like "don't", place-names like "Ta'if") either has
+ * the apostrophe elsewhere or is filtered upstream by `isCapitalized`, so
+ * this fallback can't loosen matching beyond that one morphological class.
+ * Mirrors the existing hyphen-split fallback below for the same reason: the
+ * DB indexes the root, not the compound surface form.
+ */
+function apostropheRoot(lowered: string): string | null {
+  if (lowered[1] !== "'" && lowered[1] !== '’') return null;
+  return lowered.length > 2 ? lowered.slice(2) : null;
+}
+
 export function givenHit(source: NameSource, token: string, script: Script): boolean {
   const l = token.toLowerCase();
   const has = source.hasGiven.bind(source);
   if (lookup(has, l, script)) return true;
   if (l.includes('-')) return l.split('-').some((p) => lookup(has, p, script));
+  const root = apostropheRoot(l);
+  if (root) return lookup(has, root, script);
   return false;
 }
 
@@ -63,6 +82,8 @@ export function familyHit(source: NameSource, token: string, script: Script): bo
   const has = source.hasFamily.bind(source);
   if (lookup(has, l, script)) return true;
   if (l.includes('-')) return l.split('-').some((p) => lookup(has, p, script));
+  const root = apostropheRoot(l);
+  if (root) return lookup(has, root, script);
   return false;
 }
 
@@ -76,6 +97,8 @@ function tierOf(source: NameSource, token: Token): Tier | null {
   if (!matchTier) return 'core'; // sources without tier info count as core
   const l = token.text.toLowerCase();
   const parts = l.includes('-') ? [l, ...l.split('-')] : [l];
+  const apRoot = apostropheRoot(l);
+  if (apRoot) parts.push(apRoot);
   // Mirror the diacritic-fold fallback used for membership so a name matched only
   // via folding ("García") still reports its real tier instead of null — null
   // would make scoring treat it as ext-only and re-penalize it below threshold.

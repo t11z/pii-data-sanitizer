@@ -756,7 +756,29 @@
     ]
   },
   {
+    "text": "MAC filtering rule applied for de1f-2a3b-4c5d overnight.",
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "de1f-2a3b-4c5d"
+      }
+    ]
+  },
+  {
+    "text": "The isolated adapter reported MAC 9c8d.7e6f.5a4b.",
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "9c8d.7e6f.5a4b"
+      }
+    ]
+  },
+  {
     "text": "The build artifact 001A2B3C4D5E was uploaded.",
+    "entities": []
+  },
+  {
+    "text": "Firmware checksum ab12.cd34.ef56.7890 recorded in the log.",
     "entities": []
   },
   {
@@ -1707,6 +1729,33 @@
   {
     "text": "Login to Admin Console required before access.",
     "entities": []
+  },
+  {
+    "text": "Follow-up by Niamh O'Sullivan: refund issued to the customer.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Niamh O'Sullivan"
+      }
+    ]
+  },
+  {
+    "text": "Sean O'Neill called about his account.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Sean O'Neill"
+      }
+    ]
+  },
+  {
+    "text": "Marco D'Angelo confirmed the order.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Marco D'Angelo"
+      }
+    ]
   },
   {
     "text": "My IBAN is DE89 3704 0044 0532 0131 00 for the wire.",
