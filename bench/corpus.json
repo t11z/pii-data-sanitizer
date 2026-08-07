@@ -1917,5 +1917,18 @@
   {
     "text": "Ticket #98765-4 escalated after Bug № 555-1234 reproduced on staging.",
     "entities": []
+  },
+  {
+    "text": "Patient DOB: 03-Apr-1985, admitted for routine checkup.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "03-Apr-1985"
+      }
+    ]
+  },
+  {
+    "text": "The batch was staged on 17-Nov-1990 for release.",
+    "entities": []
   }
 ]
