@@ -24,8 +24,22 @@ const IBAN_RE = /\b[A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30}\b/g;
 // "IBAN [DE89 …]", "IBAN {NL91 …}" in template contexts). Adding these to the
 // class does not widen the precision surface because the IBAN shape after them
 // is still required — `[A-Z]{2}\d{2}` + 10–30 alphanumeric groups does not
-// occur incidentally in prose.
-const IBAN_CUED_RE = /\bIBAN\b[\s:([{]+([A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30})\b/g;
+// occur incidentally in prose. Same reasoning admits `#` and `=` (declaration
+// syntax: "IBAN #DE89 …", "IBAN=DE89 …").
+//
+// An optional, closed-class linking token between the cue word and the
+// separator captures the natural-English constructions writers reach for in
+// support/banking prose: "IBAN is …", "IBAN was …", "IBAN number …",
+// "IBAN no. …", "IBAN reads …". These are the connectors this population uses,
+// and confining the group to a small enumerated set (matched at most once) —
+// rather than an arbitrary word run — means the shape gate stays load-bearing:
+// prose without a real IBAN body after the linker (e.g. "IBAN is documented on
+// the wiki", "IBAN was updated last week", "IBAN number is not visible") still
+// fails to match. This is the safety-net path the source comment above
+// describes; extending its trigger to natural prose is what makes the OCR /
+// mis-keyed intent signal actually reachable on English tickets.
+const IBAN_CUED_RE =
+  /\bIBAN\b(?:\s+(?:is|was|number|no\.?|reads))?[\s:([{#=]+([A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30})\b/g;
 
 // Official IBAN length per country, from the SWIFT IBAN Registry. Mod-97 alone
 // passes ~1% of random strings by chance, so a longer-than-canonical run that
@@ -35,7 +49,7 @@ const IBAN_CUED_RE = /\bIBAN\b[\s:([{]+([A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30}
 // possible IBAN shape, not the specific value that triggered the gap. Unknown
 // country codes fall through (mod-97 alone), preserving recall on jurisdictions
 // not yet in the registry.
-const IBAN_LENGTH_BY_COUNTRY: Record<string, number> = {
+export const IBAN_LENGTH_BY_COUNTRY: Record<string, number> = {
   AD: 24,
   AE: 23,
   AL: 28,
