@@ -1040,4 +1040,44 @@ describe('date of birth detection (cue-gated)', () => {
     );
     expect(only('born on 17-Nov-1990 in Leeds.', 'DATE_OF_BIRTH')[0].text).toBe('17-Nov-1990');
   });
+
+  // The cue and the date are often separated by a short connective phrase in
+  // support prose. Held-out values (dates + phrasings absent from the corpus)
+  // prove the cue binds the date across up to three filler words, not just a
+  // bare colon/space.
+  it('binds a DOB cue across "on file:" filler', () => {
+    expect(only('DOB on file: 1990-07-22 noted.', 'DATE_OF_BIRTH')[0].text).toBe('1990-07-22');
+  });
+
+  it('binds a DOB cue across "recorded as" filler', () => {
+    expect(only('Date of birth recorded as 04/11/1979 in the file.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '04/11/1979'
+    );
+  });
+
+  it('binds a DOB cue across "listed as" filler', () => {
+    expect(only('DOB listed as 22.08.1991 per record.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '22.08.1991'
+    );
+  });
+
+  // Precision guards: the filler run is bounded (≤3 short words, no sentence
+  // punctuation), so a distant date can't be bridged to a far-off cue.
+  it('does not bridge a cue to a date more than three words away', () => {
+    expect(
+      only(
+        'He was born in a small coastal village; the audit on 2024-01-15 found issues.',
+        'DATE_OF_BIRTH'
+      )
+    ).toHaveLength(0);
+  });
+
+  it('does not bridge a cue across a sentence boundary', () => {
+    expect(
+      only(
+        'Customer born. Separately, a meeting was scheduled 05.06.2020 downtown.',
+        'DATE_OF_BIRTH'
+      )
+    ).toHaveLength(0);
+  });
 });
