@@ -821,6 +821,17 @@ describe('phone detection', () => {
     expect(only('Account 987654321098765 verified.', 'PHONE')).toHaveLength(0); // 15d fused
   });
 
+  it('rejects a phone-shaped run marked as a case/ticket reference (# / №)', () => {
+    // A '#'/'№' marker makes the digits a case/ticket/order identifier, not a phone.
+    // Held-out numbers, distinct from the SSN-shaped gap case. Once the NATIONAL_ID
+    // detector defers a '#'-marked 3-2-4 run, the phone detector must not pick it up
+    // instead — the marker guard applies to both.
+    expect(only('Case #567-89-1234 closed.', 'PHONE')).toHaveLength(0);
+    expect(only('Reported issue № 12 345 678 by user.', 'PHONE')).toHaveLength(0);
+    // The marker only kills the run it directly precedes: a real phone elsewhere survives.
+    expect(only('Order #100. Call +1 202 555 0142 now.', 'PHONE')[0].text).toBe('+1 202 555 0142');
+  });
+
   it('accepts a bare 10–15-digit run wrapped in parens after a phone-cue word', () => {
     // Held-out digit sequences (distinct from the gap's 9825551234) prove the
     // heuristic is structural — bare digit run wrapped in `(N)`, digit count in
@@ -924,6 +935,24 @@ describe('national id detection', () => {
     // both sides, so the candidate is a slice of a structured ID, not an SSN.
     expect(only('Ticket REF-234-56-7890-2026 attached.', 'NATIONAL_ID')).toHaveLength(0);
     expect(only('Order 234-56-7890-X is queued.', 'NATIONAL_ID')).toHaveLength(0);
+  });
+
+  it('does not flag a 3-2-4 run marked as a case/ticket reference (# / №)', () => {
+    // Held-out, allocation-VALID SSN shapes (they pass isValidSsn) that are only
+    // rejected because a reference marker precedes them — proving the guard is the
+    // '#'/'№' cue, not the number. '#' is the universal support-desk marker for a
+    // case/ticket/order id, so a marked 3-2-4 run is a reference, never an SSN.
+    expect(only('Case #567-89-1234 closed.', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('Ticket #123-45-6789 escalated.', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('Bug № 234-56-7890 reopened.', 'NATIONAL_ID')).toHaveLength(0); // marker + space
+  });
+
+  it('still detects a genuine SSN when # appears elsewhere in the sentence', () => {
+    // The marker only suppresses the run it directly precedes; a real, cued SSN
+    // in the same sentence must survive. Held-out valid number.
+    expect(only('Note #4: employee SSN 345-67-8901 verified.', 'NATIONAL_ID')[0].text).toBe(
+      '345-67-8901'
+    );
   });
 });
 
