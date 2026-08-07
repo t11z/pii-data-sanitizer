@@ -1756,5 +1756,40 @@
         "text": "Marco D'Angelo"
       }
     ]
+  },
+  {
+    "text": "My IBAN is DE89 3704 0044 0532 0131 00 for the wire.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "DE89 3704 0044 0532 0131 00"
+      }
+    ]
+  },
+  {
+    "text": "Customer IBAN number: NL91 ABNA 0417 1643 01 verified today.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "NL91 ABNA 0417 1643 01"
+      }
+    ]
+  },
+  {
+    "text": "Wire IBAN #DE89 3704 0044 0532 0131 00 today please.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "DE89 3704 0044 0532 0131 00"
+      }
+    ]
+  },
+  {
+    "text": "The IBAN is documented on the wiki for new agents.",
+    "entities": []
+  },
+  {
+    "text": "My IBAN was updated last week during the compliance audit.",
+    "entities": []
   }
 ]
