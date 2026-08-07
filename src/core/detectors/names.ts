@@ -307,16 +307,35 @@ function knownNameAfter(tokens: Token[], i: number, source: NameSource, text: st
   return true;
 }
 
-function nameStart(tokens: Token[], i: number, source: NameSource, text: string): StartInfo | null {
+function nameStart(
+  tokens: Token[],
+  i: number,
+  source: NameSource,
+  text: string,
+  prevEmittedTailIdx: number
+): StartInfo | null {
   const tok = tokens[i];
   if (tok.script === 'Han' || tok.script === 'Other') return null;
   // Structured-identifier prefix fused with a digit run ("XR250", "CZ6508"):
   // never a person name, even if it happens to match the dictionary.
   if (adjoinsDigit(tok, text)) return null;
 
+  // A token can be either the tail of a name span OR a title/role cue for the
+  // next candidate — never both at once. Many honorifics coincide with common
+  // family names ("Hajj", "Haji", "Don", "Sayed", "Sayyid", "Rev", "Sir",
+  // "Lord", "Lady", "Imam", "Ustad", "Shri", "Smt", …). When such a token
+  // closes a name chain we JUST emitted, TITLE_GAP would otherwise accept the
+  // sentence-ending period after it as if it were the "Dr." abbreviation dot,
+  // spuriously licensing the next capitalized word as a title-anchored name
+  // ("Customer Leila Hajj. Email:…" → FP "Email", "Customer Ayla Hajj.
+  // Reference:…" → FP "Reference"). The guard is structural: it does not care
+  // WHICH title/name is dual-use, so it generalizes to every honorific ever
+  // added to titles.ts and every surface form the tokenizer might see.
+  const prevWasEmittedNameTail = i > 0 && i - 1 === prevEmittedTailIdx;
+
   let titleBefore = false;
   let roleBefore = false;
-  if (i > 0) {
+  if (i > 0 && !prevWasEmittedNameTail) {
     const prev = tokens[i - 1];
     const between = text.slice(prev.end, tok.start);
     if (isTitle(prev.text) && TITLE_GAP.test(between)) titleBefore = true;
@@ -334,7 +353,9 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
   // Ticket" never matches). Treated as a role cue: scoring still requires parts >=
   // 2, and NON_NAME_WORDS still blocks structural chains, so "Escalated to Customer
   // Service Team" / "Weitergeleitet an Kundenservice Team" remain non-detections.
-  if (!roleBefore && i >= 2) {
+  // Same emitted-tail guard as the single-token cues above: if either frame slot
+  // was just claimed as part of a preceding name span, the frame is spurious.
+  if (!roleBefore && i >= 2 && !prevWasEmittedNameTail) {
     const prev = tokens[i - 1];
     const prev2 = tokens[i - 2];
     if (
@@ -355,7 +376,7 @@ function nameStart(tokens: Token[], i: number, source: NameSource, text: string)
   // capitalized words after the connector ("Letter from London arrived") and
   // structural chains ("Notification from Customer Service Team") never
   // promote on the cue alone.
-  if (!roleBefore && i >= 2) {
+  if (!roleBefore && i >= 2 && !prevWasEmittedNameTail) {
     const prev = tokens[i - 1];
     const prev2 = tokens[i - 2];
     if (
@@ -531,9 +552,15 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
   const tokens = tokenize(text);
   const spans: Span[] = [];
   let i = 0;
+  // Index of the last emitted PERSON span's tail token. Threaded into nameStart
+  // so a token that was just consumed as a name-tail cannot double as a title /
+  // role / handoff / source cue for the immediately-following candidate — see
+  // the "prevWasEmittedNameTail" comment in nameStart for the class of FPs this
+  // closes. `-1` when nothing has been emitted yet.
+  let prevEmittedTailIdx = -1;
 
   while (i < tokens.length) {
-    const start = nameStart(tokens, i, source, text);
+    const start = nameStart(tokens, i, source, text, prevEmittedTailIdx);
     if (!start) {
       i++;
       continue;
@@ -655,9 +682,11 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
         confidence,
         source: 'names',
       });
+      prevEmittedTailIdx = j;
       const alias = aliasInParens(tokens, j, text);
       if (alias) {
         spans.push(alias);
+        prevEmittedTailIdx = j + 1;
         nextStart = j + 2;
       }
     }
