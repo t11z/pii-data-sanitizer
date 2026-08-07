@@ -1065,6 +1065,19 @@
     ]
   },
   {
+    "text": "Dispute case opened (ssn-078-32-4692) for the customer.",
+    "entities": [
+      {
+        "type": "NATIONAL_ID",
+        "text": "078-32-4692"
+      }
+    ]
+  },
+  {
+    "text": "Firmware id-900-11-2222 released.",
+    "entities": []
+  },
+  {
     "text": "German tax ID 65929970489 is on the invoice.",
     "entities": [
       {

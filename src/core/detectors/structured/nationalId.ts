@@ -63,12 +63,22 @@ export function detectNationalIds(text: string): Span[] {
     // \b only requires a non-word boundary, but '+' and '-' are non-word chars,
     // so a 3-2-4 chunk inside a longer dashed/+-prefixed digit run (e.g. the
     // "351-21-1234" inside "+351-21-1234-567") passes the SSN regex even though
-    // it is a slice of an international phone number, not an SSN. Reject when
-    // the candidate is adjacent to a '+' or '-' on either side — a real SSN is
-    // a standalone 3-2-4 token, never a substring of a longer structured run.
+    // it is a slice of an international phone number, not an SSN. We reject when
+    // the candidate is genuinely a substring of a longer *numeric* structured
+    // run — but a hyphen separating a textual cue label from the number
+    // ("ssn-078-32-4692") is the opposite signal and must be kept.
     const before = m.index === 0 ? '' : text[m.index - 1];
+    const twoBefore = m.index >= 2 ? text[m.index - 2] : '';
     const after = m.index + m[0].length < text.length ? text[m.index + m[0].length] : '';
-    if (before === '+' || before === '-') continue;
+    // A leading '+' is an international-prefix/phone signal, never an SSN.
+    if (before === '+') continue;
+    // A leading '-' rejects the candidate only when it *continues a digit run* —
+    // i.e. the SSN is a 3-2-4 slice of a longer dashed number ("12-345-67-8901",
+    // "+351-21-1234-567"), signalled by a digit sitting before the hyphen. When
+    // the hyphen instead abuts a letter (or a token boundary) it separates a
+    // textual cue from a standalone SSN ("ssn-078-32-4692", "id-234-56-7890"),
+    // which is the strongest SSN signal there is — keep it.
+    if (before === '-' && /\d/.test(twoBefore)) continue;
     if (after === '-') continue;
     // Reject case/ticket/order references written as "#567-89-1234" / "№ 567-89-1234":
     // the marker makes it an identifier, not an SSN.

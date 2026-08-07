@@ -937,6 +937,24 @@ describe('national id detection', () => {
     expect(only('Order 234-56-7890-X is queued.', 'NATIONAL_ID')).toHaveLength(0);
   });
 
+  it('detects an SSN glued to a textual cue label via a hyphen', () => {
+    // Held-out SSN values (none equal to the space-cued case above): the leading
+    // hyphen here separates a *letter* label from a standalone SSN, so it is a
+    // cued SSN, not a slice of a longer number. The '-' abutting a letter must
+    // not trigger the phone-slice guard.
+    expect(only('Dispute for (ssn-078-32-4692) opened.', 'NATIONAL_ID')[0].text).toBe(
+      '078-32-4692'
+    );
+    expect(only('SSN-123-45-6789 verified.', 'NATIONAL_ID')[0].text).toBe('123-45-6789');
+    expect(only('id-256-78-9012 on file.', 'NATIONAL_ID')[0].text).toBe('256-78-9012');
+  });
+
+  it('still rejects a 3-2-4 slice of a longer purely-numeric dashed run', () => {
+    // Held-out numeric run: the hyphen before the 3-2-4 chunk abuts a *digit*, so
+    // the candidate really is a slice of a longer dashed number — keep rejecting.
+    expect(only('Batch 12-345-67-8901 processed.', 'NATIONAL_ID')).toHaveLength(0);
+  });
+
   it('does not flag a 3-2-4 run marked as a case/ticket reference (# / №)', () => {
     // Held-out, allocation-VALID SSN shapes (they pass isValidSsn) that are only
     // rejected because a reference marker precedes them — proving the guard is the
