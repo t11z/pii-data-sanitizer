@@ -90,7 +90,13 @@ export function detectNameVariants(text: string, personSpans: Span[]): Span[] {
     .sort((a, b) => b.length - a.length)
     .map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
     .join('|');
-  const re = new RegExp(`(?<![\\p{L}\\p{N}])(?:${alternation})(?![\\p{L}\\p{N}])`, 'giu');
+  // Trailing "@" is excluded from the boundary: a slug immediately before "@" is
+  // an email local part ("olaf.berg@internal"), owned by the email detector — not
+  // a standalone person mention. Without this, a confirmed "Olaf Berg" turns the
+  // "olaf.berg" of every address into a bogus PERSON span; it stays hidden only
+  // while a dotted-TLD email span overlaps it, and leaks for single-label /
+  // internal domains ("@internal", "@corp") the email detector doesn't match.
+  const re = new RegExp(`(?<![\\p{L}\\p{N}])(?:${alternation})(?![\\p{L}\\p{N}@])`, 'giu');
 
   const spans: Span[] = [];
   for (const m of text.matchAll(re)) {

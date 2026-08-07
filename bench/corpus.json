@@ -2171,5 +2171,36 @@
   {
     "text": "Firmware v2024-11-02 shipped to all nodes.",
     "entities": []
+  },
+  {
+    "text": "Escalated by Dr. Orvist Pemberdint to the team (orvist.pemberdint@internal) for review.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Orvist Pemberdint"
+      }
+    ]
+  },
+  {
+    "text": "Contact Prof. Galwyn Fenworth about the outage (fenworth.galwyn@corp) before noon.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Galwyn Fenworth"
+      }
+    ]
+  },
+  {
+    "text": "Ticket from Dr. Brunlow Thistlewaite (brunlow.thistlewaite@example.com) resolved.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Brunlow Thistlewaite"
+      },
+      {
+        "type": "EMAIL",
+        "text": "brunlow.thistlewaite@example.com"
+      }
+    ]
   }
 ]
