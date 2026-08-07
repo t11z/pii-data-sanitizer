@@ -962,6 +962,24 @@ describe('date of birth detection (cue-gated)', () => {
     expect(only('Geburtsdatum: 12. März 1985.', 'DATE_OF_BIRTH')[0].text).toBe('12. März 1985');
   });
 
+  it('detects a date after the closed-form "Birthdate" label', () => {
+    // Held-out value — a common form-field label the "date of birth" wording missed.
+    expect(only('Birthdate: 1977-04-19 confirmed.', 'DATE_OF_BIRTH')[0].text).toBe('1977-04-19');
+  });
+
+  it('detects a date after the spaced "Birth date" label', () => {
+    expect(only('Birth date 09/23/1964 at intake.', 'DATE_OF_BIRTH')[0].text).toBe('09/23/1964');
+  });
+
+  it('detects a date after the German "Geburtstag" cue', () => {
+    expect(only('Geburtstag: 14. Juli 1980.', 'DATE_OF_BIRTH')[0].text).toBe('14. Juli 1980');
+  });
+
+  it('does not treat "birthday" as a birth cue (event, not DOB)', () => {
+    // Precision guard: "birthday party" must not turn an adjacent event date into a DOB.
+    expect(only('The office birthday party is on 2025-06-01.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
+
   it('does not flag an incidental date with no birth cue', () => {
     expect(only('The incident on 2024-01-15 was reviewed.', 'DATE_OF_BIRTH')).toHaveLength(0);
   });

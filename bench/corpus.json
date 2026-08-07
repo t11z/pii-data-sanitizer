@@ -1101,6 +1101,28 @@
     ]
   },
   {
+    "text": "Verification note: Birthdate: 1977-04-19 confirmed against the ID scan.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1977-04-19"
+      }
+    ]
+  },
+  {
+    "text": "Form field — Birth date 09/23/1964 — captured at intake.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "09/23/1964"
+      }
+    ]
+  },
+  {
+    "text": "The team booked the office birthday party for 2025-06-01.",
+    "entities": []
+  },
+  {
     "text": "The server logged 192.168.0.10 at 2024-03-01 without incident.",
     "entities": [
       {
