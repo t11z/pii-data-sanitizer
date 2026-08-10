@@ -394,6 +394,42 @@ describe('credit card detection', () => {
     expect(only('Token 4929 88 8888 8883 logged', 'CREDIT_CARD')).toHaveLength(0);
   });
 
+  it('detects a network PAN printed with a non-canonical grouping', () => {
+    // Gap shape: a real Amex (IIN 37, 15 digits, Luhn-valid) typed with a 6-9
+    // split ("378282 246310005") instead of the canonical 4-6-5. The grouping
+    // gate alone rejected it, so the token leaked as a PHONE instead. Because
+    // the IIN + length identify the network, spacing is irrelevant.
+    //
+    // Held-out Amex numbers, NOT the gap's 378282246310005 — 371449635398431
+    // and 340000000000009 are distinct Luhn-valid Amex PANs, so this proves the
+    // heuristic keys on the network signature, not a memorized value.
+    expect(only('Charged on Amex 371449 635398431 last week', 'CREDIT_CARD')[0].text).toBe(
+      '371449 635398431'
+    );
+    expect(only('Refund to 3400 00000 000009 pending', 'CREDIT_CARD')[0].text).toBe(
+      '3400 00000 000009'
+    );
+    // And the PHONE false positive the miss produced is gone: the higher-
+    // confidence CREDIT_CARD span wins the overlap.
+    const spans = detect('Amex 371449 635398431 declined');
+    expect(spans.filter((s) => s.type === 'PHONE')).toHaveLength(0);
+    expect(spans.filter((s) => s.type === 'CREDIT_CARD')).toHaveLength(1);
+  });
+
+  it('does not treat a non-network Luhn run as a card just because grouping is odd', () => {
+    // Precision guard for the network-bypass rule: the relaxation fires ONLY for
+    // a known IIN + exact length. A 16-digit Luhn-valid run whose MII (9) maps
+    // to no consumer network (9999034557631994: sum=90) printed with a
+    // non-canonical 4-3-4-5 grouping must stay silent — the grouping gate still
+    // governs the unknown-network case.
+    expect(only('Audit token 9999 034 5576 31994 logged', 'CREDIT_CARD')).toHaveLength(0);
+    // A 14-digit run with a Visa MII but a length no network prints at (Visa is
+    // 13/16/19, never 14) must also stay rejected — length is part of the
+    // signature, not just the prefix. (41111111111114: Luhn-valid, 4-2-4-4
+    // grouping is not a network format either.)
+    expect(only('Ref 4111 11 1111 1114 filed', 'CREDIT_CARD')).toHaveLength(0);
+  });
+
   it('suppresses CC-shape substrings inside an uncued IBAN body (country-code prefix guard)', () => {
     // Gap shape: an IBAN with irregular spacing ("ES9121 1494 5100 0714 3026")
     // that fails mod-97 — so no IBAN span emits and the resolveOverlaps shield

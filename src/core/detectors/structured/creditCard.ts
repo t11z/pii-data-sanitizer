@@ -63,6 +63,31 @@ function hasNetworkGrouping(value: string): boolean {
   return NETWORK_GROUPINGS.has(sizes.join('-'));
 }
 
+// A payment card is ultimately defined by its Issuer Identification Number
+// (ISO/IEC 7812 IIN ranges) plus that network's fixed PAN length — not by how a
+// human happened to space the digits. When a Luhn-valid run matches a known
+// network signature, its cardness is already established, so we accept it even
+// when the print grouping is non-canonical: an Amex typed "378282 246310005"
+// (6-9) instead of the 4-6-5 "3782 822463 10005" is still a card. The
+// canonical-grouping gate above still guards the *unknown*-network case, where
+// spacing is the only structural signal separating a real card from a Luhn
+// collision inside an unrelated token — so this relaxation adds real cards
+// without widening that FP class (the run must match a specific IIN + exact
+// length, tighter than the plain 15/16-digit rule the ungrouped path allows).
+const NETWORK_SIGNATURES: ReadonlyArray<{ re: RegExp; lengths: ReadonlySet<number> }> = [
+  { re: /^3[47]/, lengths: new Set([15]) }, // American Express
+  { re: /^4/, lengths: new Set([13, 16, 19]) }, // Visa
+  { re: /^(5[1-5]|222[1-9]|22[3-9]\d|2[3-6]\d\d|27[01]\d|2720)/, lengths: new Set([16]) }, // Mastercard
+  { re: /^(6011|64[4-9]|65)/, lengths: new Set([16]) }, // Discover
+  { re: /^35(2[89]|[3-8]\d)/, lengths: new Set([16]) }, // JCB
+  { re: /^3(0[0-5]|095|6|[89])/, lengths: new Set([14]) }, // Diners Club
+  { re: /^62/, lengths: new Set([16, 17, 18, 19]) }, // UnionPay
+];
+
+function matchesKnownNetwork(digits: string): boolean {
+  return NETWORK_SIGNATURES.some((s) => s.lengths.has(digits.length) && s.re.test(digits));
+}
+
 export function detectCreditCards(text: string): Span[] {
   const spans: Span[] = [];
   for (const match of text.matchAll(CARD_RE)) {
@@ -76,9 +101,14 @@ export function detectCreditCards(text: string): Span[] {
     // long structured token) is therefore never a card.
     if (digits[0] === '0') continue;
     // Require grouping or a known length to avoid flagging long plain integers.
+    // A run whose IIN + length match a known network is a card regardless of how
+    // its digits are spaced, so it bypasses the grouping/length shape gates (but
+    // still clears Luhn, the 0-MII, and the IBAN-prefix guards).
     const grouped = /[ -]/.test(value);
-    if (!grouped && digits.length !== 15 && digits.length !== 16) continue;
-    if (grouped && !hasNetworkGrouping(value)) continue;
+    if (!matchesKnownNetwork(digits)) {
+      if (!grouped && digits.length !== 15 && digits.length !== 16) continue;
+      if (grouped && !hasNetworkGrouping(value)) continue;
+    }
     if (precededByIbanBodyPrefix(text, match.index)) continue;
     spans.push({
       start: match.index,
