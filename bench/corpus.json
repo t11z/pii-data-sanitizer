@@ -2233,5 +2233,18 @@
         "text": "brunlow.thistlewaite@example.com"
       }
     ]
+  },
+  {
+    "text": "Corporate Amex 340000 000000009 charged the annual fee.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "340000 000000009"
+      }
+    ]
+  },
+  {
+    "text": "Audit token 9999 034 5576 31994 recorded in the ledger.",
+    "entities": []
   }
 ]
