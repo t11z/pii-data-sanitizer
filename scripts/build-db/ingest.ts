@@ -52,6 +52,7 @@ const LATIN_LANGS = [
   'id',
   'ca',
 ];
+const CYRILLIC_LANGS = ['ru', 'uk', 'bg', 'sr', 'be', 'mk'];
 const ARABIC_LANGS = ['ar', 'fa', 'ur', 'ps', 'ckb', 'sd'];
 const HEBREW_LANGS = ['he', 'yi'];
 const DEVANAGARI_LANGS = ['hi', 'mr', 'ne', 'sa'];
@@ -64,6 +65,7 @@ const KANNADA_LANGS = ['kn'];
 const MALAYALAM_LANGS = ['ml'];
 
 const NATIVE_LANGS = [
+  ...CYRILLIC_LANGS,
   ...ARABIC_LANGS,
   ...HEBREW_LANGS,
   ...DEVANAGARI_LANGS,
@@ -85,6 +87,28 @@ const HUMAN_LATIN_LANGS = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl'];
 // items — including Korea (Hangul), Vietnam (Latin w/ diacritics), and
 // sub-Saharan Africa (mostly Latin). A bare `Q5 + native-label` query times out.
 const HUMAN_BY_COUNTRY: Array<[string, string]> = [
+  // Cyrillic: the largest world script previously entirely absent from the name
+  // database (~250M speakers across Russia, Ukraine, the Balkans, and Central
+  // Asia). Cyrillic is bicameral, so native labels detect through the same
+  // capitalization-gated path as Latin (see isBicameralNameScript in names.ts).
+  // English (en) labels feed the Latin pack as romanized forms via the entries
+  // that already exist for the generic sweep; these add the native-script forms.
+  ['wd:Q159', 'ru'], // Russia
+  ['wd:Q212', 'uk'],
+  ['wd:Q212', 'ru'], // Ukraine
+  ['wd:Q184', 'be'],
+  ['wd:Q184', 'ru'], // Belarus
+  ['wd:Q219', 'bg'], // Bulgaria
+  ['wd:Q403', 'sr'], // Serbia
+  ['wd:Q221', 'mk'], // North Macedonia
+  ['wd:Q232', 'kk'],
+  ['wd:Q232', 'ru'], // Kazakhstan
+  ['wd:Q813', 'ky'],
+  ['wd:Q813', 'ru'], // Kyrgyzstan
+  ['wd:Q863', 'tg'],
+  ['wd:Q863', 'ru'], // Tajikistan
+  ['wd:Q711', 'mn'], // Mongolia
+  ['wd:Q236', 'sr'], // Montenegro
   ['wd:Q668', 'hi'],
   ['wd:Q668', 'mr'],
   ['wd:Q668', 'sa'],
@@ -205,6 +229,7 @@ const FAMILY_CLASS = 'wd:Q101352';
 // Vietnamese/African variants generated at ingest time (see add()).
 const CAPS: Record<string, number> = {
   Latin: 150000,
+  Cyrillic: 20000,
   Arabic: 20000,
   Hebrew: 10000,
   Devanagari: 20000,

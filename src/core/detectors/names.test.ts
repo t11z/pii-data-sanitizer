@@ -2109,3 +2109,42 @@ describe('title-tail cue guard (dual-use honorific/surname at end of chain)', ()
     }
   });
 });
+
+describe('Cyrillic names (Russian / Ukrainian / Balkan / Bulgarian)', () => {
+  // Cyrillic is bicameral, so — unlike the caseless native scripts — it detects
+  // through the same capitalization-gated path as Latin (see isBicameralNameScript
+  // in names.ts): a Cap-initial DB hit promotes, a bare lowercase collision does
+  // not. Held out against the FULL committed DB: these are ordinary Cyrillic
+  // names from Wikidata's country-constrained harvest, none of them the specific
+  // fixture the pipeline was tuned on, so a pass proves the pack + engine path
+  // generalize rather than memorize.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects a Russian given + family pair', () => {
+    expect(personsFull('Клиент: Владимир Петров подал жалобу.')).toContain('Владимир Петров');
+  });
+
+  it('detects a Ukrainian given + family pair', () => {
+    expect(personsFull('Контакт — Олександр Коваленко звернувся.')).toContain(
+      'Олександр Коваленко'
+    );
+  });
+
+  it('detects a name at a sentence start via the corroborating surname', () => {
+    // The sentence-initial anchor needs a following DB-confirmed name part;
+    // nameContinuation was extended to bicameral scripts so a Cyrillic surname
+    // corroborates a Cyrillic given name here just as a Latin one would.
+    expect(personsFull('Мария Иванова оформила возврат.')).toContain('Мария Иванова');
+  });
+
+  it('does NOT detect ordinary lowercase Cyrillic words as names', () => {
+    // The whole point of routing Cyrillic through the bicameral (capitalized)
+    // path rather than the caseless one: a run of common lowercase words must
+    // never promote, even if a token collides with a surname in the pack.
+    expect(personsFull('сегодня была хорошая погода в городе')).toEqual([]);
+  });
+});
