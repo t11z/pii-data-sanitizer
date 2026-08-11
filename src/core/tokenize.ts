@@ -12,6 +12,7 @@ const POSSESSIVE_CLITIC = /['’]s$/i;
 
 const SCRIPT_TESTS: Array<[Script, RegExp]> = [
   ['Latin', /\p{Script=Latin}/u],
+  ['Cyrillic', /\p{Script=Cyrillic}/u],
   ['Arabic', /\p{Script=Arabic}/u],
   ['Hebrew', /\p{Script=Hebrew}/u],
   ['Devanagari', /\p{Script=Devanagari}/u],

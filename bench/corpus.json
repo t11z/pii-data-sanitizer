@@ -2233,5 +2233,50 @@
         "text": "brunlow.thistlewaite@example.com"
       }
     ]
+  },
+  {
+    "text": "Клиент: Владимир Петров подал жалобу.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Владимир Петров"
+      }
+    ]
+  },
+  {
+    "text": "Контакт — Олександр Коваленко звернувся до підтримки.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Олександр Коваленко"
+      }
+    ]
+  },
+  {
+    "text": "Договорът подписа Георги Иванов вчера.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Георги Иванов"
+      }
+    ]
+  },
+  {
+    "text": "Пасош проверио Никола Йованович.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Никола Йованович"
+      }
+    ]
+  },
+  {
+    "text": "Свяжитесь с Сергеем Волковым: sergei.volkov@example.ru",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "text": "sergei.volkov@example.ru"
+      }
+    ]
   }
 ]

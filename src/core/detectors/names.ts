@@ -134,6 +134,21 @@ function tierOf(source: NameSource, token: Token): Tier | null {
   return best;
 }
 
+/**
+ * Bicameral scripts whose names carry case, so capitalization is a real signal:
+ * Latin and Cyrillic. These flow through the same capitalization-gated path
+ * (require a Cap-initial token plus a DB hit, or an unknown-cap corroborator) —
+ * unlike the caseless scripts below, where a bare DB hit suffices. Keeping
+ * Cyrillic here rather than in `isCaselessNameScript` is what stops an ordinary
+ * lowercase Cyrillic word that happens to collide with a name from detecting.
+ * The Latin-only sub-rules the shared path invokes (particle folding, `al-`/`d'`
+ * gluing) are themselves gated on `script === 'Latin'`, so they stay inert for
+ * Cyrillic.
+ */
+function isBicameralNameScript(script: Script): boolean {
+  return script === 'Latin' || script === 'Cyrillic';
+}
+
 function isCaselessNameScript(token: Token): boolean {
   return (
     token.script === 'Arabic' ||
@@ -183,7 +198,7 @@ function particleApostropheName(token: Token): boolean {
 }
 
 function nameLike(token: Token, source: NameSource, allowUnknownCap: boolean): boolean {
-  if (token.script === 'Latin') {
+  if (isBicameralNameScript(token.script)) {
     if (!isCapitalized(token.text) && !particleHyphenName(token) && !particleApostropheName(token))
       return false;
     // Short ALL-CAPS Latin runs are acronyms / initialisms in prose (ID, PIN,
@@ -306,7 +321,7 @@ function nameContinuation(tokens: Token[], i: number, text: string): boolean {
   const next = tokens[j + 1];
   if (!next) return false;
   if (!SINGLE_GAP.test(text.slice(tokens[j].end, next.start))) return false;
-  if (next.script !== 'Latin') return false;
+  if (!isBicameralNameScript(next.script)) return false;
   // A bare capitalized follower OR a particle-hyphen-Cap surname the tokenizer
   // keeps as one lowercase-initial unit ("al-Rashid", "el-Sayyid", "abu-Yusuf")
   // — both carry a real surname after the anchor. Without the second clause an
@@ -355,7 +370,7 @@ function knownNameAfter(tokens: Token[], i: number, source: NameSource, text: st
   const next = tokens[j + 1];
   if (!next) return false;
   if (!SINGLE_GAP.test(text.slice(tokens[j].end, next.start))) return false;
-  if (next.script !== 'Latin') return false;
+  if (!isBicameralNameScript(next.script)) return false;
   if (!isCapitalized(next.text) && !particleHyphenName(next) && !particleApostropheName(next))
     return false;
   if (adjoinsDigit(next, text)) return false;
@@ -454,7 +469,7 @@ function nameStart(
 
   const dbHit = anyHit(source, tok);
 
-  if (tok.script === 'Latin') {
+  if (isBicameralNameScript(tok.script)) {
     // Title/role-anchored particle start: "Dr. van der Berg", "Ms. de Vries",
     // "Engineer de Wilde". A title or role cue sits immediately before a particle
     // that opens a (possibly multi-) particle run leading into a capitalized

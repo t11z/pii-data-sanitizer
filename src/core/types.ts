@@ -25,6 +25,7 @@ export const ALL_PII_TYPES: PiiType[] = [
 
 export type Script =
   | 'Latin'
+  | 'Cyrillic'
   | 'Arabic'
   | 'Hebrew'
   | 'Devanagari'
