@@ -2278,5 +2278,30 @@
         "text": "sergei.volkov@example.ru"
       }
     ]
+  },
+  {
+    "text": "The office is on Baker Street near the park.",
+    "entities": []
+  },
+  {
+    "text": "Deliveries go to 42 Sunny Lane before noon.",
+    "entities": []
+  },
+  {
+    "text": "We walked down Sunset Boulevard at dusk.",
+    "entities": []
+  },
+  {
+    "text": "Turn left onto Park Avenue and continue.",
+    "entities": []
+  },
+  {
+    "text": "Please call Nathan Lane about the contract.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Nathan Lane"
+      }
+    ]
   }
 ]

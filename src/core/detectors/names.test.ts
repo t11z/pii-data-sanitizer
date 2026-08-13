@@ -325,8 +325,7 @@ describe('structural role noun after a name is not absorbed as a surname', () =>
 
   it('proves the role nouns are genuine ext-tier DB hits (guard, not membership)', () => {
     for (const noun of ['manager', 'director', 'lead', 'head', 'chief']) {
-      const hit =
-        fullSource.hasGiven(noun, 'Latin') || fullSource.hasFamily(noun, 'Latin');
+      const hit = fullSource.hasGiven(noun, 'Latin') || fullSource.hasFamily(noun, 'Latin');
       expect(hit, `${noun} should be in the committed DB`).toBe(true);
     }
   });
@@ -2049,15 +2048,13 @@ describe('title-tail cue guard (dual-use honorific/surname at end of chain)', ()
       .map((s) => s.text);
 
   it('does not fire a spurious PERSON on the next Cap word after "<Name Title>."', () => {
-    expect(
-      personsFull('Customer Sven Hajj. Kwargs unreachable in staging.')
-    ).toEqual(['Sven Hajj']);
-    expect(
-      personsFull('Customer Ines Don. Turnabout requested by legal.')
-    ).toEqual(['Ines Don']);
-    expect(
-      personsFull('Escalated to Aylin Sayed. Zellwerk failed integration test.')
-    ).toEqual(['Aylin Sayed']);
+    expect(personsFull('Customer Sven Hajj. Kwargs unreachable in staging.')).toEqual([
+      'Sven Hajj',
+    ]);
+    expect(personsFull('Customer Ines Don. Turnabout requested by legal.')).toEqual(['Ines Don']);
+    expect(personsFull('Escalated to Aylin Sayed. Zellwerk failed integration test.')).toEqual([
+      'Aylin Sayed',
+    ]);
     expect(
       personsFull('Support note from Priya Rev. Splindley pipeline aborted overnight.')
     ).toEqual(['Priya Rev']);
@@ -2146,5 +2143,50 @@ describe('Cyrillic names (Russian / Ukrainian / Balkan / Bulgarian)', () => {
     // path rather than the caseless one: a run of common lowercase words must
     // never promote, even if a token collides with a surname in the pack.
     expect(personsFull('сегодня была хорошая погода в городе')).toEqual([]);
+  });
+});
+
+describe('street addresses are not people', () => {
+  // A capitalized word followed by a thoroughfare suffix is a street name, not a
+  // person, even though both tokens look like name parts ("Baker"/"Street" are
+  // both ext-tier surnames; "Sunny" is a given name). See streets.ts for the
+  // unambiguous-vs-ambiguous split. Held out against the full committed DB
+  // (core + ext) so the assertions exercise the real shipped data, and phrased
+  // with different streets than the ones the guard lists so they prove the
+  // heuristic generalizes rather than memorizing a fixture.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not read an unambiguous street type as a surname', () => {
+    // "Street" / "Boulevard" / "Avenue" essentially never occur as real Latin
+    // surnames, so they break the chain regardless of surrounding context.
+    expect(personsFull('The office is on Cherry Street near the park.')).toEqual([]);
+    expect(personsFull('We walked down Sunset Boulevard at dusk.')).toEqual([]);
+    expect(personsFull('Turn left onto Madison Avenue and continue.')).toEqual([]);
+  });
+
+  it('does not re-anchor a freed street type onto the following word', () => {
+    // After the chain breaks at "Street", the freed ext-tier "Street" token must
+    // not start a fresh chain and swallow the trailing place ("Street London").
+    expect(personsFull('Ship it to 221B Baker Street London tomorrow.')).toEqual([]);
+  });
+
+  it('treats an ambiguous suffix as a street only under a house number', () => {
+    // "Lane" / "Court" double as common surnames, so the address reading needs a
+    // leading house number: "42 Sunny Lane" is an address, "Nathan Lane" is a
+    // person.
+    expect(personsFull('Deliveries go to 42 Sunny Lane before noon.')).toEqual([]);
+    expect(personsFull('Please call Nathan Lane about the contract.')).toContain('Nathan Lane');
+  });
+
+  it('keeps ambiguous suffixes as surnames when no address context is present', () => {
+    // Held-out real people whose surnames coincide with street types — none has
+    // a house number, so each must still detect.
+    expect(personsFull('The witness Faith Hill testified today.')).toContain('Faith Hill');
+    expect(personsFull('Escalated to Margaret Court for review.')).toContain('Margaret Court');
+    expect(personsFull('Contact Grace Park in accounting.')).toContain('Grace Park');
   });
 });
