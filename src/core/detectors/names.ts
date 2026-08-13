@@ -12,6 +12,11 @@ import {
 } from '../context/roleWords';
 import { isSentenceOpener } from '../context/sentenceOpeners';
 import { isLikelyAcronym } from '../context/acronyms';
+import {
+  streetSuffixKind,
+  isUnambiguousStreetSuffix,
+  hasHouseNumberBefore,
+} from '../context/streets';
 import { scoreName } from '../scoring';
 import { latinFold } from '../latinFold';
 
@@ -336,6 +341,10 @@ function nameContinuation(tokens: Token[], i: number, text: string): boolean {
   // shape), not a corroborating second name part — never let it rescue an
   // otherwise-weak ext-tier sentence-start anchor.
   if (isLikelyAcronym(next.text)) return false;
+  // An unambiguous street type ("Street", "Boulevard") is never a corroborating
+  // surname — it turns the anchor into a street name ("Downing Street is
+  // closed."), so it must not rescue an otherwise-weak sentence-initial anchor.
+  if (isUnambiguousStreetSuffix(next.text)) return false;
   return !isNonNameWord(next.text) && !isRoleWord(next.text) && !isTitle(next.text);
 }
 
@@ -377,6 +386,10 @@ function knownNameAfter(tokens: Token[], i: number, source: NameSource, text: st
   if (isNumberLabel(next, text)) return false;
   if (isLikelyAcronym(next.text)) return false;
   if (isNonNameWord(next.text) || isRoleWord(next.text) || isTitle(next.text)) return false;
+  // An unambiguous street type ("Street", "Lane" here is ambiguous and left to
+  // the house-number path) is a thoroughfare, not a corroborating surname —
+  // block it from anchoring a sentence-initial unknown word into a street span.
+  if (isUnambiguousStreetSuffix(next.text)) return false;
   if (!anyHit(source, next)) return false;
   if (tierOf(source, next) !== 'ext') return false;
   if (isAmbiguousWord(next.text.toLowerCase())) return false;
@@ -398,6 +411,12 @@ function nameStart(
   // The "number" abbreviation ("No."/"Nr."/"Nº") is a structural label, never a
   // name anchor — even though "No"/"Nr" collide with ext-tier surnames.
   if (isNumberLabel(tok, text)) return null;
+  // An unambiguous street type ("Street", "Boulevard") is a thoroughfare word,
+  // never a real surname, so it must not START a chain either — otherwise after
+  // the extension guard breaks "Baker Street", the freed "Street" would re-anchor
+  // and absorb the following word ("Street London"). Ambiguous suffixes ("Lane")
+  // are left alone here: they are legitimate given names / surnames on their own.
+  if (isUnambiguousStreetSuffix(tok.text)) return null;
 
   // A token can be either the tail of a name span OR a title/role cue for the
   // next candidate — never both at once. Many honorifics coincide with common
@@ -722,6 +741,17 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
         // Don't absorb a trailing "number" abbreviation ("Priya No. 4471") — the
         // label collides with an ext surname but is not a name part.
         if (isNumberLabel(next, text)) break;
+        // Don't chain a capitalized word into a thoroughfare suffix — the pair is
+        // a street name, not a person ("Baker Street", "Sunset Boulevard", "42
+        // Sunny Lane"). Unambiguous street types (never real surnames) always
+        // break; ambiguous ones that double as surnames ("Lane", "Court") break
+        // only under a leading house number, so "Nathan Lane" still detects.
+        // See streets.ts for the precision rationale.
+        {
+          const streetKind = streetSuffixKind(next.text);
+          if (streetKind === 'unambiguous') break;
+          if (streetKind === 'ambiguous' && hasHouseNumberBefore(text, tokens[i].start)) break;
+        }
         if (hit) {
           dbHits++;
           tiers.push(tierOf(source, next));
