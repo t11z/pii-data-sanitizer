@@ -718,6 +718,39 @@ describe('phone detection', () => {
     expect(spans[0].text).toBe('+39 02 1234 5678');
   });
 
+  it('does not flag a digit run introduced by a tax / fiscal identifier cue', () => {
+    // Held-out tax IDs (absent from any dictionary, and all different from the
+    // gap's "88 12345678 9012") in the loose 1–3-digit-lead grouping that the
+    // card guard deliberately passes as a country-code-without-`+` phone. The
+    // cue — not the specific number — is what suppresses them, so this
+    // generalizes across schemes, lengths, and countries.
+    expect(only('Filed under tax ID 90 87654321 1234 for audit.', 'PHONE')).toHaveLength(0);
+    expect(only('Taxpayer identification 55 44332211 0099 on record.', 'PHONE')).toHaveLength(0);
+    expect(only('TIN: 12 3456789 0123 verified.', 'PHONE')).toHaveLength(0);
+    expect(only('VAT 44 5566778 899 registered in the EU.', 'PHONE')).toHaveLength(0);
+    expect(only('Fiscal code 61 2345678 9012 flagged.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('keeps a real phone and only guards the tax-cued run on the same line', () => {
+    // Precision: the tax-cue reject is scoped to the run it introduces; a genuine
+    // country-code-without-`+` phone (held-out) elsewhere on the line survives.
+    const spans = only(
+      'Tax ID 77 88990011 2233 on file; reach us at 49 89 32156 7890 before noon.',
+      'PHONE'
+    );
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('49 89 32156 7890');
+  });
+
+  it('does not let the tax cue over-match a word merely ending in "tax"', () => {
+    // Word-boundary safety: "syntax"/"climax" end in "tax" but are not tax cues,
+    // so a real phone after them must still surface.
+    expect(only('syntax id 55 44332211 0099 in the code', 'PHONE')[0].text).toBe(
+      '55 44332211 0099'
+    );
+    expect(only('climax id 49 89 32156 7890 tonight', 'PHONE')[0].text).toBe('49 89 32156 7890');
+  });
+
   it('does not flag an ISO timestamp as a phone number', () => {
     expect(
       only('System log entry at 2026-03-17 14:08:51 CET shows the retry.', 'PHONE')

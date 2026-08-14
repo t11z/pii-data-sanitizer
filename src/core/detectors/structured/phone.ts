@@ -68,6 +68,26 @@ function hasPhoneCueBefore(text: string, pos: number): boolean {
   return false;
 }
 
+// Cue phrases that introduce a numeric *tax / fiscal identifier* — never a
+// telephone number. A digit run directly introduced by one of these ("tax ID
+// 88 12345678 9012", "TIN: 55 44332211 0099", "VAT 123 456 789") is a taxpayer
+// identifier whose loose, space-separated grouping otherwise mimics an
+// unprefixed international phone — precisely the leading 1–3-digit "country
+// code" shape the card guard below deliberately lets through. The cue is a
+// structural signal independent of the scheme's country, length, or grouping,
+// so it generalizes to every tax-ID format, not just the ones we have seen.
+// Ambiguous introducers like a bare "ID" are excluded on purpose — "caller ID
+// 5551234567" *is* a phone — so phone recall is untouched.
+const TAX_ID_CUE_RE =
+  /\b(?:tax(?:payer)?\s*(?:id|ident(?:ifier|ification)?|number|no\.?|code|#)|tin|vat|ein|fiscal\s*(?:code|id|number))\s*[:#]?\s*$/i;
+
+/** True when the text immediately before `start` ends with a tax-identifier cue,
+ * allowing trailing whitespace and an optional ':'/'#' between the cue and the
+ * digit run. Pure structural signal, like {@link precededByRefMarker}. */
+function precededByTaxIdCue(text: string, start: number): boolean {
+  return TAX_ID_CUE_RE.test(text.slice(0, start));
+}
+
 /**
  * True when the digit run is fused — across hyphens or underscores — to letters,
  * i.e. it is part of a structured reference (order #, ticket, invoice, serial,
@@ -139,6 +159,9 @@ export function detectPhones(text: string): Span[] {
     // Skip runs marked as a case/ticket/order reference ("Case #567-89-1234",
     // "№ 12 345 678") — the '#'/'№' marker makes it an identifier, not a phone.
     if (precededByRefMarker(text, start)) continue;
+    // Skip runs introduced by a tax / fiscal identifier cue ("tax ID 88 12345678
+    // 9012", "TIN: 55 44332211") — a taxpayer identifier, not a phone.
+    if (precededByTaxIdCue(text, start)) continue;
     spans.push({
       start,
       end,
