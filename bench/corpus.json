@@ -2278,5 +2278,32 @@
         "text": "sergei.volkov@example.ru"
       }
     ]
+  },
+  {
+    "text": "For billing questions call (44) 118 496 0345 before noon.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "(44) 118 496 0345"
+      }
+    ]
+  },
+  {
+    "text": "Support line: (212) 736-3100 is open now.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "(212) 736-3100"
+      }
+    ]
+  },
+  {
+    "text": "Escalation (see ref) 089 5550-2211 pending review.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "089 5550-2211"
+      }
+    ]
   }
 ]

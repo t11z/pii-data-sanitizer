@@ -139,11 +139,28 @@ export function detectPhones(text: string): Span[] {
     // Skip runs marked as a case/ticket/order reference ("Case #567-89-1234",
     // "№ 12 345 678") — the '#'/'№' marker makes it an identifier, not a phone.
     if (precededByRefMarker(text, start)) continue;
+    // Parenthesized leading code: "(33) 456 789 0123", "(555) 123-4567". The
+    // candidate run begins at the first digit, so an area/country code wrapped
+    // in parens leaves the opening '(' just before the run while its ')' is
+    // captured inside the separator class — yielding an unbalanced "33) 456 …"
+    // span that both mangles the boundary and leaks the '('. When the char
+    // before the run is '(' AND the run already contains its own ')', that pair
+    // is the leading code's parens, so pull the '(' into the span. The internal
+    // ')' is the discriminator against the whole-number wrap "(9825551234)",
+    // whose ')' lands *after* the run (handled by `wrappedInParens` above); that
+    // case has no ')' inside `trimmed`, so it is left untouched. This only
+    // rebalances an already-accepted phone's boundary — no new run is admitted.
+    let spanStart = start;
+    let spanText = trimmed;
+    if (spanStart > 0 && text[spanStart - 1] === '(' && trimmed.includes(')')) {
+      spanStart -= 1;
+      spanText = '(' + trimmed;
+    }
     spans.push({
-      start,
+      start: spanStart,
       end,
       type: 'PHONE',
-      text: trimmed,
+      text: spanText,
       confidence: 0.6,
       source: 'phone',
     });

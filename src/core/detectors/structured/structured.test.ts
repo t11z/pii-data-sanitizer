@@ -681,6 +681,42 @@ describe('phone detection', () => {
     expect(spans[0].text).toBe('+49 30 1234567');
   });
 
+  it('keeps the opening paren of a parenthesized leading code (balanced span)', () => {
+    // Held-out area/country codes and layouts (none appear elsewhere in the
+    // suite) prove this is a structural boundary fix, not a memorized value: the
+    // run starts at the first digit, so the '(' of a "(code) number" wrap is
+    // pulled back in whenever the run already carries its own ')'.
+    const a = only('Reach the office at (44) 118 496 0345 during hours.', 'PHONE');
+    expect(a).toHaveLength(1);
+    expect(a[0].text).toBe('(44) 118 496 0345');
+
+    const b = only('Please dial (0161) 496 0287 for the front desk.', 'PHONE');
+    expect(b).toHaveLength(1);
+    expect(b[0].text).toBe('(0161) 496 0287');
+
+    const c = only('Support line: (212) 736-3100 open now.', 'PHONE');
+    expect(c).toHaveLength(1);
+    expect(c[0].text).toBe('(212) 736-3100');
+  });
+
+  it('leaves a whole-number paren wrap unchanged (no dangling paren logic)', () => {
+    // Precision guard: when the ENTIRE number is wrapped — "(number)" — the ')'
+    // lands after the run, not inside it, so the leading-code rebalance must NOT
+    // fire. The bare digits remain the span (existing behaviour).
+    const spans = only('The customer called (5147890123) about the refund.', 'PHONE');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('5147890123');
+  });
+
+  it('does not turn a non-phone paren clause into a phone', () => {
+    // Precision guard: a '(' that precedes a run which does NOT contain its own
+    // ')' (the paren belongs to surrounding prose, closes before the digits)
+    // must not be swept into a phone span.
+    const spans = only('Escalation (see ref) 089 5550-2211 pending.', 'PHONE');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('089 5550-2211');
+  });
+
   it('keeps a real number with an internal hyphen', () => {
     const spans = only('Reach the desk at 089 5550-1234 before noon.', 'PHONE');
     expect(spans).toHaveLength(1);
