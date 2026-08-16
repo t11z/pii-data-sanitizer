@@ -2182,6 +2182,37 @@
     "entities": []
   },
   {
+    "text": "Traveler on file: Passport IN R6041827 issued last spring.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "R6041827"
+      }
+    ]
+  },
+  {
+    "text": "Grenzkontrolle vermerkt: Passnummer PT 71B3049 vorgelegt.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "71B3049"
+      }
+    ]
+  },
+  {
+    "text": "Intake scan: passport document JP 8K5920R attached to the file.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "8K5920R"
+      }
+    ]
+  },
+  {
+    "text": "The passport GB office relocated to the second floor last week.",
+    "entities": []
+  },
+  {
     "text": "Customer profile shows born 01-15-1995 on file.",
     "entities": [
       {
