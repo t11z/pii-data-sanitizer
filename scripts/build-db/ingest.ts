@@ -63,6 +63,7 @@ const TELUGU_LANGS = ['te'];
 const GUJARATI_LANGS = ['gu'];
 const KANNADA_LANGS = ['kn'];
 const MALAYALAM_LANGS = ['ml'];
+const THAI_LANGS = ['th'];
 
 const NATIVE_LANGS = [
   ...CYRILLIC_LANGS,
@@ -76,6 +77,7 @@ const NATIVE_LANGS = [
   ...GUJARATI_LANGS,
   ...KANNADA_LANGS,
   ...MALAYALAM_LANGS,
+  ...THAI_LANGS,
 ];
 
 // Humans (Q5) by major Latin label language — fast, large romanized-name pool.
@@ -219,6 +221,12 @@ const HUMAN_BY_COUNTRY: Array<[string, string]> = [
   ['wd:Q668', 'gu'], // India — Gujarati (Gujarat, Rajasthan; 50M+ speakers)
   ['wd:Q668', 'kn'], // India — Kannada (Karnataka; 44M+ speakers)
   ['wd:Q668', 'ml'], // India — Malayalam (Kerala; 35M+ speakers)
+  // Thai: Thailand's national script (~70M speakers), previously entirely absent.
+  // Thai is caseless (unicameral), so native labels match purely by dictionary
+  // membership (see isCaselessNameScript in names.ts). English (en) labels feed
+  // the Latin pack as romanized forms; the 'th' labels add the native-script forms.
+  ['wd:Q869', 'th'],
+  ['wd:Q869', 'en'], // Thailand
 ];
 
 const GIVEN_CLASSES = ['wd:Q202444', 'wd:Q12308941', 'wd:Q11879590', 'wd:Q3409032'];
@@ -240,6 +248,7 @@ const CAPS: Record<string, number> = {
   Gujarati: 20000,
   Kannada: 20000,
   Malayalam: 20000,
+  Thai: 20000,
 };
 
 // Romanized/ASCII-folded variants shorter than this are dropped: 2-letter
