@@ -325,8 +325,7 @@ describe('structural role noun after a name is not absorbed as a surname', () =>
 
   it('proves the role nouns are genuine ext-tier DB hits (guard, not membership)', () => {
     for (const noun of ['manager', 'director', 'lead', 'head', 'chief']) {
-      const hit =
-        fullSource.hasGiven(noun, 'Latin') || fullSource.hasFamily(noun, 'Latin');
+      const hit = fullSource.hasGiven(noun, 'Latin') || fullSource.hasFamily(noun, 'Latin');
       expect(hit, `${noun} should be in the committed DB`).toBe(true);
     }
   });
@@ -1988,6 +1987,42 @@ describe('AKA-in-parens frame ("<Name> (<Alias>)")', () => {
     expect(personsFull('Maria López (April) approved.')).not.toContain('April');
   });
 
+  it('does not fire on a country name in parens (nationality annotation)', () => {
+    // `<Name> (<Country>)` is a nationality / location note, not a nickname.
+    // Country short-names are not in AMBIGUOUS_WORDS, so before the
+    // COUNTRY_NAMES guard the whole class ("Sweden", "Norway", ...) promoted
+    // the country as a PERSON alias while the leading name still detects. The
+    // country tokens below are held out (absent from the full DB, asserted in
+    // the "held out" test), so the block is the guard, not the dictionary.
+    expect(personsFull('Dr. Ingrid Bergman (Sweden) called support.')).toEqual(['Ingrid Bergman']);
+    expect(personsFull('Maria López (Norway) approved.')).toEqual(['Maria López']);
+    // Held out from the corpus cases too, proving the guard generalizes to
+    // countries the benchmark never carries.
+    expect(personsFull('Maria López (Kazakhstan) approved.')).toEqual(['Maria López']);
+    expect(personsFull('Maria López (Luxembourg) approved.')).toEqual(['Maria López']);
+  });
+
+  it('proves the country-in-parens tokens are held out (absent from the full DB)', () => {
+    // The guard, not dictionary membership, is what suppresses these — none is
+    // a name in the committed DB, so the country class detected ONLY via the
+    // AKA cue before the fix. (Some other country short-names DO sit in the
+    // long-tail ext dictionary as rare given/family names; the guard blocks
+    // those too, but they are unusable as a generalization proof, so the
+    // held-out set below is restricted to countries confirmed absent.)
+    for (const word of ['sweden', 'norway', 'finland', 'kazakhstan', 'luxembourg']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('still fires on a real given-name alias that collides with nothing geographic', () => {
+    // Precision-first exclusion: dual-use country/given names ("Jordan",
+    // "Georgia", "Chad") are intentionally NOT in COUNTRY_NAMES, so a genuine
+    // nickname in that slot is still recovered.
+    expect(personsFull('Maria López (Jordan) approved.')).toContain('Jordan');
+    expect(personsFull('Maria López (Georgia) approved.')).toContain('Georgia');
+  });
+
   it('does not fire on a parenthesized non-alias (token followed by more content)', () => {
     // The close-paren must follow the alias directly. A second token inside
     // the parens ("(Smith Department)", "(Berlin office)") leaves the chain
@@ -2049,15 +2084,13 @@ describe('title-tail cue guard (dual-use honorific/surname at end of chain)', ()
       .map((s) => s.text);
 
   it('does not fire a spurious PERSON on the next Cap word after "<Name Title>."', () => {
-    expect(
-      personsFull('Customer Sven Hajj. Kwargs unreachable in staging.')
-    ).toEqual(['Sven Hajj']);
-    expect(
-      personsFull('Customer Ines Don. Turnabout requested by legal.')
-    ).toEqual(['Ines Don']);
-    expect(
-      personsFull('Escalated to Aylin Sayed. Zellwerk failed integration test.')
-    ).toEqual(['Aylin Sayed']);
+    expect(personsFull('Customer Sven Hajj. Kwargs unreachable in staging.')).toEqual([
+      'Sven Hajj',
+    ]);
+    expect(personsFull('Customer Ines Don. Turnabout requested by legal.')).toEqual(['Ines Don']);
+    expect(personsFull('Escalated to Aylin Sayed. Zellwerk failed integration test.')).toEqual([
+      'Aylin Sayed',
+    ]);
     expect(
       personsFull('Support note from Priya Rev. Splindley pipeline aborted overnight.')
     ).toEqual(['Priya Rev']);

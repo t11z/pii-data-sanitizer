@@ -12,6 +12,7 @@ import {
 } from '../context/roleWords';
 import { isSentenceOpener } from '../context/sentenceOpeners';
 import { isLikelyAcronym } from '../context/acronyms';
+import { isCountryName } from '../context/places';
 import { scoreName } from '../scoring';
 import { latinFold } from '../latinFold';
 
@@ -583,9 +584,10 @@ function nameStart(
  * Cap-initial token with at least one lowercase letter (which excludes
  * acronyms like "CEO", "HR", "NYC"), not adjoining a digit, and not a known
  * non-name word, role/title cue, or ambiguous common word. Together these
- * gates keep `<Name> (CEO)`, `<Name> (Berlin)`, `<Name> (Active)` (when the
- * word is in NON_NAME_WORDS / AMBIGUOUS_WORDS / role words) from promoting,
- * while letting a real out-of-DB given-name alias detect on the cue alone.
+ * gates keep `<Name> (CEO)`, `<Name> (Berlin)`, `<Name> (Sweden)`,
+ * `<Name> (Active)` (when the word is in NON_NAME_WORDS / AMBIGUOUS_WORDS /
+ * COUNTRY_NAMES / role words) from promoting, while letting a real out-of-DB
+ * given-name alias detect on the cue alone.
  */
 function aliasInParens(tokens: Token[], prevTailIdx: number, text: string): Span | null {
   const alias = tokens[prevTailIdx + 1];
@@ -609,6 +611,12 @@ function aliasInParens(tokens: Token[], prevTailIdx: number, text: string): Span
   if (isRoleWord(alias.text) || isRoleAbbreviation(alias.text)) return null;
   if (isNonNameWord(alias.text)) return null;
   if (isAmbiguousWord(alias.text.toLowerCase())) return null;
+  // A country name in the appositive slot is a nationality / location note, not
+  // a nickname — "Ingrid Bergman (Sweden)", "Klaus Müller (Germany)". Mirrors
+  // the AMBIGUOUS_WORDS city/month guard above (see context/places.ts); country
+  // short-names are not in AMBIGUOUS_WORDS, so without this the whole
+  // `<Name> (<Country>)` class promoted the country as a PERSON alias.
+  if (isCountryName(alias.text.toLowerCase())) return null;
   // The closing paren must follow the alias directly — a second token inside
   // the parens ("(Smith Watson)", "(Berlin office)") is handled (or rejected)
   // by the normal chain path, not this cue.

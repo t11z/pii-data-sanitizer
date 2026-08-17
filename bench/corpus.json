@@ -1796,6 +1796,24 @@
     ]
   },
   {
+    "text": "Maria López (Sweden) approved the refund this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Maria López"
+      }
+    ]
+  },
+  {
+    "text": "Dr. Ingrid Bergman (Norway) called the support line today.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Ingrid Bergman"
+      }
+    ]
+  },
+  {
     "text": "Sarah Manager reviewed the ticket this morning.",
     "entities": [
       {
