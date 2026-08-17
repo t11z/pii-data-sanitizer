@@ -115,6 +115,27 @@ describe('Korean (Hangul) names', () => {
   });
 });
 
+describe('Thai names', () => {
+  // Thai is caseless (unicameral), so a bare dictionary hit suffices — the same
+  // path the other caseless native scripts use. Only tokens seeded here match.
+  const thaiSource = new PackNameSource();
+  thaiSource.addWords(['ทักษิณ', 'ชินวัตร', 'สมชาย'], { script: 'Thai', tier: 'core' });
+  const thPersons = (text: string) =>
+    detect(text, { nameSource: thaiSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects a Thai-script name present in the database', () => {
+    expect(thPersons('กรุณาติดต่อ ทักษิณ ชินวัตร เรื่องการจัดส่ง')).toContain('ทักษิณ ชินวัตร');
+  });
+
+  it('does not flag an unknown Thai token without context', () => {
+    // สุดา is a real Thai given name but was NOT seeded into this source, so a
+    // bare mention must not match — proving membership, not the script, gates it.
+    expect(thPersons('กรุณาติดต่อ สุดา เรื่องนี้')).not.toContain('สุดา');
+  });
+});
+
 describe('context-based detection (generalizes beyond the DB)', () => {
   // All names below are deliberately ABSENT from the name database, so these only
   // pass via the title/role/particle heuristics — never via dictionary lookup.

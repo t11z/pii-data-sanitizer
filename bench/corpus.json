@@ -2278,5 +2278,32 @@
         "text": "sergei.volkov@example.ru"
       }
     ]
+  },
+  {
+    "text": "กรุณาส่งเอกสารให้ ทักษิณ ชินวัตร ก่อนวันศุกร์",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "ทักษิณ ชินวัตร"
+      }
+    ]
+  },
+  {
+    "text": "ผู้ถือบัญชีคือ สมชาย วงศ์สวัสดิ์ ครับ",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "สมชาย วงศ์สวัสดิ์"
+      }
+    ]
+  },
+  {
+    "text": "Please forward the invoice to Yingluck Shinawatra by Friday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Yingluck Shinawatra"
+      }
+    ]
   }
 ]

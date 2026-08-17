@@ -160,7 +160,8 @@ function isCaselessNameScript(token: Token): boolean {
     token.script === 'Telugu' ||
     token.script === 'Gujarati' ||
     token.script === 'Kannada' ||
-    token.script === 'Malayalam'
+    token.script === 'Malayalam' ||
+    token.script === 'Thai'
   );
 }
 
