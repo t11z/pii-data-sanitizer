@@ -325,8 +325,7 @@ describe('structural role noun after a name is not absorbed as a surname', () =>
 
   it('proves the role nouns are genuine ext-tier DB hits (guard, not membership)', () => {
     for (const noun of ['manager', 'director', 'lead', 'head', 'chief']) {
-      const hit =
-        fullSource.hasGiven(noun, 'Latin') || fullSource.hasFamily(noun, 'Latin');
+      const hit = fullSource.hasGiven(noun, 'Latin') || fullSource.hasFamily(noun, 'Latin');
       expect(hit, `${noun} should be in the committed DB`).toBe(true);
     }
   });
@@ -2049,15 +2048,13 @@ describe('title-tail cue guard (dual-use honorific/surname at end of chain)', ()
       .map((s) => s.text);
 
   it('does not fire a spurious PERSON on the next Cap word after "<Name Title>."', () => {
-    expect(
-      personsFull('Customer Sven Hajj. Kwargs unreachable in staging.')
-    ).toEqual(['Sven Hajj']);
-    expect(
-      personsFull('Customer Ines Don. Turnabout requested by legal.')
-    ).toEqual(['Ines Don']);
-    expect(
-      personsFull('Escalated to Aylin Sayed. Zellwerk failed integration test.')
-    ).toEqual(['Aylin Sayed']);
+    expect(personsFull('Customer Sven Hajj. Kwargs unreachable in staging.')).toEqual([
+      'Sven Hajj',
+    ]);
+    expect(personsFull('Customer Ines Don. Turnabout requested by legal.')).toEqual(['Ines Don']);
+    expect(personsFull('Escalated to Aylin Sayed. Zellwerk failed integration test.')).toEqual([
+      'Aylin Sayed',
+    ]);
     expect(
       personsFull('Support note from Priya Rev. Splindley pipeline aborted overnight.')
     ).toEqual(['Priya Rev']);
@@ -2146,5 +2143,104 @@ describe('Cyrillic names (Russian / Ukrainian / Balkan / Bulgarian)', () => {
     // path rather than the caseless one: a run of common lowercase words must
     // never promote, even if a token collides with a surname in the pack.
     expect(personsFull('сегодня была хорошая погода в городе')).toEqual([]);
+  });
+});
+
+describe('comma-inverted "Family, Given" name form', () => {
+  // Directories, citations, KYC exports and ticket logs write a person
+  // surname-first with a comma ("Esfahani, Darioush", "Smith, John"). The forward
+  // chain detects "Darioush Esfahani"; the comma breaks the whitespace-only join,
+  // so the inverted spelling of the SAME name dropped silently. A person-
+  // introducing context cue (title / role noun / handoff or source frame) is
+  // required, which is what generalizes the rule beyond the dictionary and holds
+  // precision at parity with the forward path.
+  //
+  // Every positive below is proven against the FULL committed DB (core + ext)
+  // with HELD-OUT surnames AND given names that are absent from both tables, so
+  // detection can only come from the cue-gated inversion heuristic, never from
+  // memorizing either token.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  // Guard: assert the values really are out-of-dictionary, so a future ingest
+  // that happens to add one of them can't silently turn this into a memorization
+  // test (the exact failure mode the held-out rule protects against).
+  const absent = (w: string) =>
+    !fullSource.hasGiven(w.toLowerCase(), 'Latin') &&
+    !fullSource.hasFamily(w.toLowerCase(), 'Latin');
+
+  it('the held-out tokens are genuinely absent from the full DB', () => {
+    for (const w of ['Qorvanni', 'Brakken', 'Zelinka', 'Oorschot', 'Tveiten', 'Mihkelson']) {
+      expect(absent(w), `${w} unexpectedly in DB`).toBe(true);
+    }
+  });
+
+  it('detects an inverted held-out name introduced by a source frame', () => {
+    // "note from" is a source frame; both tokens are absent from the DB.
+    expect(personsFull('Escalation note from Qorvanni, Brakken about billing.')).toContain(
+      'Qorvanni, Brakken'
+    );
+  });
+
+  it('detects an inverted held-out name introduced by a handoff frame', () => {
+    expect(personsFull('Escalated to Tveiten, Mihkelson for a second review.')).toContain(
+      'Tveiten, Mihkelson'
+    );
+  });
+
+  it('detects an inverted held-out name introduced by a title', () => {
+    expect(personsFull('Dr. Zelinka, Oorschot signed off on the change.')).toContain(
+      'Zelinka, Oorschot'
+    );
+  });
+
+  it('detects an inverted held-out name introduced by a role noun', () => {
+    expect(personsFull('Customer Qorvanni, Brakken called twice today.')).toContain(
+      'Qorvanni, Brakken'
+    );
+  });
+
+  it('emits one contiguous span covering surname, comma and given name', () => {
+    const spans = detect('Complaint from Zelinka, Oorschot arrived.', {
+      nameSource: fullSource,
+    }).filter((s) => s.type === 'PERSON');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('Zelinka, Oorschot');
+  });
+
+  // --- precision: the inversion must never be LOOSER than the forward path ---
+
+  it('does NOT fire without a person-introducing cue', () => {
+    // No cue before the surname: falls through to the normal path unchanged.
+    expect(personsFull('Reviewed Qorvanni, Brakken in the archive.')).toEqual([]);
+  });
+
+  it('does NOT fire on a comma-separated list of surnames', () => {
+    // A trailing comma after the "given" part marks a list, not "Family, Given".
+    expect(personsFull('Complaint from Qorvanni, Brakken, Tveiten filed jointly.')).toEqual([]);
+  });
+
+  it('does NOT fire on lowercase tokens', () => {
+    expect(personsFull('escalated to qorvanni, brakken today')).toEqual([]);
+  });
+
+  it('does NOT fire when either part is a structural noun', () => {
+    expect(personsFull('Escalated to Support, Team right away.')).toEqual([]);
+    expect(personsFull('Complaint from Billing, Department was noted.')).toEqual([]);
+  });
+
+  it('does NOT fire when either part is an all-caps acronym label', () => {
+    expect(personsFull('Message from HR, IT about access.')).toEqual([]);
+  });
+
+  it('does NOT fire on an ambiguous common word (month / place) even with a cue', () => {
+    // Both have a genuine source-frame cue ("note from" / "complaint from"), so the
+    // ambiguous-word guard is what suppresses them: "April"/"May" are months and
+    // "Berlin" is in the ambiguous set.
+    expect(personsFull('Note from April, May regarding the rollout.')).toEqual([]);
+    expect(personsFull('Complaint from Berlin, Germany was logged.')).toEqual([]);
   });
 });

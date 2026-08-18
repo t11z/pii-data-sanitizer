@@ -2278,5 +2278,61 @@
         "text": "sergei.volkov@example.ru"
       }
     ]
+  },
+  {
+    "text": "Escalation note from Qorvanni, Brakken about the billing dispute.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Qorvanni, Brakken"
+      }
+    ]
+  },
+  {
+    "text": "Ticket escalated to Tveiten, Mihkelson for a second review.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Tveiten, Mihkelson"
+      }
+    ]
+  },
+  {
+    "text": "Dr. Zelinka, Oorschot signed off on the change request.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Zelinka, Oorschot"
+      }
+    ]
+  },
+  {
+    "text": "Customer Ravnborg, Mihkelson called the support line twice.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Ravnborg, Mihkelson"
+      }
+    ]
+  },
+  {
+    "text": "Reviewed Qorvanni, Brakken in the archived case files.",
+    "entities": []
+  },
+  {
+    "text": "Complaint from Qorvanni, Brakken, Tveiten filed jointly.",
+    "entities": []
+  },
+  {
+    "text": "Message from HR, IT teams about the access change.",
+    "entities": []
+  },
+  {
+    "text": "Escalated to Support, Team right away.",
+    "entities": []
+  },
+  {
+    "text": "Note from April, May regarding the rollout window.",
+    "entities": []
   }
 ]

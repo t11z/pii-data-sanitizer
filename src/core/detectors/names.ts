@@ -284,6 +284,10 @@ const SENTENCE_BOUNDARY = '.!?:;\n\r"“”(';
 // horizontal so the cue cannot bridge a line break.
 const ALIAS_OPEN_GAP = /^[^\S\n\r]*\([^\S\n\r]*$/;
 const ALIAS_CLOSE = /^[^\S\n\r]*\)/;
+// Comma-inverted "Family, Given" join: the surname's tail is directly followed by
+// a comma, then horizontal whitespace, then the given name ("Esfahani, Darioush",
+// "Smith, John"). No space before the comma, and never across a line break.
+const INVERT_GAP = /^,[^\S\n\r]+$/;
 
 function isSentenceStart(text: string, pos: number): boolean {
   let i = pos - 1;
@@ -627,6 +631,129 @@ function aliasInParens(tokens: Token[], prevTailIdx: number, text: string): Span
   };
 }
 
+/**
+ * Comma-inverted "Family, Given" name form — "Esfahani, Darioush", "Smith, John",
+ * "Kuznetsova, Anna". Directories, citations, KYC exports and ticket logs write a
+ * person surname-first, comma, then the given name. The forward chain already
+ * detects "Darioush Esfahani"; the comma breaks that whitespace-only join, so the
+ * inverted spelling of the SAME name silently drops. This recognizes the inverted
+ * shape as one PERSON span covering both parts.
+ *
+ * Precision — and generalization beyond the dictionary — both rest on the SAME
+ * lever: a person-introducing context cue must immediately precede the surname (a
+ * title "Dr. Esfahani, Darioush", a role noun "Engineer Esfahani, Darioush", a
+ * handoff frame "escalated to Esfahani, Darioush", or a source frame "note from
+ * Esfahani, Darioush"). That cue is what lets a held-out, out-of-dictionary name
+ * detect at all, and it is what keeps a bare "City, Country" pair from matching:
+ * the DB is polluted with place names ("Paris", "London", "Germany" are all in
+ * it), so dictionary membership cannot separate person from place here — only the
+ * cue can. Without a cue this returns null and the token falls through to the
+ * normal forward path unchanged.
+ *
+ * Shape guards mirror the forward chain: both parts must be capitalized Latin
+ * word tokens with a lowercase letter (so acronyms like "HR, IT" are excluded),
+ * not adjoining a digit, not a structural noun / role / title / particle / number
+ * label, and not an ambiguous common word (months, "Berlin", …). A trailing comma
+ * after the given part marks a comma-separated list ("Smith, Jones, Brown"), not
+ * "Family, Given", and is rejected.
+ */
+function invertedName(
+  tokens: Token[],
+  i: number,
+  source: NameSource,
+  text: string,
+  minConfidence: number,
+  prevEmittedTailIdx: number
+): { span: Span; nextIndex: number; tailIdx: number } | null {
+  const a = tokens[i];
+  const b = tokens[i + 1];
+  if (!b) return null;
+  // The surname must not already be inside a just-emitted span, and neither part
+  // is credited yet, so a token consumed by a prior chain can't re-anchor here.
+  if (i <= prevEmittedTailIdx) return null;
+  if (a.script !== 'Latin' || b.script !== 'Latin') return null;
+  if (!INVERT_GAP.test(text.slice(a.end, b.start))) return null;
+
+  for (const t of [a, b]) {
+    if (!isCapitalized(t.text)) return null;
+    // A lowercase letter distinguishes a name from an all-caps acronym label.
+    if (!/\p{Ll}/u.test(t.text) || isLikelyAcronym(t.text)) return null;
+    if (adjoinsDigit(t, text) || isNumberLabel(t, text)) return null;
+    if (isParticle(t.text)) return null;
+    if (isNonNameWord(t.text) || isRoleWord(t.text) || isRoleAbbreviation(t.text)) return null;
+    if (isTitle(t.text)) return null;
+    if (isAmbiguousWord(t.text.toLowerCase())) return null;
+  }
+
+  // Reject a comma-separated list ("Smith, Jones, Brown"): the given part of a
+  // real "Family, Given" is not itself followed by another comma.
+  let p = b.end;
+  while (p < text.length && HORIZONTAL_WS.test(text[p])) p++;
+  if (text[p] === ',') return null;
+
+  // A cue token that was itself the tail of a just-emitted name span cannot double
+  // as an introducer for this pair — mirrors the `prevWasEmittedNameTail` guard in
+  // nameStart.
+  const prevWasEmittedTail = i > 0 && i - 1 === prevEmittedTailIdx;
+  let titleBefore = false;
+  let roleBefore = false;
+  if (i > 0 && !prevWasEmittedTail) {
+    const prev = tokens[i - 1];
+    const between = text.slice(prev.end, a.start);
+    if (isTitle(prev.text) && TITLE_GAP.test(between)) titleBefore = true;
+    if (isRoleWord(prev.text)) {
+      const roleGap = isRoleAbbreviation(prev.text) ? ROLE_ABBR_GAP : SINGLE_GAP;
+      if (roleGap.test(between) || ROLE_LABEL_GAP.test(between)) roleBefore = true;
+    }
+  }
+  // Two-token handoff / source frame ("escalated to …", "note from …") sitting two
+  // tokens before the surname — same shape the forward nameStart recognizes.
+  if (!roleBefore && i >= 2 && !prevWasEmittedTail) {
+    const prev = tokens[i - 1];
+    const prev2 = tokens[i - 2];
+    if (
+      (isHandoffFrame(prev2.text, prev.text) || isSourceFrame(prev2.text, prev.text)) &&
+      SINGLE_GAP.test(text.slice(prev2.end, prev.start)) &&
+      SINGLE_GAP.test(text.slice(prev.end, a.start))
+    ) {
+      roleBefore = true;
+    }
+  }
+  // A cue is mandatory: it is the only signal that reliably marks the inverted
+  // pair as a person rather than an incidental "Word, Word" or "City, Country".
+  if (!titleBefore && !roleBefore) return null;
+
+  const tiers: Array<Tier | null> = [];
+  let dbHits = 0;
+  for (const t of [a, b]) {
+    if (anyHit(source, t)) {
+      dbHits++;
+      tiers.push(tierOf(source, t));
+    }
+  }
+  const coreHit = tiers.includes('core');
+  const confidence = scoreName({
+    parts: 2,
+    titleBefore,
+    roleBefore,
+    dbHits,
+    singleAmbiguous: false,
+    atSentenceStart: isSentenceStart(text, a.start),
+    coreHit,
+    extOnly: dbHits > 0 && !coreHit,
+    script: 'Latin',
+  });
+  if (confidence < minConfidence) return null;
+
+  const start = a.start;
+  const end = b.end;
+  return {
+    span: { start, end, type: 'PERSON', text: text.slice(start, end), confidence, source: 'names' },
+    nextIndex: i + 2,
+    tailIdx: i + 1,
+  };
+}
+
 export function detectNames(text: string, source: NameSource, minConfidence: number): Span[] {
   const tokens = tokenize(text);
   const spans: Span[] = [];
@@ -639,6 +766,18 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
   let prevEmittedTailIdx = -1;
 
   while (i < tokens.length) {
+    // Comma-inverted "Family, Given" form is tried first: the comma breaks the
+    // forward chain's whitespace-only join, so the surname would otherwise be
+    // scored as a lone (below-threshold) token. A cue is required, so this never
+    // pre-empts a stronger forward detection that does not involve the comma.
+    const inverted = invertedName(tokens, i, source, text, minConfidence, prevEmittedTailIdx);
+    if (inverted) {
+      spans.push(inverted.span);
+      prevEmittedTailIdx = inverted.tailIdx;
+      i = inverted.nextIndex;
+      continue;
+    }
+
     const start = nameStart(tokens, i, source, text, prevEmittedTailIdx);
     if (!start) {
       i++;
