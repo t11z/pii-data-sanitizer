@@ -19,6 +19,16 @@ const LETTER = /[A-Za-z]/;
 const DATE_SHAPE =
   /^(?:\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}|\d{1,2}[.\-/]\d{1,2}[.\-/]\d{4})(?:[.\-/]\d{1,4})?(?:[ T]\d{1,2}(?::\d{2}){0,2})?$/;
 
+// The US SSN / national-ID canonical layout is a 3-2-4 dashed group
+// ("987-65-4321"). No telephone numbering plan groups a nine-digit number as
+// 3-2-4, so this shape is structurally an identifier, never a phone. When the
+// run is an allocation-valid SSN the NATIONAL_ID detector claims it and
+// outranks PHONE on overlap; when it is SSN-shaped but SSA-invalid (reserved
+// 9xx / 000 / 666 area, group 00, serial 0000) nothing else claims it — yet it
+// is still an SSN-formatted identifier, so the phone detector must stay silent
+// rather than emit a spurious low-confidence span.
+const SSN_SHAPE = /^\d{3}-\d{2}-\d{4}$/;
+
 // Closed-class phone-cue words that unambiguously introduce a phone number in
 // support / business prose. Used as one leg of the paren-wrapped bare-run
 // signal below — a bare 10–15-digit number in balanced parens is only accepted
@@ -133,6 +143,9 @@ export function detectPhones(text: string): Span[] {
     // Skip date-shaped candidates: bare dates, ISO timestamps, and
     // invoice/case refs suffixed with a short sequence number.
     if (DATE_SHAPE.test(trimmed)) continue;
+    // Skip the US SSN / national-ID 3-2-4 dashed shape — an identifier layout,
+    // not a phone grouping (see SSN_SHAPE above).
+    if (SSN_SHAPE.test(trimmed)) continue;
     // Skip digit runs embedded in an alphanumeric identifier (order/ticket/
     // invoice/serial numbers like "ORD-2025-001847-X") — not phone numbers.
     if (fusedToLetters(text, start, end)) continue;

@@ -813,6 +813,24 @@ describe('phone detection', () => {
     expect(only('PAN 3782 654321 09876 reviewed.', 'PHONE')).toHaveLength(0); // 4-6-5 (15d)
   });
 
+  it('rejects the US SSN 3-2-4 dashed shape as a phone (identifier layout)', () => {
+    // A nine-digit run grouped 3-2-4 is the canonical SSN / national-ID layout,
+    // never a telephone grouping. Held-out, SSA-INVALID shapes (reserved 9xx
+    // area, group 00) — so the NATIONAL_ID detector also declines them and the
+    // run would otherwise leak into PHONE as a spurious 0.6 span. Distinct from
+    // the gap's 987-65-4321.
+    expect(only('Account holder record (ID: 923-11-8842) alerted via SMS.', 'PHONE')).toHaveLength(
+      0
+    );
+    expect(only('Support flagged token 512-00-7788 during the audit.', 'PHONE')).toHaveLength(0);
+    // Guard is phone-only: a real 3-3-4 US phone with the same digit count is
+    // untouched, and an allocation-valid SSN still detects as NATIONAL_ID.
+    expect(only('Call the office at 415-778-2231 today.', 'PHONE')[0].text).toBe('415-778-2231');
+    expect(only('SSN on file 078-32-4692 for the applicant.', 'NATIONAL_ID')[0].text).toBe(
+      '078-32-4692'
+    );
+  });
+
   it('still rejects fused 13+ digit identifier runs (no grouping)', () => {
     // The other half of the refined rule: a 13+ digit run with no spaces is
     // also identifier-shaped (bank account / reference / barcode), never
