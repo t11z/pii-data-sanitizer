@@ -11,6 +11,7 @@ import {
   isSourceFrame,
 } from '../context/roleWords';
 import { isSentenceOpener } from '../context/sentenceOpeners';
+import { isStreetSuffix } from '../context/streetSuffixes';
 import { isLikelyAcronym } from '../context/acronyms';
 import { scoreName } from '../scoring';
 import { latinFold } from '../latinFold';
@@ -290,6 +291,35 @@ function isSentenceStart(text: string, pos: number): boolean {
   while (i >= 0 && HORIZONTAL_WS.test(text[i])) i--;
   if (i < 0) return true;
   return SENTENCE_BOUNDARY.includes(text[i]);
+}
+
+/**
+ * The character directly before `pos` (skipping only horizontal whitespace) is a
+ * decimal digit — a house number. Used together with a street-suffix tail to
+ * recognise a postal address ("123 Main Street", "45 Park Avenue", "10 Downing
+ * Street") that would otherwise chain into a spurious PERSON span because the
+ * street name and its suffix both collide with long-tail `ext` surnames. The
+ * tokenizer discards digit-only runs, so this reads the raw source rather than a
+ * preceding token. Never spans a line break (only horizontal whitespace is
+ * skipped), so a number ending the previous line cannot vouch for a name below.
+ */
+function precededByHouseNumber(text: string, pos: number): boolean {
+  let i = pos - 1;
+  while (i >= 0 && HORIZONTAL_WS.test(text[i])) i--;
+  if (i < 0) return false;
+  const c = text.charCodeAt(i);
+  return c >= 48 && c <= 57;
+}
+
+/** The token's surface form is a street-type suffix (folded on the Latin path). */
+function endsInStreetSuffix(token: Token): boolean {
+  const l = token.text.toLowerCase();
+  if (isStreetSuffix(l)) return true;
+  if (token.script === 'Latin') {
+    const folded = foldLatin(l);
+    return folded !== l && isStreetSuffix(folded);
+  }
+  return false;
 }
 
 interface StartInfo {
@@ -745,6 +775,18 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
     // (no dot, no break) are unaffected: the cue contributes only as the
     // first part of a longer chain proven by its real surname.
     if (parts === 1 && (isTitle(tokens[i].text) || isRoleAbbreviation(tokens[i].text))) {
+      i = j + 1;
+      continue;
+    }
+
+    // Postal address, not a person: the chain ends in a street-type suffix and a
+    // house number sits immediately before it ("123 Main Street", "45 Park
+    // Avenue"). The street name and its suffix both collide with long-tail `ext`
+    // surnames, so without this the pair chains into a two-token PERSON span. The
+    // house-number precondition is what makes the guard safe — a bare "Sarah
+    // Lane" / "Amir Court" (no leading number) is left untouched, so genuine
+    // surnames that happen to be street words keep detecting.
+    if (endsInStreetSuffix(tokens[j]) && precededByHouseNumber(text, tokens[i].start)) {
       i = j + 1;
       continue;
     }
