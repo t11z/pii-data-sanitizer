@@ -1012,6 +1012,29 @@ describe('passport detection (cue-gated)', () => {
   it('does not flag an over-long token beyond the 12-char bound', () => {
     expect(only('Passport No. ABC1234567890 on file.', 'PASSPORT')).toHaveLength(0);
   });
+
+  // Held-out values (absent from the corpus/feed): "Num"/"Num." is the common English
+  // abbreviation of "Number" and must be recognized as a connector, like "No."/"Number".
+  // Before the fix the number token tried to match the lowercase word "Num" and the whole
+  // match failed, silently dropping the real number.
+  it('detects a passport number after a "Num." abbreviation cue', () => {
+    expect(only('Passport Num. P4KZ8Q7 verified.', 'PASSPORT')[0].text).toBe('P4KZ8Q7');
+  });
+
+  it('detects a passport number after a "Num" (no period) abbreviation cue', () => {
+    expect(only('Passport Num M8N3B6V1C4 on file.', 'PASSPORT')[0].text).toBe('M8N3B6V1C4');
+  });
+
+  // Precision guard: the abbreviation must not let the cue swallow a longer real word
+  // ("Numbering") and then claim a following unrelated token as a passport number.
+  it('does not flag a token after "passport numbering …"', () => {
+    expect(only('Passport Numbering system X1234567 applies.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  // Precision guard: the "Num." connector still requires a digit-bearing token after it.
+  it('does not flag a following word with no digit after "Num."', () => {
+    expect(only('Passport Num. today please.', 'PASSPORT')).toHaveLength(0);
+  });
 });
 
 describe('date of birth detection (cue-gated)', () => {
