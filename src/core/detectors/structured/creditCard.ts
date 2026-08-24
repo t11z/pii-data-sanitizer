@@ -63,6 +63,37 @@ function hasNetworkGrouping(value: string): boolean {
   return NETWORK_GROUPINGS.has(sizes.join('-'));
 }
 
+// Masked-card references: support / fraud / TAC prose routinely cites only a
+// card's last four digits ("card ending in 4242", "Visa ending 1881"). Those
+// four digits are the printed, customer-facing identifier of the card and are
+// PII, but a bare 4-digit run ("suite 4242", "ext 1881") is far too common to
+// flag on its own. We gate strictly on an explicit card-masking cue: a card
+// noun (the word "card" or a payment-network name) immediately followed by
+// "ending" — with an optional "no./number/#" filler and an optional "in"/"with"
+// — right before the digits. This closes the whole "<card> ending [in] NNNN"
+// class regardless of the specific number, while leaving unrelated 4-digit
+// tokens untouched. Confidence sits below a full PAN: it is a partial value,
+// certain-in-context but only four digits.
+const MASKED_LAST4_RE =
+  /\b(?:card|visa|mastercard|amex|american express|discover|maestro|unionpay|jcb|diners)\b[ \t]*(?:card|no\.?|number|#)?[ \t]*ending\b(?:[ \t]+(?:in|with))?[ \t]*[:#]?[ \t]*(\d{4})(?!\d)/gi;
+
+function detectMaskedLast4(text: string): Span[] {
+  const spans: Span[] = [];
+  for (const match of text.matchAll(MASKED_LAST4_RE)) {
+    const digits = match[1];
+    const start = match.index + match[0].length - digits.length;
+    spans.push({
+      start,
+      end: start + digits.length,
+      type: 'CREDIT_CARD',
+      text: digits,
+      confidence: 0.6,
+      source: 'creditCard',
+    });
+  }
+  return spans;
+}
+
 export function detectCreditCards(text: string): Span[] {
   const spans: Span[] = [];
   for (const match of text.matchAll(CARD_RE)) {
@@ -89,5 +120,6 @@ export function detectCreditCards(text: string): Span[] {
       source: 'creditCard',
     });
   }
+  spans.push(...detectMaskedLast4(text));
   return spans;
 }
