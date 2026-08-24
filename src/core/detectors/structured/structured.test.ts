@@ -442,6 +442,32 @@ describe('credit card detection', () => {
     // Diners 4-6-4 (14): 3056 930902 5904 — Luhn-valid Diners test PAN.
     expect(only('Card: 3056 930902 5904', 'CREDIT_CARD')[0].text).toBe('3056 930902 5904');
   });
+
+  it('detects a masked last-four when cued by "<card> ending [in] NNNN"', () => {
+    // Gap shape: fraud/support prose quotes only the last four digits behind a
+    // "card ending" cue. All four-digit values below are held out (they are not
+    // the gap's 9903/3456), and none is a Luhn-complete PAN — detection comes
+    // purely from the card-masking cue, so it generalizes to any number.
+    expect(only('Visa ending 1881 was declined.', 'CREDIT_CARD')[0].text).toBe('1881');
+    expect(only('Card ending in 4242 refunded.', 'CREDIT_CARD')[0].text).toBe('4242');
+    expect(only('Mastercard ending with 7788 on file.', 'CREDIT_CARD')[0].text).toBe('7788');
+    // Optional "no./number" filler between the card noun and "ending".
+    expect(only('card no. ending 0421 charged', 'CREDIT_CARD')[0].text).toBe('0421');
+    expect(only('card number ending in 5150 flagged', 'CREDIT_CARD')[0].text).toBe('5150');
+    // Confidence stays below a full PAN — it is a partial value.
+    expect(only('Visa ending 1881 was declined.', 'CREDIT_CARD')[0].confidence).toBeLessThan(0.95);
+  });
+
+  it('does not flag a bare four-digit run without a card-masking cue', () => {
+    // Precision guards: "ending NNNN" is only a card cue when a card noun leads
+    // it. Unrelated four-digit tokens (suite, ticket, order, year) stay silent,
+    // and "card" as a mere suffix of another word ("scorecard") does not arm it.
+    expect(only('order ending 1234 shipped', 'CREDIT_CARD')).toHaveLength(0);
+    expect(only('ticket ending in 9999 escalated', 'CREDIT_CARD')).toHaveLength(0);
+    expect(only('suite 4242 on the third floor', 'CREDIT_CARD')).toHaveLength(0);
+    expect(only('the standard ending 2020 was met', 'CREDIT_CARD')).toHaveLength(0);
+    expect(only('scorecard ending 1234 posted', 'CREDIT_CARD')).toHaveLength(0);
+  });
 });
 
 describe('IP detection', () => {

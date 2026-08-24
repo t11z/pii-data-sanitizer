@@ -2278,5 +2278,40 @@
         "text": "sergei.volkov@example.ru"
       }
     ]
+  },
+  {
+    "text": "Fraud team flagged the Visa ending 1881; customer will call back.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "1881"
+      }
+    ]
+  },
+  {
+    "text": "Refund processed to the card ending in 4242 this morning.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "4242"
+      }
+    ]
+  },
+  {
+    "text": "Escalation notes: card number ending in 5150 was frozen pending review.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "5150"
+      }
+    ]
+  },
+  {
+    "text": "The order ending 1234 shipped and the ticket ending in 9999 was closed.",
+    "entities": []
+  },
+  {
+    "text": "Guest checked into suite 4242 on the third floor.",
+    "entities": []
   }
 ]
