@@ -136,17 +136,18 @@ function tierOf(source: NameSource, token: Token): Tier | null {
 
 /**
  * Bicameral scripts whose names carry case, so capitalization is a real signal:
- * Latin and Cyrillic. These flow through the same capitalization-gated path
- * (require a Cap-initial token plus a DB hit, or an unknown-cap corroborator) —
- * unlike the caseless scripts below, where a bare DB hit suffices. Keeping
- * Cyrillic here rather than in `isCaselessNameScript` is what stops an ordinary
- * lowercase Cyrillic word that happens to collide with a name from detecting.
- * The Latin-only sub-rules the shared path invokes (particle folding, `al-`/`d'`
- * gluing) are themselves gated on `script === 'Latin'`, so they stay inert for
- * Cyrillic.
+ * Latin, Cyrillic, and Greek. These flow through the same capitalization-gated
+ * path (require a Cap-initial token plus a DB hit, or an unknown-cap
+ * corroborator) — unlike the caseless scripts below, where a bare DB hit
+ * suffices. Keeping Cyrillic and Greek here rather than in
+ * `isCaselessNameScript` is what stops an ordinary lowercase word in those
+ * scripts that happens to collide with a name from detecting. The Latin-only
+ * sub-rules the shared path invokes (particle folding, `al-`/`d'` gluing) are
+ * themselves gated on `script === 'Latin'`, so they stay inert for Cyrillic and
+ * Greek.
  */
 function isBicameralNameScript(script: Script): boolean {
-  return script === 'Latin' || script === 'Cyrillic';
+  return script === 'Latin' || script === 'Cyrillic' || script === 'Greek';
 }
 
 function isCaselessNameScript(token: Token): boolean {

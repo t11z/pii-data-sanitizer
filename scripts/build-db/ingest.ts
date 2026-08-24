@@ -53,6 +53,7 @@ const LATIN_LANGS = [
   'ca',
 ];
 const CYRILLIC_LANGS = ['ru', 'uk', 'bg', 'sr', 'be', 'mk'];
+const GREEK_LANGS = ['el'];
 const ARABIC_LANGS = ['ar', 'fa', 'ur', 'ps', 'ckb', 'sd'];
 const HEBREW_LANGS = ['he', 'yi'];
 const DEVANAGARI_LANGS = ['hi', 'mr', 'ne', 'sa'];
@@ -66,6 +67,7 @@ const MALAYALAM_LANGS = ['ml'];
 
 const NATIVE_LANGS = [
   ...CYRILLIC_LANGS,
+  ...GREEK_LANGS,
   ...ARABIC_LANGS,
   ...HEBREW_LANGS,
   ...DEVANAGARI_LANGS,
@@ -77,6 +79,28 @@ const NATIVE_LANGS = [
   ...KANNADA_LANGS,
   ...MALAYALAM_LANGS,
 ];
+
+// Which script a label language predominantly yields. Used only by the scoped
+// incremental refresh (INGEST_LANGS) to confine writes to the intended packs;
+// any language not in a native group is treated as Latin.
+const NATIVE_LANG_SCRIPT: Array<[readonly string[], Script]> = [
+  [CYRILLIC_LANGS, 'Cyrillic'],
+  [GREEK_LANGS, 'Greek'],
+  [ARABIC_LANGS, 'Arabic'],
+  [HEBREW_LANGS, 'Hebrew'],
+  [DEVANAGARI_LANGS, 'Devanagari'],
+  [HANGUL_LANGS, 'Hangul'],
+  [BENGALI_LANGS, 'Bengali'],
+  [TAMIL_LANGS, 'Tamil'],
+  [TELUGU_LANGS, 'Telugu'],
+  [GUJARATI_LANGS, 'Gujarati'],
+  [KANNADA_LANGS, 'Kannada'],
+  [MALAYALAM_LANGS, 'Malayalam'],
+];
+function langScript(lang: string): Script {
+  for (const [langs, script] of NATIVE_LANG_SCRIPT) if (langs.includes(lang)) return script;
+  return 'Latin';
+}
 
 // Humans (Q5) by major Latin label language — fast, large romanized-name pool.
 const HUMAN_LATIN_LANGS = ['en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'pl'];
@@ -109,6 +133,15 @@ const HUMAN_BY_COUNTRY: Array<[string, string]> = [
   ['wd:Q863', 'ru'], // Tajikistan
   ['wd:Q711', 'mn'], // Mongolia
   ['wd:Q236', 'sr'], // Montenegro
+  // Greek: bicameral own-script language (~13M speakers across Greece and
+  // Cyprus) that was entirely absent from the name database. Native Greek labels
+  // detect through the same capitalization-gated path as Latin and Cyrillic (see
+  // isBicameralNameScript in names.ts). English (en) labels feed the Latin pack
+  // as romanized forms; the 'el' entries add the native-script forms.
+  ['wd:Q41', 'el'],
+  ['wd:Q41', 'en'], // Greece
+  ['wd:Q229', 'el'],
+  ['wd:Q229', 'en'], // Cyprus
   ['wd:Q668', 'hi'],
   ['wd:Q668', 'mr'],
   ['wd:Q668', 'sa'],
@@ -230,6 +263,7 @@ const FAMILY_CLASS = 'wd:Q101352';
 const CAPS: Record<string, number> = {
   Latin: 150000,
   Cyrillic: 20000,
+  Greek: 20000,
   Arabic: 20000,
   Hebrew: 10000,
   Devanagari: 20000,
@@ -255,6 +289,24 @@ const TOKEN_RE = /^[\p{L}\p{M}]+(?:[-'’][\p{L}\p{M}]+)*$/u;
 const PAREN_RE = /\s*\([^)]*\)\s*/g;
 
 const buckets = new Map<Script, Set<string>>();
+
+// Optional incremental refresh: `INGEST_LANGS=el npm run ingest` restricts the
+// harvest to the given label languages, so only the buckets those languages feed
+// get rewritten (a single new script can be added without re-fetching — and
+// risking network-flake regressions on — every already-committed pack). Unset
+// (the default) runs the full harvest exactly as before.
+const ONLY_LANGS = process.env.INGEST_LANGS
+  ? new Set(process.env.INGEST_LANGS.split(',').map((s) => s.trim()))
+  : null;
+const wantLang = (lang: string): boolean => !ONLY_LANGS || ONLY_LANGS.has(lang);
+
+// In scoped mode, confine writes to the packs the selected languages feed: a
+// stray other-script token in a mixed label must not overwrite a large committed
+// pack (e.g. a Latin nickname inside a Greek 'el' label clobbering latin.json).
+// Null = full run, no confinement.
+const ALLOWED_SCRIPTS: Set<Script> | null = ONLY_LANGS
+  ? new Set([...ONLY_LANGS].map(langScript))
+  : null;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
@@ -301,6 +353,7 @@ async function query(sparql: string): Promise<string[]> {
  * are skipped: bulk human labels contain such words, and ingesting them as names
  * makes phrases like "Customer Service Team" detect as a person. */
 function addToBucket(script: Script, name: string): void {
+  if (ALLOWED_SCRIPTS && !ALLOWED_SCRIPTS.has(script)) return;
   if (!CAPS[script] || !TOKEN_RE.test(name) || isNonNameWord(name)) return;
   let set = buckets.get(script);
   if (!set) {
@@ -392,17 +445,20 @@ async function main(): Promise<void> {
   // regional country queries ran, dropping Vietnamese/African names entirely.)
   console.log('Native name items + alt-labels…');
   for (const lang of NATIVE_LANGS) {
+    if (!wantLang(lang)) continue;
     await run(`given:${lang}`, givenQuery(lang), false);
     await run(`alt:${lang}`, altLabelQuery(lang), true);
   }
 
   console.log('Regional people by country + language…');
   for (const [country, lang] of HUMAN_BY_COUNTRY) {
+    if (!wantLang(lang)) continue;
     await run(`human:${country}/${lang}`, humanCountryQuery(country, lang), true);
   }
 
   console.log('Latin name items (given/family) per language…');
   for (const lang of LATIN_LANGS) {
+    if (!wantLang(lang)) continue;
     await run(`given:${lang}`, givenQuery(lang), false);
     // Family-name items (Q101352) only resolve cheaply for major Latin labels;
     // a native-language family scan times out. Native family names instead come
@@ -411,7 +467,10 @@ async function main(): Promise<void> {
   }
 
   console.log('Romanized people (Q5) by language…');
-  for (const lang of HUMAN_LATIN_LANGS) await run(`human:${lang}`, humanLatinQuery(lang), true);
+  for (const lang of HUMAN_LATIN_LANGS) {
+    if (!wantLang(lang)) continue;
+    await run(`human:${lang}`, humanLatinQuery(lang), true);
+  }
 
   if (total() === 0) {
     console.error('No names ingested (network/endpoint issue). Aborting without writing.');
