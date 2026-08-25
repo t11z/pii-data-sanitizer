@@ -14,7 +14,15 @@ import type { Span } from '../../types';
 // The case is kept strict (uppercase) on purpose — without the `i` flag a lowercase
 // word after the cue ("passport please") can't be mistaken for a number. Cue casing is
 // handled with explicit leading-character classes instead.
-const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)(?:\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|#))?`;
+//
+// The base word and its abbreviation are joined by an optional `\s*-?\s*` connector, not
+// just whitespace: German (and English) routinely hyphenate the compound — "Reisepass-Nr.",
+// "Pass-Nr.", "Passport-No.". With whitespace-only, the hyphen fell outside the optional
+// abbreviation group, so the group matched nothing and the following `-Nr. NUMBER` no longer
+// lined up against the required separator, dropping the whole match. Allowing a single hyphen
+// covers the entire hyphenated-compound class without loosening the strict, digit-bearing
+// number gate that guards precision.
+const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)(?:\s*-?\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|#))?`;
 const NUMBER = String.raw`((?=[A-Z0-9]*\d)[A-Z0-9]{6,12})\b`;
 const PASSPORT_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)${NUMBER}`, 'g');
 
