@@ -1012,6 +1012,28 @@ describe('passport detection (cue-gated)', () => {
   it('does not flag an over-long token beyond the 12-char bound', () => {
     expect(only('Passport No. ABC1234567890 on file.', 'PASSPORT')).toHaveLength(0);
   });
+
+  // Held-out values (absent from the corpus/feed): the base word and its abbreviation
+  // are commonly hyphenated ("Reisepass-Nr.", "Passport-No."). Whitespace-only joining
+  // dropped these entirely; a single-hyphen connector must recover the class for any
+  // number, proving this is a cue-shape fix, not memorization.
+  it('detects a passport number after a hyphenated German compound cue', () => {
+    expect(only('Reisepass-Nr. PZ9K4M2Q hinterlegt.', 'PASSPORT')[0].text).toBe('PZ9K4M2Q');
+  });
+
+  it('detects a passport number after a hyphenated English compound cue', () => {
+    expect(only('Passport-No. R7T3W8N5 issued.', 'PASSPORT')[0].text).toBe('R7T3W8N5');
+  });
+
+  it('detects a passport number when the hyphen is spaced out', () => {
+    expect(only('Reisepass - Nr.: H4J6L8Q2 vorgelegt.', 'PASSPORT')[0].text).toBe('H4J6L8Q2');
+  });
+
+  // Precision guard: the hyphen connector must not manufacture a cue from prose with
+  // no digit-bearing token to claim.
+  it('does not flag a hyphenated cue with no number token', () => {
+    expect(only('Passport-No. please bring it tomorrow.', 'PASSPORT')).toHaveLength(0);
+  });
 });
 
 describe('date of birth detection (cue-gated)', () => {
