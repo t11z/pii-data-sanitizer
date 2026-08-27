@@ -1127,4 +1127,51 @@ describe('date of birth detection (cue-gated)', () => {
       )
     ).toHaveLength(0);
   });
+
+  // The cue can also TRAIL the date ("value first, label after") — a common
+  // form-layout / prose shape the prefix-only gate missed entirely. All values
+  // below are held out from the fix case and the corpus, so they pass only via
+  // the generalizing trailing-cue heuristic, not memorization.
+  it('detects a date followed by a bare "birth" cue', () => {
+    // The motivating gap: "1995-07-30 birth check". "1988-04-02" is a different
+    // day/month/year proving the postfix "birth" cue generalizes.
+    expect(only('contact after 1988-04-02 birth check pending.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '1988-04-02'
+    );
+  });
+
+  it('detects a date followed by a parenthesized "(Date of Birth)" label', () => {
+    expect(
+      only('Applicant record: 06/14/1988 (Date of Birth) verified.', 'DATE_OF_BIRTH')[0].text
+    ).toBe('06/14/1988');
+  });
+
+  it('detects a date followed by a dash-joined "— DOB" label', () => {
+    expect(only('Intake value 1983-02-09 — DOB on the wristband.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '1983-02-09'
+    );
+  });
+
+  it('detects a date followed by a trailing German "Geburtsdatum" cue', () => {
+    expect(only('Kundendaten: 22.09.1975 Geburtsdatum bestätigt.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '22.09.1975'
+    );
+  });
+
+  it('does not treat a trailing "birthplace"/"birthday" as a birth cue', () => {
+    // Precision guards: the trailing-cue \b boundary keeps "birth" off longer
+    // words, so an adjacent event/location date is not turned into a DOB.
+    expect(only('Photos from 2019-08-01 birthplace tour.', 'DATE_OF_BIRTH')).toHaveLength(0);
+    expect(only('Reunion booked 2025-06-01 birthday drinks after.', 'DATE_OF_BIRTH')).toHaveLength(
+      0
+    );
+  });
+
+  it('does not bridge a date to a trailing "birth" behind intervening words', () => {
+    // The trailing cue must sit immediately after the date (no word filler), so
+    // an unrelated date earlier in the sentence stays out.
+    expect(
+      only('Ticket opened 2024-01-15 to verify the birth certificate on file.', 'DATE_OF_BIRTH')
+    ).toHaveLength(0);
+  });
 });
