@@ -181,6 +181,40 @@ export const NON_NAME_WORDS = new Set<string>([
   'transaction',
   'statement',
   'receipt',
+  // Organization / venue designators. A known given name directly followed by one
+  // of these ("Grace Hospital", "Kingston University", "Victoria College") is an
+  // institution named after a person, not a person — but the DB hit on the given
+  // name lets the chain absorb the (unknown-cap) designator as a surname and emit a
+  // PERSON span. Treating the designator as a structural noun breaks the chain so
+  // only the real given name remains (and, being lone/ambiguous, drops below
+  // threshold). Only designators that are essentially never personal surnames are
+  // listed: "Church", "Temple", "Chapel", "Abbey", "Hall" are deliberately EXCLUDED
+  // because they are common real surnames ("Alonzo Church", "Shirley Temple") the
+  // engine must still detect. Plurals are listed as distinct surface tokens.
+  'hospital',
+  'hospitals',
+  'clinic',
+  'clinics',
+  'university',
+  'universities',
+  'college',
+  'colleges',
+  'institute',
+  'institutes',
+  'academy',
+  'academies',
+  'foundation',
+  'foundations',
+  'hotel',
+  'hotels',
+  'museum',
+  'museums',
+  'library',
+  'libraries',
+  'laboratory',
+  'laboratories',
+  'cathedral',
+  'cathedrals',
   // Common role nouns. Several of these ("Manager", "Director", "Lead", "Head",
   // "Chief") land in the long-tail ext dictionary as both given- and family-name
   // surface tokens (real census surnames), which lets them chain into adjacent
