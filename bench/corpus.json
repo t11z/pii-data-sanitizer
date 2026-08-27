@@ -2278,5 +2278,32 @@
         "text": "sergei.volkov@example.ru"
       }
     ]
+  },
+  {
+    "text": "Ο Γιώργος Παπαδόπουλος υπέγραψε τη σύμβαση χθες.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Γιώργος Παπαδόπουλος"
+      }
+    ]
+  },
+  {
+    "text": "Η Μαρία Κωνσταντίνου έστειλε το έγγραφο.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Μαρία Κωνσταντίνου"
+      }
+    ]
+  },
+  {
+    "text": "Please contact Georgios Papadopoulos about the invoice.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Georgios Papadopoulos"
+      }
+    ]
   }
 ]

@@ -115,6 +115,35 @@ describe('Korean (Hangul) names', () => {
   });
 });
 
+describe('Greek names (bicameral, capitalization-gated)', () => {
+  const greekSource = new PackNameSource();
+  greekSource.addWords(['γιώργος', 'παπαδόπουλος', 'μαρία'], { script: 'Greek', tier: 'core' });
+  const elPersons = (text: string) =>
+    detect(text, { nameSource: greekSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects a capitalized Greek full name present in the database', () => {
+    expect(elPersons('Ο Γιώργος Παπαδόπουλος υπέγραψε τη σύμβαση.')).toContain(
+      'Γιώργος Παπαδόπουλος'
+    );
+  });
+
+  it('does not flag an unknown capitalized Greek token without context', () => {
+    // Ζορμπλάξ is absent from the database and carries no title/role cue, so the
+    // bare capitalized token must not detect (proves it is DB membership, not the
+    // script alone, that drives the match).
+    expect(elPersons('Δείτε το Ζορμπλάξ σήμερα.')).not.toContain('Ζορμπλάξ');
+  });
+
+  it('does not flag a lowercase Greek word that collides with a name (case gate)', () => {
+    // Greek is bicameral: an ordinary lowercase word that happens to match a name
+    // in the DB is not a name — capitalization is required, exactly as for
+    // Latin/Cyrillic. Guards against lowercase common words detecting as people.
+    expect(elPersons('αυτό το μαρία δεν είναι όνομα')).not.toContain('μαρία');
+  });
+});
+
 describe('context-based detection (generalizes beyond the DB)', () => {
   // All names below are deliberately ABSENT from the name database, so these only
   // pass via the title/role/particle heuristics — never via dictionary lookup.
@@ -325,8 +354,7 @@ describe('structural role noun after a name is not absorbed as a surname', () =>
 
   it('proves the role nouns are genuine ext-tier DB hits (guard, not membership)', () => {
     for (const noun of ['manager', 'director', 'lead', 'head', 'chief']) {
-      const hit =
-        fullSource.hasGiven(noun, 'Latin') || fullSource.hasFamily(noun, 'Latin');
+      const hit = fullSource.hasGiven(noun, 'Latin') || fullSource.hasFamily(noun, 'Latin');
       expect(hit, `${noun} should be in the committed DB`).toBe(true);
     }
   });
@@ -2049,15 +2077,13 @@ describe('title-tail cue guard (dual-use honorific/surname at end of chain)', ()
       .map((s) => s.text);
 
   it('does not fire a spurious PERSON on the next Cap word after "<Name Title>."', () => {
-    expect(
-      personsFull('Customer Sven Hajj. Kwargs unreachable in staging.')
-    ).toEqual(['Sven Hajj']);
-    expect(
-      personsFull('Customer Ines Don. Turnabout requested by legal.')
-    ).toEqual(['Ines Don']);
-    expect(
-      personsFull('Escalated to Aylin Sayed. Zellwerk failed integration test.')
-    ).toEqual(['Aylin Sayed']);
+    expect(personsFull('Customer Sven Hajj. Kwargs unreachable in staging.')).toEqual([
+      'Sven Hajj',
+    ]);
+    expect(personsFull('Customer Ines Don. Turnabout requested by legal.')).toEqual(['Ines Don']);
+    expect(personsFull('Escalated to Aylin Sayed. Zellwerk failed integration test.')).toEqual([
+      'Aylin Sayed',
+    ]);
     expect(
       personsFull('Support note from Priya Rev. Splindley pipeline aborted overnight.')
     ).toEqual(['Priya Rev']);
