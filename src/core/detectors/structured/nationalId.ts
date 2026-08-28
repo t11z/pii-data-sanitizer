@@ -55,6 +55,37 @@ function isValidGermanTaxId(digits: string): boolean {
   return taxIdCheckDigit(first10) === digits.charCodeAt(10) - 48;
 }
 
+// --- UK National Insurance number (NINo) ---------------------------------------------
+// Shape: two prefix letters, six digits, a single suffix letter A–D, printed either
+// solid ("AB123456C") or space-grouped ("AB 12 34 56 C"). There is no checksum, so
+// precision rests entirely on the HMRC/DWP allocation rules, which reject the bulk of
+// same-shaped look-alikes (part numbers, licence codes, IBAN prefixes): the letters
+// D F I Q U V are never used in the prefix, O is never the second letter, a fixed set
+// of two-letter prefixes is unallocated, and the suffix is only A–D. Requiring the
+// prefix/suffix letters to be upper-case (no /i flag) keeps loose lower-case prose
+// ("at 12 34 56 a") out. Two capture groups isolate the prefix and suffix for the
+// allocation check while the whole match preserves the printed grouping.
+const NINO_RE = /(?<![A-Za-z0-9])([A-Z]{2})(?:\s?\d){6}\s?([A-D])(?![A-Za-z0-9])/g;
+const NINO_DISALLOWED_FIRST: ReadonlySet<string> = new Set(['D', 'F', 'I', 'Q', 'U', 'V']);
+const NINO_DISALLOWED_SECOND: ReadonlySet<string> = new Set(['D', 'F', 'I', 'O', 'Q', 'U', 'V']);
+// Prefixes HMRC has never allocated (administrative / reserved), so any run carrying
+// one — including the IBAN country code "GB" — is not a NINo.
+const NINO_DISALLOWED_PREFIX: ReadonlySet<string> = new Set([
+  'BG',
+  'GB',
+  'KN',
+  'NK',
+  'NT',
+  'TN',
+  'ZZ',
+]);
+
+function isValidNinoPrefix(prefix: string): boolean {
+  if (NINO_DISALLOWED_FIRST.has(prefix[0])) return false;
+  if (NINO_DISALLOWED_SECOND.has(prefix[1])) return false;
+  return !NINO_DISALLOWED_PREFIX.has(prefix);
+}
+
 export function detectNationalIds(text: string): Span[] {
   const spans: Span[] = [];
 
@@ -102,6 +133,18 @@ export function detectNationalIds(text: string): Span[] {
       text: m[0],
       confidence: 0.9,
       source: 'tax-id-de',
+    });
+  }
+
+  for (const m of text.matchAll(NINO_RE)) {
+    if (!isValidNinoPrefix(m[1])) continue;
+    spans.push({
+      start: m.index,
+      end: m.index + m[0].length,
+      type: 'NATIONAL_ID',
+      text: m[0],
+      confidence: 0.9,
+      source: 'nino-uk',
     });
   }
 
