@@ -14,7 +14,16 @@ import type { Span } from '../../types';
 // The case is kept strict (uppercase) on purpose — without the `i` flag a lowercase
 // word after the cue ("passport please") can't be mistaken for a number. Cue casing is
 // handled with explicit leading-character classes instead.
-const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)(?:\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|#))?`;
+//
+// The connector alternation lists the closed set of label words that separate the cue
+// from the number. `Num`/`Num.` is the common English abbreviation of "Number" (as in
+// "Passport Num. E9X5K2B"); it is distinct from `No.`/`Nr.` and was previously dropped,
+// so the number token then tried to match the lowercase word "Num" — which has no digit
+// and fails the `[A-Z0-9]{6,12}` requirement — and the whole match failed. `[Nn]umber`
+// stays first so the full word is preferred over the abbreviation. The connector is
+// optional and the digit-bearing uppercase token remains required, so widening it here
+// covers the whole "Passport Num[.] X" class for any value without touching precision.
+const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)(?:\s*(?:[Nn]umber|[Nn]um\.?|[Nn]o\.?|[Nn]r\.?|#))?`;
 const NUMBER = String.raw`((?=[A-Z0-9]*\d)[A-Z0-9]{6,12})\b`;
 const PASSPORT_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)${NUMBER}`, 'g');
 

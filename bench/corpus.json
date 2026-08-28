@@ -2139,6 +2139,28 @@
     ]
   },
   {
+    "text": "KYC complete; Passport Num. P4KZ8Q7 recorded against the account.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "P4KZ8Q7"
+      }
+    ]
+  },
+  {
+    "text": "Traveler Passport Num M8N3B6V1C4 on file for the border check.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "M8N3B6V1C4"
+      }
+    ]
+  },
+  {
+    "text": "Passport Numbering system X1234567 applies to new applicants.",
+    "entities": []
+  },
+  {
     "text": "Account No. 4471-AA was flagged for review.",
     "entities": []
   },
