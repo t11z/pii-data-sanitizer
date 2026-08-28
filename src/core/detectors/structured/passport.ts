@@ -14,7 +14,13 @@ import type { Span } from '../../types';
 // The case is kept strict (uppercase) on purpose — without the `i` flag a lowercase
 // word after the cue ("passport please") can't be mistaken for a number. Cue casing is
 // handled with explicit leading-character classes instead.
-const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)(?:\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|#))?`;
+// The optional connector after the base cue absorbs the label word that often
+// sits between "passport" and the value. "No./Number/Nr./#" are the classic ones;
+// "Code"/"ID" are just as common in forms and customs records ("passport code X",
+// "passport ID: X") and were silently dropping those numbers, because the connector
+// is optional and the following lowercase label was then consumed as the (failed)
+// number token. Listing the label words keeps the cue strict while covering the class.
+const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)(?:\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|[Cc]ode|[Ii][Dd]|#))?`;
 const NUMBER = String.raw`((?=[A-Z0-9]*\d)[A-Z0-9]{6,12})\b`;
 const PASSPORT_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)${NUMBER}`, 'g');
 

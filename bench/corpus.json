@@ -2182,6 +2182,28 @@
     "entities": []
   },
   {
+    "text": "Customs form shows passport code P7R3S5T1U9 for the traveler.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "P7R3S5T1U9"
+      }
+    ]
+  },
+  {
+    "text": "Onboarding record lists passport ID M8N3B6V1C4 verified at the gate.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "M8N3B6V1C4"
+      }
+    ]
+  },
+  {
+    "text": "Please send the passport code today so we can finish the form.",
+    "entities": []
+  },
+  {
     "text": "Customer profile shows born 01-15-1995 on file.",
     "entities": [
       {

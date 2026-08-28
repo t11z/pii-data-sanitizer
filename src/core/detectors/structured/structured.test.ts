@@ -1012,6 +1012,31 @@ describe('passport detection (cue-gated)', () => {
   it('does not flag an over-long token beyond the 12-char bound', () => {
     expect(only('Passport No. ABC1234567890 on file.', 'PASSPORT')).toHaveLength(0);
   });
+
+  // Held-out label words: forms and customs records write the value after "code"
+  // or "ID" just as often as after "No.". These connector words were missing, so
+  // the following lowercase label was consumed as the (failed) number token and the
+  // real value was dropped. Held-out numbers (absent from corpus/feed) prove the fix
+  // is a cue-class extension, not memorization of one value.
+  it('detects a passport number after a "code" connector', () => {
+    expect(only('Customs form: passport code Q9W2E5R8T1 verified.', 'PASSPORT')[0].text).toBe(
+      'Q9W2E5R8T1'
+    );
+  });
+
+  it('detects a passport number after a colon-separated "code" connector', () => {
+    expect(only('passport code: J4H7G2F9D6 on record.', 'PASSPORT')[0].text).toBe('J4H7G2F9D6');
+  });
+
+  it('detects a passport number after an "ID" connector', () => {
+    expect(only('Traveler passport ID M8N3B6V1C4 checked.', 'PASSPORT')[0].text).toBe('M8N3B6V1C4');
+  });
+
+  // Precision guard: the new connector words still require a following digit-bearing
+  // token — a plain sentence after "passport code" must not be claimed.
+  it('does not flag a plain word after a "code" connector', () => {
+    expect(only('Please send the passport code today.', 'PASSPORT')).toHaveLength(0);
+  });
 });
 
 describe('date of birth detection (cue-gated)', () => {
