@@ -52,19 +52,46 @@ const FILLER = String.raw`(?:[a-z]{2,10}[\s:]+){0,3}`;
 // is the trailing capture group so its offset is the match end minus its own length).
 const DOB_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+${FILLER})(${DATE})`, 'gi');
 
+// The cue can also TRAIL the date. Form layouts and support prose routinely
+// print the value first and the label after: "1990-05-15 (Date of Birth)",
+// "05/15/1990 — DOB", "1983-02-09 birth check". A prefix-only gate misses this
+// whole class, leaving the date either unredacted or swept into PHONE.
+//
+// Precision is held two ways. (1) The trailing cue must sit *immediately* after
+// the date — only whitespace or a bracket/colon/dash between them, no word
+// filler — so an unrelated date earlier in a sentence can't be bridged to a
+// later "birth" mention ("opened 2024-01-15 to verify the birth certificate"
+// stays out). (2) The trailing cue set is narrower than the leading CUE:
+// "born"/"geboren"/"geb." read as verbs and don't grammatically trail a date,
+// so they're dropped. Bare "birth\b" IS included — a date directly followed by
+// "birth" is a strong DOB signal — with the word boundary keeping it off
+// "birthday"/"birthplace".
+const POST_CONNECTOR = String.raw`[\s(:—–-]+`;
+const POST_CUE = String.raw`(?:date\s+of\s+birth\b|birth\s*date\b|d\.o\.b\.?|dob\b|geburtsdatum\b|geburtstag\b|birth\b)`;
+const DOB_POST_RE = new RegExp(`(${DATE})${POST_CONNECTOR}(?:${POST_CUE})`, 'gi');
+
 export function detectDatesOfBirth(text: string): Span[] {
-  const spans: Span[] = [];
-  for (const m of text.matchAll(DOB_RE)) {
-    const date = m[1];
-    const start = m.index + (m[0].length - date.length);
-    spans.push({
+  const byOffset = new Map<string, Span>();
+  const push = (date: string, start: number) => {
+    const span: Span = {
       start,
       end: start + date.length,
       type: 'DATE_OF_BIRTH',
       text: date,
       confidence: 0.85,
       source: 'dob',
-    });
+    };
+    // A date can carry both a leading and a trailing cue; key by offset so the
+    // pair collapses to a single span rather than two identical overlaps.
+    byOffset.set(`${span.start}:${span.end}`, span);
+  };
+  for (const m of text.matchAll(DOB_RE)) {
+    const date = m[1];
+    push(date, m.index + (m[0].length - date.length));
   }
-  return spans;
+  for (const m of text.matchAll(DOB_POST_RE)) {
+    // The date is the leading capture group, so its offset is the match start.
+    push(m[1], m.index);
+  }
+  return [...byOffset.values()];
 }
