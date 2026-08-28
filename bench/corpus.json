@@ -2305,5 +2305,31 @@
         "text": "Georgios Papadopoulos"
       }
     ]
+  },
+  {
+    "text": "Her UK National Insurance No. is JG 56 78 90 A on the claim form.",
+    "entities": [
+      {
+        "type": "NATIONAL_ID",
+        "text": "JG 56 78 90 A"
+      }
+    ]
+  },
+  {
+    "text": "Payroll recorded NI number AB123456C for the new hire.",
+    "entities": [
+      {
+        "type": "NATIONAL_ID",
+        "text": "AB123456C"
+      }
+    ]
+  },
+  {
+    "text": "Unallocated prefix GB 12 34 56 C is not a National Insurance number.",
+    "entities": []
+  },
+  {
+    "text": "The batch code AO 12 34 56 E is a part label, not an identifier.",
+    "entities": []
   }
 ]

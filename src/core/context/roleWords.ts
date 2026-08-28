@@ -181,6 +181,14 @@ export const NON_NAME_WORDS = new Set<string>([
   'transaction',
   'statement',
   'receipt',
+  // Institutional-label vocabulary behind the two-word span "National Insurance"
+  // — the UK NINo label that precedes the number, not a person ("...her UK
+  // National Insurance No. is JG 56 78 90 A"). "National" is an ext-tier census
+  // token that seeds the chain; the capitalized "Insurance" after it is absorbed
+  // as an unknown corroborator. Guarding both blocks the span from either side,
+  // and neither is a plausible standalone person name in support prose.
+  'national',
+  'insurance',
   // Common role nouns. Several of these ("Manager", "Director", "Lead", "Head",
   // "Chief") land in the long-tail ext dictionary as both given- and family-name
   // surface tokens (real census surnames), which lets them chain into adjacent

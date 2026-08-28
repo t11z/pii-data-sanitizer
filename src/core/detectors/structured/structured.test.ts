@@ -916,6 +916,36 @@ describe('national id detection', () => {
     expect(only('Call 49301234567 for support.', 'NATIONAL_ID')).toHaveLength(0);
   });
 
+  it('detects a UK National Insurance number in both printed groupings', () => {
+    // Held-out NINos (neither is the "ZT 45 67 89 C" gap case): the space-grouped
+    // "AB 12 34 56 C" and the solid "JG567890A". They match purely on the HMRC
+    // allocation shape (valid prefix letters, six digits, A–D suffix), not on any
+    // dictionary, so this proves the structural heuristic generalises.
+    expect(only('His NI number AB 12 34 56 C is on file.', 'NATIONAL_ID')[0].text).toBe(
+      'AB 12 34 56 C'
+    );
+    expect(only('Reference JG567890A supplied.', 'NATIONAL_ID')[0].text).toBe('JG567890A');
+  });
+
+  it('rejects NINo-shaped runs that break the HMRC allocation rules', () => {
+    // Same 2-letter/6-digit/1-letter shape, but each violates one rule, so precision
+    // holds against look-alike codes: an unallocated prefix, a disallowed first/second
+    // prefix letter, and an out-of-range suffix (only A–D are used).
+    expect(only('Token GB 12 34 56 C here.', 'NATIONAL_ID')).toHaveLength(0); // GB never allocated
+    expect(only('Token DA 12 34 56 C here.', 'NATIONAL_ID')).toHaveLength(0); // D barred first
+    expect(only('Token AO 12 34 56 C here.', 'NATIONAL_ID')).toHaveLength(0); // O barred second
+    expect(only('Token AB 12 34 56 E here.', 'NATIONAL_ID')).toHaveLength(0); // E is not an A–D suffix
+    expect(only('at 12 34 56 a there', 'NATIONAL_ID')).toHaveLength(0); // lower-case prose
+  });
+
+  it('does not misread a printed IBAN as a UK NINo', () => {
+    // A Spanish IBAN opens with two letters and digits, but its long digit run has no
+    // A–D suffix in the NINo position, so no NATIONAL_ID span leaks out of it.
+    expect(only('IBAN ES9121 0418 4500 0005 1332 for wire transfer.', 'NATIONAL_ID')).toHaveLength(
+      0
+    );
+  });
+
   it('does not steal a 3-2-4 chunk from inside an international phone number', () => {
     // Held-out PT phone: "+351-21-1234-567" contains the 3-2-4 dashed run
     // "351-21-1234" which superficially matches the SSN regex. Because '+' is

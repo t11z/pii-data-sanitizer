@@ -360,6 +360,33 @@ describe('structural role noun after a name is not absorbed as a surname', () =>
   });
 });
 
+describe('"National Insurance" institutional label is not a person', () => {
+  // "National" is an ext-tier census token that seeds a PERSON chain, and the
+  // capitalized "Insurance" after it used to be absorbed as a corroborator,
+  // emitting the two-word span "National Insurance" — the UK NINo label that
+  // precedes the number, not a name. The NON_NAME_WORD guard now breaks the
+  // chain. Uses the FULL committed DB so "National" is a genuine ext-tier hit
+  // (asserted below), proving the guard — not absence from the DB — is the fix.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not read the "National Insurance" label as a PERSON', () => {
+    expect(personsFull('Her UK National Insurance No. is on the claim form.')).toHaveLength(0);
+    // Guard is token-specific, so a real name in the same sentence still emits.
+    expect(personsFull('Priya Patel gave her National Insurance number.')).toEqual(['Priya Patel']);
+  });
+
+  it('proves "National" is a genuine ext-tier DB hit (guard, not membership)', () => {
+    expect(
+      fullSource.hasGiven('national', 'Latin') || fullSource.hasFamily('national', 'Latin'),
+      'national should be in the committed DB'
+    ).toBe(true);
+  });
+});
+
 describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   // Support / KYC / CRM prose labels an identifier with the "number"
   // abbreviation — "Passport No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº
