@@ -1303,6 +1303,23 @@
     ]
   },
   {
+    "text": "Compliance review: taxpayer ID 90 87654321 1234 recorded for the audit.",
+    "entities": []
+  },
+  {
+    "text": "TIN 55 44332211 0099 verified during onboarding.",
+    "entities": []
+  },
+  {
+    "text": "Tax ID 77 88990011 2233 on file; reach the customer at 49 89 32156 7890 before noon.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "49 89 32156 7890"
+      }
+    ]
+  },
+  {
     "text": "Escalation hotline +1-415-22-1234-789 reached.",
     "entities": [
       {
