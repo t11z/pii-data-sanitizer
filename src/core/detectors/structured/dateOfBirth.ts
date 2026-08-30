@@ -8,6 +8,14 @@ import type { Span } from '../../types';
 // ubiquitous form-field label that the "date of birth" wording alone misses.
 const CUE = String.raw`(?:date\s+of\s+birth|birth\s*date|d\.?\s*o\.?\s*b\.?|born(?:\s+on)?|geburtsdatum|geburtstag|geboren(?:\s+am)?|geb\.?)`;
 
+// Birth-*document* cues: a birth certificate's headline date is the date of birth,
+// so "birth certificate 1980-03-14" / "Geburtsurkunde 1975-11-02" should surface
+// the DOB. These are weaker than CUE because such a document also carries an
+// *issue* date, so — unlike CUE — this cue binds only a date sitting directly
+// after it (optional colon/whitespace, no verb filler). That keeps a trailing
+// action date out: "birth certificate issued 2020-01-01" stays silent.
+const DOC_CUE = String.raw`(?:birth\s*certificate|geburtsurkunde)`;
+
 const MONTH_EN = String.raw`(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?`;
 const MONTH_DE = String.raw`(?:januar|februar|m[äa]rz|april|mai|juni|juli|august|september|oktober|november|dezember)`;
 const MONTH = `(?:${MONTH_EN}|${MONTH_DE})`;
@@ -52,19 +60,28 @@ const FILLER = String.raw`(?:[a-z]{2,10}[\s:]+){0,3}`;
 // is the trailing capture group so its offset is the match end minus its own length).
 const DOB_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+${FILLER})(${DATE})`, 'gi');
 
+// Document cue with a *directly adjacent* date only — optional colon/whitespace,
+// no filler — so the birth date is captured but a trailing issue/action date is not.
+const DOC_DOB_RE = new RegExp(`${DOC_CUE}\\s*:?\\s*(${DATE})`, 'gi');
+
 export function detectDatesOfBirth(text: string): Span[] {
-  const spans: Span[] = [];
-  for (const m of text.matchAll(DOB_RE)) {
-    const date = m[1];
-    const start = m.index + (m[0].length - date.length);
-    spans.push({
-      start,
-      end: start + date.length,
-      type: 'DATE_OF_BIRTH',
-      text: date,
-      confidence: 0.85,
-      source: 'dob',
-    });
+  const byStart = new Map<number, Span>();
+  for (const re of [DOB_RE, DOC_DOB_RE]) {
+    for (const m of text.matchAll(re)) {
+      const date = m[1];
+      const start = m.index + (m[0].length - date.length);
+      // Dedupe by offset: a date preceded by both a strong and a document cue
+      // resolves to a single span.
+      if (byStart.has(start)) continue;
+      byStart.set(start, {
+        start,
+        end: start + date.length,
+        type: 'DATE_OF_BIRTH',
+        text: date,
+        confidence: 0.85,
+        source: 'dob',
+      });
+    }
   }
-  return spans;
+  return [...byStart.values()];
 }

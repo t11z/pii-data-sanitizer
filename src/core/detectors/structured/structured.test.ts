@@ -1127,4 +1127,37 @@ describe('date of birth detection (cue-gated)', () => {
       )
     ).toHaveLength(0);
   });
+
+  // Birth-*document* cue: a birth certificate's headline date is the date of birth.
+  // Held-out date values, none of which appear in any fixture above.
+  it('detects a DOB after the "birth certificate" document cue', () => {
+    expect(only('birth certificate 1980-03-14 attached.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '1980-03-14'
+    );
+  });
+
+  it('detects a DOB after "birth certificate:" with a colon', () => {
+    expect(only('Birth Certificate: 07/04/1988 on file.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '07/04/1988'
+    );
+  });
+
+  it('detects a DOB after the German "Geburtsurkunde" document cue', () => {
+    expect(only('Geburtsurkunde 1961-09-30 vorgelegt.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '1961-09-30'
+    );
+  });
+
+  // Precision guards: a birth certificate also carries an *issue* date, so the
+  // document cue must bind only a directly-adjacent date — a trailing action verb
+  // ("issued", "expires") means the following date is not the DOB.
+  it('does not treat a birth certificate ISSUE date as a DOB', () => {
+    expect(only('birth certificate issued 2020-01-01 by registry.', 'DATE_OF_BIRTH')).toHaveLength(
+      0
+    );
+  });
+
+  it('does not flag a non-date after the birth certificate cue', () => {
+    expect(only('birth certificate no. 12345678 processed.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
 });
