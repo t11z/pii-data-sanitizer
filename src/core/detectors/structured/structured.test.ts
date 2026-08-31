@@ -1012,6 +1012,30 @@ describe('passport detection (cue-gated)', () => {
   it('does not flag an over-long token beyond the 12-char bound', () => {
     expect(only('Passport No. ABC1234567890 on file.', 'PASSPORT')).toHaveLength(0);
   });
+
+  // Held-out values (absent from corpus/feed): the `#`/`No.`/`:` marker glued
+  // straight onto the number is the shape writers actually use. Previously the
+  // `#` was consumed as a cue marker and then the required whitespace separator
+  // failed (no space before the number), dropping the whole class regardless of
+  // country. These prove the separator now accepts a `:`/`#` glue, not a
+  // memorized value.
+  it('detects a passport number when the # marker is glued to the number', () => {
+    expect(only('Reisepass #DE8A5N2V7R vorgelegt.', 'PASSPORT')[0].text).toBe('DE8A5N2V7R');
+  });
+
+  it('detects a passport number when the cue word abuts # then the number', () => {
+    expect(only('Passport#K7Q2M9X4 verified at gate.', 'PASSPORT')[0].text).toBe('K7Q2M9X4');
+  });
+
+  it('detects a passport number when a colon is glued to the number', () => {
+    expect(only('Passport:T9R4B1N8 on file.', 'PASSPORT')[0].text).toBe('T9R4B1N8');
+  });
+
+  // Precision guard: a `#` cue with no valid number (a hashtag / ticket ref)
+  // must not be claimed as a passport number.
+  it('does not flag a bare hashtag after a passport cue', () => {
+    expect(only('Passport office ticket #reopen soon.', 'PASSPORT')).toHaveLength(0);
+  });
 });
 
 describe('date of birth detection (cue-gated)', () => {

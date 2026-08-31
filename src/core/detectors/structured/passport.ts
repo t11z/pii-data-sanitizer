@@ -14,9 +14,18 @@ import type { Span } from '../../types';
 // The case is kept strict (uppercase) on purpose — without the `i` flag a lowercase
 // word after the cue ("passport please") can't be mistaken for a number. Cue casing is
 // handled with explicit leading-character classes instead.
-const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)(?:\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|#))?`;
+const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)(?:\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?))?`;
 const NUMBER = String.raw`((?=[A-Z0-9]*\d)[A-Z0-9]{6,12})\b`;
-const PASSPORT_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)${NUMBER}`, 'g');
+// Separator between the cue and the number: either whitespace, or a `:`/`#`
+// marker (optionally space-padded). Letting `:`/`#` *be* the separator — rather
+// than forcing a trailing space — captures the glued forms writers actually use
+// ("Reisepass #DE8A5N2V7R", "Passport#XY987654", "Passport:X1234567"), which the
+// whitespace-only separator dropped entirely (the `#` was consumed as a cue
+// marker, then no space followed the number, so the whole match failed). Some
+// separator/marker is still required, so a cue with no number ("passport please")
+// cannot match.
+const SEP = String.raw`(?:\s*[:#]\s*|\s+)`;
+const PASSPORT_RE = new RegExp(`${CUE}${SEP}${NUMBER}`, 'g');
 
 export function detectPassports(text: string): Span[] {
   const spans: Span[] = [];
