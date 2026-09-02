@@ -1012,6 +1012,34 @@ describe('passport detection (cue-gated)', () => {
   it('does not flag an over-long token beyond the 12-char bound', () => {
     expect(only('Passport No. ABC1234567890 on file.', 'PASSPORT')).toHaveLength(0);
   });
+
+  // Held-out values (absent from the corpus/feed): the "Ref"/"Reference" label is
+  // how support tickets tag a passport ("Passport Ref: X"). It was missing from the
+  // connector alternation, so the anchored cue→number chain broke on the word "Ref"
+  // and the real number was silently dropped. These prove the fix generalizes across
+  // the label form and the number, not the specific feed value.
+  it('detects a passport number after a "Ref:" label', () => {
+    expect(only('Passport Ref: PT4829Q1 filed.', 'PASSPORT')[0].text).toBe('PT4829Q1');
+  });
+
+  it('detects a passport number after a spelled-out "Reference" label', () => {
+    expect(only('Passport Reference DE71B4K9 attached.', 'PASSPORT')[0].text).toBe('DE71B4K9');
+  });
+
+  it('detects a passport number after an abbreviated "Ref." label', () => {
+    expect(only('Passport Ref. K3M9P1N7 on file.', 'PASSPORT')[0].text).toBe('K3M9P1N7');
+  });
+
+  // Precision guards: the "Ref"/"Reference" label must still require a following
+  // digit-bearing number — a bare label or a non-passport "reference" sentence
+  // stays unclaimed.
+  it('does not flag a "Ref" label with no following number', () => {
+    expect(only('Passport Ref please bring it tomorrow.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  it('does not flag "passport reference number" prose with no number', () => {
+    expect(only('Passport reference number pending.', 'PASSPORT')).toHaveLength(0);
+  });
 });
 
 describe('date of birth detection (cue-gated)', () => {
