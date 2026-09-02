@@ -158,9 +158,18 @@ export const NON_NAME_WORDS = new Set<string>([
   'update',
   'summary',
   'reference',
+  // "ref" is the ubiquitous abbreviation of "reference" in support/ticket prose
+  // ("case ref", "Passport Ref:"); like its full form it is a label, not a name.
+  'ref',
   'manual',
   'guide',
   'document',
+  // Identity/travel document nouns. These land in the long-tail ext dictionary as
+  // surface name tokens, so a capitalized document label followed by another such
+  // token ("Passport Ref") chains into a bogus PERSON span. Guarding them blocks
+  // that class while the structured PASSPORT/NATIONAL_ID detectors still claim the
+  // actual number that follows.
+  'passport',
   'attachment',
   'schedule',
   'meeting',

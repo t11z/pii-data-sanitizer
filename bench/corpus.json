@@ -2178,6 +2178,32 @@
     ]
   },
   {
+    "text": "Case #3345: support ticket lists Passport Ref: PT4829Q1 for the traveler.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "PT4829Q1"
+      }
+    ]
+  },
+  {
+    "text": "Border control noted Passport Reference DE71B4K9 during the check.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "DE71B4K9"
+      }
+    ]
+  },
+  {
+    "text": "The passport reference number will be issued next week.",
+    "entities": []
+  },
+  {
+    "text": "Passport Ref please forward it when you can.",
+    "entities": []
+  },
+  {
     "text": "The passport office at desk 12 reopens Monday.",
     "entities": []
   },
