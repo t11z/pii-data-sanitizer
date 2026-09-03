@@ -360,6 +360,51 @@ describe('structural role noun after a name is not absorbed as a surname', () =>
   });
 });
 
+describe('street-type suffix after a surname is not absorbed as a name', () => {
+  // "<Surname> Street/Avenue/Road/..." is an address, but the first token is a
+  // real ext-tier census surname (Preston, Sutton, Warren, ...), so before the
+  // guard the chain absorbed the capitalized street generic and emitted a
+  // two-token PERSON span (an FP on every street name in support/CRM prose).
+  // The street generics now sit in NON_NAME_WORDS, so the chain breaks and the
+  // lone surname stays below threshold — no person is emitted.
+  //
+  // Held out from the corpus cases (Baker/Church/Park/Michael Thompson): the
+  // combinations below pair DIFFERENT surnames with DIFFERENT street generics,
+  // proving the guard generalizes rather than memorizing the benchmarked
+  // strings. Uses the FULL committed DB so the surnames are genuine ext-tier
+  // hits and the chain really would have absorbed the suffix.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('emits no person for "<Surname> <StreetType>"', () => {
+    expect(personsFull('The office relocated to Preston Boulevard downtown.')).toEqual([]);
+    expect(personsFull('Parcel left at Sutton Terrace yesterday.')).toEqual([]);
+    expect(personsFull('Delivery to Warren Crescent was delayed.')).toEqual([]);
+    expect(personsFull('The store on Bradford Parkway reopened.')).toEqual([]);
+    expect(personsFull('Traffic on Hampton Highway is heavy.')).toEqual([]);
+  });
+
+  it('still detects a genuine two-token name (guard is suffix-specific)', () => {
+    // Same shape, real surname as the second token — the chain must still extend.
+    expect(personsFull('The report by Preston Nakamura was filed.')).toContain('Preston Nakamura');
+    // A person actually named after a street generic that is NOT guarded
+    // ("Lane" — a common standalone surname) must still detect.
+    expect(personsFull('We interviewed Diane Lane this morning.')).toContain('Diane Lane');
+  });
+
+  it('proves guarded street generics are genuine DB hits (guard, not membership)', () => {
+    // Several street generics are themselves ext-tier surnames in the committed
+    // DB, so the guard cannot rely on absence from the dictionary.
+    for (const word of ['street', 'crescent', 'plaza']) {
+      const hit = fullSource.hasGiven(word, 'Latin') || fullSource.hasFamily(word, 'Latin');
+      expect(hit, `${word} should be in the committed DB`).toBe(true);
+    }
+  });
+});
+
 describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   // Support / KYC / CRM prose labels an identifier with the "number"
   // abbreviation — "Passport No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº
