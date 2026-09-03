@@ -2305,5 +2305,18 @@
         "text": "Georgios Papadopoulos"
       }
     ]
+  },
+  {
+    "text": "Send the paperwork to Michael Thompson on Baker Street.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Michael Thompson"
+      }
+    ]
+  },
+  {
+    "text": "The clinic moved to Church Road near Park Avenue.",
+    "entities": []
   }
 ]

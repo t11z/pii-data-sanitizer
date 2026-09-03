@@ -204,6 +204,28 @@ export const NON_NAME_WORDS = new Set<string>([
   'open',
   'pending',
   'resolved',
+  // Street-type generic suffixes. A capitalized surname-ish word followed by one
+  // of these ("Baker Street", "Church Road", "Park Avenue", "Oak Drive") is an
+  // address, not a person — but "Baker"/"Church"/"Park"/"Oak" are all real
+  // ext-tier census surnames, so the chain absorbs the suffix as a fake second
+  // name part and emits a two-token PERSON span. Treating the suffix as a
+  // structural noun breaks that chain across every path (direct extension,
+  // particle run, parens alias, sentence-start continuation), so only a genuine
+  // preceding given name promotes. Same precision trade-off NON_NAME_WORDS
+  // already makes for role nouns: the rare person actually surnamed "Street" is
+  // sacrificed, but the address FP — far more common in support/CRM prose — is
+  // suppressed. Deliberately excludes generics that are common standalone
+  // surnames ("Lane", "Court", "Close", "Hall") to avoid dropping real names.
+  'street',
+  'avenue',
+  'boulevard',
+  'road',
+  'drive',
+  'terrace',
+  'crescent',
+  'parkway',
+  'highway',
+  'plaza',
   // --- German --- (German compounds most multi-word structures into a single
   // token, so these mainly guard the handoff/role path against the common
   // standalone ticket nouns that can follow a cue.)
