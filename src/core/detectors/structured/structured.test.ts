@@ -215,6 +215,42 @@ describe('IBAN detection', () => {
     );
   });
 
+  it('cue-anchored path catches IBANs when the "IBAN" cue TRAILS the number as a parenthetical label', () => {
+    // Postfix mirror of the prefix cued path: writers annotate an
+    // already-written account number with "(IBAN)" / "[IBAN]" / "{IBAN}"
+    // ("refund to <number> (IBAN)"), the shape from the gap report. Each value
+    // is held-out from the gap feed and mod-97-invalid (asserted below) so ONLY
+    // the trailing-cue path can emit — proving the heuristic, not the checksum
+    // or the dictionary, does the work. Covers a spaced DE, a bracketed GB, and
+    // the no-space FR form that produced the original miss.
+    expect(isValidIban('DE89 3704 0044 0532 0130 01')).toBe(false);
+    expect(isValidIban('GB29 NWBK 6016 1331 9268 20')).toBe(false);
+    expect(isValidIban('FR7630006000011234567890188')).toBe(false);
+    expect(
+      only('Refund requested to DE89 3704 0044 0532 0130 01 (IBAN) per the customer.', 'IBAN')[0]
+        .text
+    ).toBe('DE89 3704 0044 0532 0130 01');
+    expect(
+      only('Settlement wired to GB29 NWBK 6016 1331 9268 20 [IBAN] overnight.', 'IBAN')[0].text
+    ).toBe('GB29 NWBK 6016 1331 9268 20');
+    expect(
+      only('Chargeback to FR7630006000011234567890188 (IBAN) is pending review.', 'IBAN')[0].text
+    ).toBe('FR7630006000011234567890188');
+  });
+
+  it('trailing cue does not leak when "(IBAN)" has no IBAN shape immediately before it', () => {
+    // Precision guard for the postfix path: the parenthetical label must follow
+    // a real IBAN shape *adjacently*. A benign "(IBAN)" annotation, or a shape
+    // separated from the label by intervening words, must stay silent — the
+    // shape+adjacency conjunction keeps the path from leaking.
+    expect(
+      only('Please have your account number (IBAN) ready when you call.', 'IBAN')
+    ).toHaveLength(0);
+    expect(
+      only('The code XZ12 3456 7890 1234 5678 was logged; see (IBAN) section.', 'IBAN')
+    ).toHaveLength(0);
+  });
+
   it('cue-anchored path catches IBANs preceded by an English linking word ("IBAN is/was/number/no./reads")', () => {
     // Held-out, strict-invalid IBAN-shape values immediately after the cue word
     // separated by the natural-English linking tokens that support / banking
