@@ -1911,6 +1911,41 @@
     "entities": []
   },
   {
+    "text": "Refund requested to DE89 3704 0044 0532 0130 01 (IBAN) per the customer.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "DE89 3704 0044 0532 0130 01"
+      }
+    ]
+  },
+  {
+    "text": "Settlement wired to GB29 NWBK 6016 1331 9268 20 [IBAN] overnight.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "GB29 NWBK 6016 1331 9268 20"
+      }
+    ]
+  },
+  {
+    "text": "Chargeback to FR7630006000011234567890188 (IBAN) is pending review.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "FR7630006000011234567890188"
+      }
+    ]
+  },
+  {
+    "text": "Please have your account number (IBAN) ready when you call.",
+    "entities": []
+  },
+  {
+    "text": "The code XZ12 3456 7890 1234 5678 was logged; see (IBAN) section for details.",
+    "entities": []
+  },
+  {
     "text": "Customer complaint from Raj Kumar-Singh: invoice 2024.07.10-12 shows wrong amount.",
     "entities": [
       {

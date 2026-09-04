@@ -41,6 +41,19 @@ const IBAN_RE = /\b[A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30}\b/g;
 const IBAN_CUED_RE =
   /\bIBAN\b(?:\s+(?:is|was|number|no\.?|reads))?[\s:([{#=]+([A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30})\b/g;
 
+// Trailing-cue path: the "IBAN" acronym can also TRAIL the number as a
+// parenthetical / bracketed label — "FR14 … (IBAN)", "DE89 … [IBAN]" — the form
+// writers reach for when annotating an already-written account number ("refund
+// to <number> (IBAN)"). This is the postfix mirror of IBAN_CUED_RE and carries
+// the same intent signal, so it likewise licenses a span when the run fails
+// mod-97 / country-length (mis-keyed, OCR-corrupted, non-standard groupings): a
+// zero-knowledge sanitizer must still redact an account number the writer
+// explicitly labels "(IBAN)". Precision is unchanged versus the prefix path — a
+// match requires BOTH the full IBAN shape AND the bracketed acronym immediately
+// after, an even tighter conjunction than the prefix cue. Captured group is the
+// SHAPE only, matching what callers/the bench expect for a bare IBAN.
+const IBAN_CUED_TRAILING_RE = /\b([A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30})\s*[([{]\s*IBAN\b/g;
+
 // Official IBAN length per country, from the SWIFT IBAN Registry. Mod-97 alone
 // passes ~1% of random strings by chance, so a longer-than-canonical run that
 // happens to checksum-validate (e.g. a 32-char "BR15 …" with extra zero groups
@@ -182,11 +195,12 @@ export function detectIbans(text: string): Span[] {
   // over the cascade FPs at 0.95) when the cue word precedes an IBAN-shape that
   // the strict path did not already claim. Skip when contained in a validated
   // span to avoid double-counting.
+  const claimed = [...validated];
   for (const match of text.matchAll(IBAN_CUED_RE)) {
     const value = match[1];
     const start = match.index + match[0].length - value.length;
     const end = start + value.length;
-    if (validated.some(([s, e]) => start >= s && end <= e)) continue;
+    if (claimed.some(([s, e]) => start >= s && end <= e)) continue;
     spans.push({
       start,
       end,
@@ -195,6 +209,25 @@ export function detectIbans(text: string): Span[] {
       confidence: 0.96,
       source: 'iban-cued',
     });
+    claimed.push([start, end]);
+  }
+  // Trailing parenthetical cue ("<shape> (IBAN)"). The shape is captured group 1
+  // and sits at the start of the match, so its offset is match.index. Skip when
+  // the strict/prefix-cued path already claimed the run.
+  for (const match of text.matchAll(IBAN_CUED_TRAILING_RE)) {
+    const value = match[1];
+    const start = match.index;
+    const end = start + value.length;
+    if (claimed.some(([s, e]) => start >= s && end <= e)) continue;
+    spans.push({
+      start,
+      end,
+      type: 'IBAN',
+      text: value,
+      confidence: 0.96,
+      source: 'iban-cued',
+    });
+    claimed.push([start, end]);
   }
   return spans;
 }
