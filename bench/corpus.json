@@ -1095,6 +1095,23 @@
     "entities": []
   },
   {
+    "text": "Ticket ID 19991231-7 was archived overnight.",
+    "entities": []
+  },
+  {
+    "text": "Case 20240229-1234 escalated to tier 2.",
+    "entities": []
+  },
+  {
+    "text": "Ticket 20250314-9 open; call +81 3-6205-4000 today.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+81 3-6205-4000"
+      }
+    ]
+  },
+  {
     "text": "Traveler passport number L898902C3 was logged at the gate.",
     "entities": [
       {

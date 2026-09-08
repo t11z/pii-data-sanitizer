@@ -19,6 +19,26 @@ const LETTER = /[A-Za-z]/;
 const DATE_SHAPE =
   /^(?:\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}|\d{1,2}[.\-/]\d{1,2}[.\-/]\d{4})(?:[.\-/]\d{1,4})?(?:[ T]\d{1,2}(?::\d{2}){0,2})?$/;
 
+// Compact-date reference: a solid 8-digit ISO date "YYYYMMDD" followed by a
+// separator and a short sequence number ("ticket ID 20260908-001",
+// "Case 20260908-042"). The date block carries no internal separators, so
+// DATE_SHAPE above (which anchors on separated date components) never sees it,
+// and the trailing "-NNN" supplies the hyphen that reads as phone grouping.
+// The leading eight digits only count when they parse as a real calendar date
+// (year 1900–2099, month 01–12, day 01–31) — that validity gate is what keeps
+// the guard from swallowing genuine numbers, since no real phone begins with a
+// valid YYYYMMDD block glued to a hyphenated sequence.
+const COMPACT_DATE_REF = /^(\d{4})(\d{2})(\d{2})[.\-/]\d{1,4}$/;
+
+export function isCompactDateRef(candidate: string): boolean {
+  const m = COMPACT_DATE_REF.exec(candidate);
+  if (!m) return false;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  return year >= 1900 && year <= 2099 && month >= 1 && month <= 12 && day >= 1 && day <= 31;
+}
+
 // Closed-class phone-cue words that unambiguously introduce a phone number in
 // support / business prose. Used as one leg of the paren-wrapped bare-run
 // signal below — a bare 10–15-digit number in balanced parens is only accepted
@@ -133,6 +153,8 @@ export function detectPhones(text: string): Span[] {
     // Skip date-shaped candidates: bare dates, ISO timestamps, and
     // invoice/case refs suffixed with a short sequence number.
     if (DATE_SHAPE.test(trimmed)) continue;
+    // Skip compact "YYYYMMDD-NNN" date-prefixed references (ticket / case IDs).
+    if (isCompactDateRef(trimmed)) continue;
     // Skip digit runs embedded in an alphanumeric identifier (order/ticket/
     // invoice/serial numbers like "ORD-2025-001847-X") — not phone numbers.
     if (fusedToLetters(text, start, end)) continue;

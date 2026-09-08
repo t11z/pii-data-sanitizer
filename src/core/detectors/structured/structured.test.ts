@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { detect } from '../../index';
 import { isValidIban } from './iban';
 import { isValidLuhn } from './creditCard';
+import { isCompactDateRef } from './phone';
 
 const only = (text: string, type: string) => detect(text).filter((s) => s.type === type);
 
@@ -742,6 +743,36 @@ describe('phone detection', () => {
     expect(only('batch 14.03.2025-08 released.', 'PHONE')).toHaveLength(0);
     expect(only('contract 08/22/2024-3 open.', 'PHONE')).toHaveLength(0);
     expect(only('Meeting on 2025.03.14 was rescheduled.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('does not flag compact "YYYYMMDD-NNN" date-prefixed refs as a phone number', () => {
+    // Ticket / case IDs built from a solid ISO date plus a sequence number
+    // ("ticket ID 20260908-001", "Case 20260908-042"). The 8-digit date block
+    // has no internal separators, so the separated-date guard never sees it and
+    // the trailing "-NNN" reads as phone grouping. Held-out dates/sequences
+    // (not the gap's own 20260908-001) prove the guard is structural — a valid
+    // YYYYMMDD calendar block glued to a hyphenated sequence — and generalizes.
+    expect(only('ticket ID 19991231-7 archived.', 'PHONE')).toHaveLength(0);
+    expect(only('Case 20240229-1234 escalated.', 'PHONE')).toHaveLength(0);
+    expect(only('reference 20180101-42 pending.', 'PHONE')).toHaveLength(0);
+    // Slash / dot separators before the sequence read the same way.
+    expect(only('batch 20220630/9 released.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('still flags a real phone on a line that also has a compact-date ref', () => {
+    // Precision guard for the compact-date reject: a genuine phone sharing a
+    // line with a "YYYYMMDD-NNN" reference must still surface.
+    const spans = only('Ticket 20250314-9 open; call +81 3-6205-4000 now.', 'PHONE');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('+81 3-6205-4000');
+  });
+
+  it('leaves compact digit runs whose leading block is not a valid date alone', () => {
+    // The guard fires only on a real YYYYMMDD block: "99887766-01" (month 77,
+    // day 66) is not a date, so the compact-date reject does not claim it — the
+    // validity gate is what keeps the guard from over-rejecting arbitrary runs.
+    expect(isCompactDateRef('99887766-01')).toBe(false);
+    expect(isCompactDateRef('20260908-001')).toBe(true);
   });
 
   it('still detects real phones whose surrounding prose contains a date', () => {
