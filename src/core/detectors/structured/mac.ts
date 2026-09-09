@@ -26,10 +26,25 @@ const MAC_SEP_RE =
 const MAC_COMPACT_RE =
   /(?<![\w.-])[0-9A-Fa-f]{4}([.-])[0-9A-Fa-f]{4}\1[0-9A-Fa-f]{4}(?![\w]|[.-][0-9A-Fa-f])/g;
 
+// The broadcast MAC (all-`FF`) is a reserved sentinel that identifies no device,
+// so it carries no PII — it shows up in configs, docs, and network diagnostics
+// as a "send to everyone" placeholder, not as a hardware id. Reject it
+// structurally (strip the separator + lowercase) so the guard covers every
+// notation — colon, hyphen, and Cisco dot — and any casing, rather than one
+// literal string. Kept intentionally narrow: multicast / locally-administered /
+// null (all-`00`) forms are NOT excluded here — an all-`00` address is all
+// digits and would fall through to the PHONE detector, and both classes can be
+// real device identifiers, so suppressing them would trade a rare FP for
+// recall/precision regressions elsewhere.
+function isBroadcastMac(raw: string): boolean {
+  return /^f{12}$/.test(raw.replace(/[.:-]/g, '').toLowerCase());
+}
+
 export function detectMacs(text: string): Span[] {
   const spans: Span[] = [];
   for (const re of [MAC_SEP_RE, MAC_COMPACT_RE]) {
     for (const match of text.matchAll(re)) {
+      if (isBroadcastMac(match[0])) continue;
       spans.push({
         start: match.index,
         end: match.index + match[0].length,
