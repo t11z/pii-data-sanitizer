@@ -672,6 +672,28 @@ describe('MAC detection', () => {
   it('rejects a clock time that looks colon-separated', () => {
     expect(only('meeting at 12:34:56 today', 'MAC')).toHaveLength(0);
   });
+
+  // The broadcast MAC (all-FF) is a well-formed address that identifies no
+  // device, so it is not PII. Held-out from the gap case (lowercase colon form):
+  // these exercise every notation + casing to prove the guard is structural, not
+  // a memorized literal.
+  it('rejects the broadcast MAC in colon notation (any case)', () => {
+    expect(only('sent to FF:FF:FF:FF:FF:FF broadcast', 'MAC')).toHaveLength(0);
+    expect(only('sent to ff:ff:ff:ff:ff:ff broadcast', 'MAC')).toHaveLength(0);
+  });
+
+  it('rejects the broadcast MAC in hyphen and Cisco-dot notation', () => {
+    expect(only('flood ff-ff-ff-ff-ff-ff out', 'MAC')).toHaveLength(0);
+    expect(only('flood ffff.ffff.ffff out', 'MAC')).toHaveLength(0);
+  });
+
+  it('still detects a real MAC that merely contains FF groups', () => {
+    // Held-out address with ff groups but not all-broadcast: must survive so the
+    // guard stays narrow and does not weaken proven recall of real MACs.
+    const spans = only('nic 00:ff:00:ff:00:ff active', 'MAC');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('00:ff:00:ff:00:ff');
+  });
 });
 
 describe('phone detection', () => {
