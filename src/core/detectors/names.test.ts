@@ -360,6 +360,41 @@ describe('structural role noun after a name is not absorbed as a surname', () =>
   });
 });
 
+describe('place / organization designator after a name is not a person', () => {
+  // A dictionary given/family name that chains into a toponym / institution
+  // designator ("Street", "Station", "Foundation", "University", ...) is a
+  // place or an organization, not a person. The chain-extension guard breaks on
+  // these NON_NAME_WORDS, and because the leading token is then a lone name that
+  // stays below threshold, the false positive drops entirely.
+  //
+  // Held-out inputs: none of these phrases is one of the benchmarked corpus
+  // cases — they pair DIFFERENT dictionary names with the designators, proving
+  // the guard generalizes rather than memorizing the benchmarked strings. Uses
+  // the FULL committed DB so the leading tokens are genuine dictionary hits.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('drops "<Name> <place/org designator>" as a person span', () => {
+    expect(personsFull('The office on Chestnut Street was closed.')).toHaveLength(0);
+    expect(personsFull('We arrived at Paddington Station on time.')).toHaveLength(0);
+    expect(personsFull('The Carnegie Foundation funded the study.')).toHaveLength(0);
+    expect(personsFull('She graduated from Princeton University.')).toHaveLength(0);
+    expect(personsFull('Take the exit toward Lincoln Boulevard.')).toHaveLength(0);
+    expect(personsFull('He was treated at Mercy Hospital overnight.')).toHaveLength(0);
+  });
+
+  it('still detects real names whose parts collide with place words', () => {
+    // The excluded designators ("Park", "River", "Lane", ...) remain valid name
+    // parts, so genuine people keep detecting — the guard is designator-specific.
+    expect(personsFull('Rosa Parks refused to give up her seat.')).toContain('Rosa Parks');
+    expect(personsFull('River Phoenix starred in the film.')).toContain('River Phoenix');
+    expect(personsFull('Diane Lane attended the premiere.')).toContain('Diane Lane');
+  });
+});
+
 describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   // Support / KYC / CRM prose labels an identifier with the "number"
   // abbreviation — "Passport No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº
