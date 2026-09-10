@@ -2305,5 +2305,49 @@
         "text": "Georgios Papadopoulos"
       }
     ]
+  },
+  {
+    "text": "Meet Laura Bennett at Baker Street tomorrow.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Laura Bennett"
+      }
+    ]
+  },
+  {
+    "text": "The Chestnut Street clinic emailed sofia.ramos@example.com.",
+    "entities": [
+      {
+        "type": "EMAIL",
+        "text": "sofia.ramos@example.com"
+      }
+    ]
+  },
+  {
+    "text": "Anna Kowalski volunteers at the Hope Foundation.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Anna Kowalski"
+      }
+    ]
+  },
+  {
+    "text": "Register for the seminar at Princeton University by Monday.",
+    "entities": []
+  },
+  {
+    "text": "Diane Lane and River Phoenix were both cast.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Diane Lane"
+      },
+      {
+        "type": "PERSON",
+        "text": "River Phoenix"
+      }
+    ]
   }
 ]

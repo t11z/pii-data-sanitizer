@@ -204,6 +204,32 @@ export const NON_NAME_WORDS = new Set<string>([
   'open',
   'pending',
   'resolved',
+  // Place / organization designators. A dictionary given/family name that chains
+  // into one of these ("Baker Street", "Victoria Station", "Hope Foundation",
+  // "Oxford Boulevard", "Stanford University") is a toponym or an institution,
+  // not a person — the trailing designator is what makes the whole phrase a
+  // place/org. Treating them as structural nouns breaks the chain (and, because
+  // the leading token is then a lone given name that stays below threshold, drops
+  // the false positive entirely). Deliberately EXCLUDED are words that are also
+  // common person-name parts — "Park" (Korean surname; "Park Chan-wook"),
+  // "River" (given name; "River Phoenix"), "Lane" ("Diane Lane"), "Hill",
+  // "Ford", "Wood", "Brook", "Lake" (all frequent English surnames) — so those
+  // real names keep detecting. Included words are essentially never a person-name
+  // part; the rare genuine surname "Street" is the same trade-off NON_NAME_WORDS
+  // already accepts for "Head" / "Lead".
+  'street',
+  'avenue',
+  'boulevard',
+  'station',
+  'terminal',
+  'airport',
+  'foundation',
+  'university',
+  'college',
+  'institute',
+  'hospital',
+  'stadium',
+  'plaza',
   // --- German --- (German compounds most multi-word structures into a single
   // token, so these mainly guard the handoff/role path against the common
   // standalone ticket nouns that can follow a cue.)
