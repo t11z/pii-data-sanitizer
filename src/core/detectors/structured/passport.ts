@@ -14,7 +14,16 @@ import type { Span } from '../../types';
 // The case is kept strict (uppercase) on purpose — without the `i` flag a lowercase
 // word after the cue ("passport please") can't be mistaken for a number. Cue casing is
 // handled with explicit leading-character classes instead.
-const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)(?:\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|#))?`;
+//
+// Between the cue word and the number, forms and records commonly insert a
+// document-type noun ("passport document V…", "passport book number V…", German
+// "Reisepass Dokument V…"). That noun is accepted as an optional connector so the
+// whole "<cue> <document-noun> [No./Number] <value>" phrasing class is covered — not a
+// single memorized value. It stays precision-safe because the number token below is
+// still required to be an uppercase, digit-bearing 6–12 char run, so a trailing prose
+// word ("passport document scanned") can never be mistaken for a number.
+const DOC_NOUN = String.raw`(?:\s+(?:[Dd]ocument|[Dd]oc\.?|[Dd]okument|[Dd]ok\.?|[Bb]ook(?:let)?))?`;
+const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)${DOC_NOUN}(?:\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|#))?`;
 const NUMBER = String.raw`((?=[A-Z0-9]*\d)[A-Z0-9]{6,12})\b`;
 const PASSPORT_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)${NUMBER}`, 'g');
 

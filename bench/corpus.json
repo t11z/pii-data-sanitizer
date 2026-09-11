@@ -2139,6 +2139,28 @@
     ]
   },
   {
+    "text": "Passport document M8N3B6V1C4 attached to the case file.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "M8N3B6V1C4"
+      }
+    ]
+  },
+  {
+    "text": "Reisepass Dokument R3T8N1Q6 vorgelegt und geprüft.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "R3T8N1Q6"
+      }
+    ]
+  },
+  {
+    "text": "Passport document scanned and archived overnight.",
+    "entities": []
+  },
+  {
     "text": "Account No. 4471-AA was flagged for review.",
     "entities": []
   },
