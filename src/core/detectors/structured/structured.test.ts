@@ -1012,6 +1012,32 @@ describe('passport detection (cue-gated)', () => {
   it('does not flag an over-long token beyond the 12-char bound', () => {
     expect(only('Passport No. ABC1234567890 on file.', 'PASSPORT')).toHaveLength(0);
   });
+
+  // Held-out values (absent from the corpus/feed): forms and records commonly put a
+  // document-type noun between the cue and the number. These prove the connector-noun
+  // heuristic generalizes across the phrasing class, not a single memorized value.
+  it('detects a passport number after a "document" noun connector', () => {
+    expect(only('Passport document R7K2P9Q1 filed.', 'PASSPORT')[0].text).toBe('R7K2P9Q1');
+  });
+
+  it('detects a passport number after a "book number" connector', () => {
+    expect(only('Passport book number H4J8L2M6 verified.', 'PASSPORT')[0].text).toBe('H4J8L2M6');
+  });
+
+  it('detects a passport number after a German "Dokument" connector', () => {
+    expect(only('Reisepass Dokument T3X7B9K2 geprüft.', 'PASSPORT')[0].text).toBe('T3X7B9K2');
+  });
+
+  // Precision guards for the document-noun connector: the number token is still
+  // required, so a document noun followed by prose (no digit-bearing token) or by the
+  // "office" of a passport desk must stay unflagged.
+  it('does not flag a document noun followed by a non-number word', () => {
+    expect(only('Passport document scanned and archived.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  it('does not treat "passport office" as a cue for a nearby number', () => {
+    expect(only('The passport office at desk 12 reopens Monday.', 'PASSPORT')).toHaveLength(0);
+  });
 });
 
 describe('date of birth detection (cue-gated)', () => {
