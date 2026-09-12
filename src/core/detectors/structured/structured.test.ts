@@ -1127,4 +1127,47 @@ describe('date of birth detection (cue-gated)', () => {
       )
     ).toHaveLength(0);
   });
+
+  // A named-subject appositive ("<cue> of <role> <Name>: <date>") is a common
+  // records/support form the bare colon/filler branches miss. Held-out names
+  // and dates (absent from the corpus) prove the heuristic binds across the
+  // appositive by structure, not by memorizing a specific subject.
+  it('binds a DOB cue across an "of <role> <Name>:" appositive', () => {
+    expect(
+      only('Geburtsdatum of network admin Priya Nayar: 1988-07-15 on file.', 'DATE_OF_BIRTH')[0]
+        .text
+    ).toBe('1988-07-15');
+  });
+
+  it('binds an English DOB cue across an "of the <role> <Name>:" appositive', () => {
+    expect(
+      only(
+        'Date of birth of the account holder Rowan Amsel: 04/11/1979 verified.',
+        'DATE_OF_BIRTH'
+      )[0].text
+    ).toBe('04/11/1979');
+  });
+
+  it('binds a German "von" appositive with an accented name', () => {
+    expect(
+      only('Geburtsdatum von Kunde Björn Weiß: 14.07.1980 laut Ausweis.', 'DATE_OF_BIRTH')[0].text
+    ).toBe('14.07.1980');
+  });
+
+  // Precision guards for the appositive branch.
+  it('does not bind an appositive with no connective (arbitrary lead-in)', () => {
+    // No "of"/"for"/"von"… after the cue, so the named-subject branch must not
+    // engage; the run is also >3 words so the filler branch can't reach either.
+    expect(
+      only('Date of birth review committee finalized the report: 2024-03-01.', 'DATE_OF_BIRTH')
+    ).toHaveLength(0);
+  });
+
+  it('does not bridge an appositive across a comma into an unrelated date', () => {
+    // The subject run is alphabetic words only; a comma terminates it before the
+    // colon, so the far-off date stays out.
+    expect(
+      only('Date of birth of the customer noted, invoice dated: 2024-03-01.', 'DATE_OF_BIRTH')
+    ).toHaveLength(0);
+  });
 });

@@ -48,9 +48,31 @@ const DATE = [
 // keeps incidental dates out.
 const FILLER = String.raw`(?:[a-z]{2,10}[\s:]+){0,3}`;
 
-// Cue, then a colon / whitespace / short connective run, then the date (the date
-// is the trailing capture group so its offset is the match end minus its own length).
-const DOB_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+${FILLER})(${DATE})`, 'gi');
+// Records and support-desk prose routinely name the *subject* between the cue
+// and the value, closing with a colon before the date:
+//   "Date of birth of the account holder John Smith: 1990-01-01"
+//   "Geburtsdatum of network admin Priya Nayar: 1988-07-15"
+//   "DOB of patient Maria Gomez: 1975-03-22"
+// The subject is an appositive introduced by a small closed set of connectives
+// ("of"/"for" and the German "von"/"des"/"der"/"für") — requiring one keeps this
+// branch from bridging an arbitrary lead-in to an unrelated date. The run itself
+// is a few alphabetic words only (roles + a name — letters, apostrophes, hyphens;
+// no digits, no sentence punctuation), and the trailing colon is the value
+// separator, so the date stays pinned to its label. The birth cue still gates
+// the whole match, so a bare "of the account holder …: <date>" with no cue is
+// ignored. This complements the cue-then-colon and cue-then-filler branches,
+// which don't cover a named-subject appositive.
+const APPOS = String.raw`(?:of|for|von|des|der|für)`;
+const SUBJECT_WORD = String.raw`[A-Za-zÀ-ÿ'’-]{1,20}`;
+const SUBJECT = String.raw`${APPOS}\s+(?:${SUBJECT_WORD}\s+){0,4}${SUBJECT_WORD}`;
+
+// Cue, then a colon / named-subject appositive + colon / whitespace + short
+// connective run, then the date (the date is the trailing capture group so its
+// offset is the match end minus its own length).
+const DOB_RE = new RegExp(
+  `${CUE}(?:\\s*:\\s*|\\s+${SUBJECT}\\s*:\\s*|\\s+${FILLER})(${DATE})`,
+  'gi'
+);
 
 export function detectDatesOfBirth(text: string): Span[] {
   const spans: Span[] = [];
