@@ -1162,6 +1162,32 @@
     ]
   },
   {
+    "text": "Geburtsdatum of the network administrator: 1988-07-15 on file.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1988-07-15"
+      }
+    ]
+  },
+  {
+    "text": "Date of birth of the primary account holder: 05/23/1983 confirmed.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "05/23/1983"
+      }
+    ]
+  },
+  {
+    "text": "Date of birth review committee finalized the report: 2024-03-01.",
+    "entities": []
+  },
+  {
+    "text": "Date of birth of the customer noted, invoice dated: 2024-03-01.",
+    "entities": []
+  },
+  {
     "text": "He was born in a small coastal village; the audit on 2024-01-15 found issues.",
     "entities": []
   },
