@@ -139,6 +139,27 @@ export const IBAN_LENGTH_BY_COUNTRY: Record<string, number> = {
   YE: 30,
 };
 
+// Closed-class words that frame a nearby number as a *quoted non-account* — a
+// decoy, sample, or placeholder — rather than a real (possibly mis-keyed) one.
+// The cued safety-net below resurrects checksum-failing IBAN shapes on the
+// assumption they are OCR-corrupted or mis-keyed *real* accounts; that
+// assumption inverts when the prose explicitly says the number is fake. Kept
+// small and unambiguous so the guard only fires on plain "this is not a live
+// IBAN" language (fraud/phishing tickets quoting decoys, docs quoting samples).
+const INVALIDITY_CUE_RE =
+  /\b(?:fraudulent|fraud|fake|faked|decoy|bogus|spoofed|spoof|phishing|phish|sample|example|dummy|placeholder|fictitious|invalid)\b/i;
+
+// The cue may sit before the "IBAN" keyword ("Fraudulent IBAN: …") or trail the
+// number as a parenthetical ("… (checksum invalid—decoy)"); a short symmetric
+// window around the cued run covers both without reaching into neighbouring
+// sentences.
+const INVALIDITY_CUE_WINDOW = 30;
+function hasInvalidityCue(text: string, cueStart: number, valueEnd: number): boolean {
+  const from = Math.max(0, cueStart - INVALIDITY_CUE_WINDOW);
+  const to = Math.min(text.length, valueEnd + INVALIDITY_CUE_WINDOW);
+  return INVALIDITY_CUE_RE.test(text.slice(from, to));
+}
+
 /** ISO 7064 mod-97-10 check: a valid IBAN yields a remainder of 1. */
 export function isValidIban(raw: string): boolean {
   const compact = raw.replace(/\s+/g, '').toUpperCase();
@@ -187,6 +208,14 @@ export function detectIbans(text: string): Span[] {
     const start = match.index + match[0].length - value.length;
     const end = start + value.length;
     if (validated.some(([s, e]) => start >= s && end <= e)) continue;
+    // Safety-net inversion: the cued path only reaches here for a run the strict
+    // path did NOT claim — i.e. one that fails mod-97/length. That is fine when
+    // the failure is corruption of a real account, but not when the prose marks
+    // the number as fake. Gate on `!isValidIban` so a genuine IBAN quoted in a
+    // fraud report is never touched (the strict path already emitted it); when
+    // the run really is invalid AND an invalidity cue sits beside the keyword,
+    // it is a quoted non-account (decoy/sample), so we do not resurrect it.
+    if (!isValidIban(value) && hasInvalidityCue(text, match.index, end)) continue;
     spans.push({
       start,
       end,

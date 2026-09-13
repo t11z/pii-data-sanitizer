@@ -306,6 +306,56 @@ describe('IBAN detection', () => {
     expect(only('Code IT99 X054 2811 1010 0000 0123 456 noted.', 'IBAN')).toHaveLength(0);
   });
 
+  it('cued safety-net does not resurrect an explicitly-labeled decoy/sample invalid IBAN', () => {
+    // The cued path resurrects checksum-failing IBAN shapes on the theory they
+    // are OCR-corrupted / mis-keyed *real* accounts. That theory inverts when
+    // the prose explicitly frames the number as fake — fraud/phishing tickets
+    // quote decoy IBANs, docs quote samples. All values below are held-out,
+    // strict-invalid, and absent from the gap feed, so only the cued path could
+    // emit them; with an invalidity cue beside the keyword it must stay silent.
+    expect(isValidIban('GB29 NWBK 6016 1331 9268 18')).toBe(false);
+    expect(isValidIban('DE00 1111 2222 3333 4444 55')).toBe(false);
+    expect(isValidIban('XQ99 0000 1111 2222 3333 44')).toBe(false);
+    // Cue BEFORE the keyword ("Fraudulent IBAN …"):
+    expect(
+      only('Fraudulent IBAN: GB29 NWBK 6016 1331 9268 18 quoted by the scammer.', 'IBAN')
+    ).toHaveLength(0);
+    // "sample" / "example" documentation framing:
+    expect(
+      only(
+        'Onboarding doc lists a sample IBAN DE00 1111 2222 3333 4444 55 for illustration.',
+        'IBAN'
+      )
+    ).toHaveLength(0);
+    // Cue words that TRAIL the number ("… in the phishing email"):
+    expect(
+      only(
+        'Support flagged a decoy IBAN XQ99 0000 1111 2222 3333 44 in the phishing email.',
+        'IBAN'
+      )
+    ).toHaveLength(0);
+  });
+
+  it('decoy guard is gated on checksum failure and on the invalidity cue (no recall loss)', () => {
+    // A genuine mod-97-valid IBAN mentioned in a fraud report is owned by the
+    // STRICT path, so the decoy guard (which only touches cued, checksum-failing
+    // runs) must never suppress it.
+    expect(isValidIban('DE89 3704 0044 0532 0130 00')).toBe(true);
+    expect(
+      only(
+        "Fraudulent charge disputed; customer's real IBAN DE89 3704 0044 0532 0130 00 stays on file.",
+        'IBAN'
+      )[0].text
+    ).toBe('DE89 3704 0044 0532 0130 00');
+    // A neutrally-cued checksum-failing IBAN (no invalidity cue nearby) must
+    // still ride the safety net exactly as before — the guard is not a blanket
+    // tightening of the cued path. Held-out unassigned-CC shape.
+    expect(isValidIban('QZ55 6677 8899 0011 2233')).toBe(false);
+    expect(only('Settlement IBAN QZ55 6677 8899 0011 2233 booked overnight.', 'IBAN')[0].text).toBe(
+      'QZ55 6677 8899 0011 2233'
+    );
+  });
+
   it('cue word alone (no IBAN-shape after) produces nothing', () => {
     // The cue word "IBAN" written in plain prose with no CC+digits after must
     // not emit a span — guards against the acronym being used as a noun in

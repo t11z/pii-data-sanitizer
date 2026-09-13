@@ -943,6 +943,36 @@
     "entities": []
   },
   {
+    "text": "Fraudulent IBAN: GB29 NWBK 6016 1331 9268 18 quoted by the scammer.",
+    "entities": []
+  },
+  {
+    "text": "Onboarding doc lists a sample IBAN DE00 1111 2222 3333 4444 55 for illustration only.",
+    "entities": []
+  },
+  {
+    "text": "Support flagged a decoy IBAN XQ99 0000 1111 2222 3333 44 in the phishing email.",
+    "entities": []
+  },
+  {
+    "text": "Fraudulent charge disputed; the customer's real IBAN DE89 3704 0044 0532 0130 00 stays on file.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "DE89 3704 0044 0532 0130 00"
+      }
+    ]
+  },
+  {
+    "text": "Settlement IBAN QZ55 6677 8899 0011 2233 booked overnight.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "QZ55 6677 8899 0011 2233"
+      }
+    ]
+  },
+  {
     "text": "Reference code XY 11 AAAA BBBB CCCC DDDD EEEE present.",
     "entities": []
   },
