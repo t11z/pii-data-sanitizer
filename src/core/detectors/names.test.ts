@@ -115,6 +115,30 @@ describe('Korean (Hangul) names', () => {
   });
 });
 
+describe('Thai names (caseless own-script)', () => {
+  // Thai is unicameral (no case), so — like the other caseless native scripts —
+  // a bare DB hit drives the match; there is no capitalization signal to gate on.
+  // Thai personal names are written given+family separated by a space, so the two
+  // tokens chain into one PERSON span.
+  const thaiSource = new PackNameSource();
+  thaiSource.addWords(['สมชาย', 'บุญมี', 'สมศักดิ์'], { script: 'Thai', tier: 'core' });
+  const thPersons = (text: string) =>
+    detect(text, { nameSource: thaiSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects a Thai given+family name present in the database', () => {
+    expect(thPersons('โปรดติดต่อ สมชาย บุญมี เกี่ยวกับการคืนเงิน')).toContain('สมชาย บุญมี');
+  });
+
+  it('does not flag an unknown Thai token without context', () => {
+    // ราชการ ("government/official service") is an ordinary word absent from the
+    // source, so it must not detect — proving it is DB membership, not the Thai
+    // script alone, that drives a caseless match.
+    expect(thPersons('ยื่นเรื่องต่อ ราชการ วันนี้')).not.toContain('ราชการ');
+  });
+});
+
 describe('Greek names (bicameral, capitalization-gated)', () => {
   const greekSource = new PackNameSource();
   greekSource.addWords(['γιώργος', 'παπαδόπουλος', 'μαρία'], { script: 'Greek', tier: 'core' });

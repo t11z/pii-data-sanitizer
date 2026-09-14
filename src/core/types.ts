@@ -38,6 +38,7 @@ export type Script =
   | 'Gujarati'
   | 'Kannada'
   | 'Malayalam'
+  | 'Thai'
   | 'Other';
 
 export interface Token {
