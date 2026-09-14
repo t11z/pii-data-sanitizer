@@ -220,6 +220,29 @@ const LATIN: string[] = [
   'nakamura',
   'kobayashi',
   'murakami',
+  // --- Thai (romanized) given ---
+  // Native Thai (own script) is harvested at scale into the Thai pack via
+  // ingest; these are conventional romanizations so Thai names written in Latin
+  // text also match (Thai has no automatic script→Latin transliteration here).
+  'somchai',
+  'somsak',
+  'prasert',
+  'wichai',
+  'chaiwat',
+  'suchart',
+  'narong',
+  'malee',
+  'wanida',
+  'siriporn',
+  'kanya',
+  'apinya',
+  // --- Thai (romanized) family ---
+  'boonmee',
+  'wongsawat',
+  'shinawatra',
+  'leekpai',
+  'panyarachun',
+  'vejjajiva',
 ];
 
 const ARABIC: string[] = ['محمد', 'علي', 'فاطمة', 'حسن'];

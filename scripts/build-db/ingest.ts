@@ -64,6 +64,7 @@ const TELUGU_LANGS = ['te'];
 const GUJARATI_LANGS = ['gu'];
 const KANNADA_LANGS = ['kn'];
 const MALAYALAM_LANGS = ['ml'];
+const THAI_LANGS = ['th'];
 
 const NATIVE_LANGS = [
   ...CYRILLIC_LANGS,
@@ -78,6 +79,7 @@ const NATIVE_LANGS = [
   ...GUJARATI_LANGS,
   ...KANNADA_LANGS,
   ...MALAYALAM_LANGS,
+  ...THAI_LANGS,
 ];
 
 // Which script a label language predominantly yields. Used only by the scoped
@@ -96,6 +98,7 @@ const NATIVE_LANG_SCRIPT: Array<[readonly string[], Script]> = [
   [GUJARATI_LANGS, 'Gujarati'],
   [KANNADA_LANGS, 'Kannada'],
   [MALAYALAM_LANGS, 'Malayalam'],
+  [THAI_LANGS, 'Thai'],
 ];
 function langScript(lang: string): Script {
   for (const [langs, script] of NATIVE_LANG_SCRIPT) if (langs.includes(lang)) return script;
@@ -252,6 +255,13 @@ const HUMAN_BY_COUNTRY: Array<[string, string]> = [
   ['wd:Q668', 'gu'], // India — Gujarati (Gujarat, Rajasthan; 50M+ speakers)
   ['wd:Q668', 'kn'], // India — Kannada (Karnataka; 44M+ speakers)
   ['wd:Q668', 'ml'], // India — Malayalam (Kerala; 35M+ speakers)
+  // Thai: own unicameral script (~60M speakers in Thailand), previously entirely
+  // absent from the name database. Thai personal names are written given+family
+  // with a space between, so whitespace splitting yields individual name tokens.
+  // Native 'th' labels feed the Thai pack; English (en) labels feed the Latin
+  // pack as romanized forms (no automatic Thai→Latin transliteration exists here).
+  ['wd:Q869', 'th'],
+  ['wd:Q869', 'en'], // Thailand
 ];
 
 const GIVEN_CLASSES = ['wd:Q202444', 'wd:Q12308941', 'wd:Q11879590', 'wd:Q3409032'];
@@ -274,6 +284,7 @@ const CAPS: Record<string, number> = {
   Gujarati: 20000,
   Kannada: 20000,
   Malayalam: 20000,
+  Thai: 20000,
 };
 
 // Romanized/ASCII-folded variants shorter than this are dropped: 2-letter

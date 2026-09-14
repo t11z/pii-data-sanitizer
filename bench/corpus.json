@@ -2305,5 +2305,32 @@
         "text": "Georgios Papadopoulos"
       }
     ]
+  },
+  {
+    "text": "กรุณาติดต่อ ธีรเทพ วิโนทัย ก่อนเที่ยง",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "ธีรเทพ วิโนทัย"
+      }
+    ]
+  },
+  {
+    "text": "รายงานเขียนโดย สมศักดิ์ ประเสริฐ วันนี้",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "สมศักดิ์ ประเสริฐ"
+      }
+    ]
+  },
+  {
+    "text": "Please contact Somchai Boonmee about the refund.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Somchai Boonmee"
+      }
+    ]
   }
 ]
