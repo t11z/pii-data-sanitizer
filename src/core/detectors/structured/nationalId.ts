@@ -17,6 +17,22 @@ function isValidSsn(area: string, group: string, serial: string): boolean {
   return true;
 }
 
+// --- US Individual Taxpayer Identification Number (ITIN) ------------------------------
+// ITINs are SSN-shaped (9XX-GG-SSSS) taxpayer IDs the IRS issues to people who cannot
+// get an SSN — they carry the same PII weight and are exactly the 9xx-area space the
+// SSN rule above declines. The area always begins with 9; the group (4th–5th digits) is
+// restricted to the IRS-assigned ranges 50–65, 70–88, 90–92, 94–99. That group gate is
+// what keeps the shape from claiming arbitrary 9xx 3-2-4 runs (e.g. the reserved
+// "900-11-2222" firmware id, group 11): only ~44% of groups are ITIN-valid, and no
+// telephone numbering plan groups a nine-digit number as 3-2-4, so a dashed 9XX-GG-SSSS
+// with an in-range group is an identifier, not a phone.
+function isValidItin(area: string, group: string, serial: string): boolean {
+  if (area[0] !== '9') return false;
+  if (serial === '0000') return false;
+  const g = Number(group);
+  return (g >= 50 && g <= 65) || (g >= 70 && g <= 88) || (g >= 90 && g <= 92) || (g >= 94 && g <= 99);
+}
+
 // --- German tax ID (Steuerliche Identifikationsnummer) -------------------------------
 // 11 digits validated by ISO 7064 MOD 11,10 plus the BZSt structural rule, which makes
 // a false positive on an arbitrary 11-digit run (e.g. a phone number) very unlikely.
@@ -59,7 +75,12 @@ export function detectNationalIds(text: string): Span[] {
   const spans: Span[] = [];
 
   for (const m of text.matchAll(SSN_RE)) {
-    if (!isValidSsn(m[1], m[2], m[3])) continue;
+    // SSN and ITIN share the 3-2-4 dashed shape and the same slice/adjacency guards;
+    // they differ only in the allocation rule. ITIN is checked as the 9xx-area
+    // complement of SSN so the branch is strictly additive — no valid SSN changes.
+    const isSsn = isValidSsn(m[1], m[2], m[3]);
+    const isItin = !isSsn && isValidItin(m[1], m[2], m[3]);
+    if (!isSsn && !isItin) continue;
     // \b only requires a non-word boundary, but '+' and '-' are non-word chars,
     // so a 3-2-4 chunk inside a longer dashed/+-prefixed digit run (e.g. the
     // "351-21-1234" inside "+351-21-1234-567") passes the SSN regex even though
@@ -89,7 +110,7 @@ export function detectNationalIds(text: string): Span[] {
       type: 'NATIONAL_ID',
       text: m[0],
       confidence: 0.92,
-      source: 'ssn',
+      source: isItin ? 'itin' : 'ssn',
     });
   }
 
