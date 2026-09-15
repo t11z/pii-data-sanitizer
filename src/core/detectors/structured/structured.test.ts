@@ -901,6 +901,41 @@ describe('national id detection', () => {
     expect(only('Reference 123456789 attached.', 'NATIONAL_ID')).toHaveLength(0);
   });
 
+  it('detects a US ITIN (9XX area, IRS-assigned group range)', () => {
+    // Held-out ITIN values — none equal to the gap case (987-65-4321) and all
+    // absent from any dictionary; they pass only via the 9xx-area + group-range
+    // heuristic, so this proves generalization, not memorization. Groups exercise
+    // each valid band: 74 (70–88), 65 (50–65), 91 (90–92), 96 (94–99).
+    expect(only('Taxpayer ITIN 921-74-8302 confirmed.', 'NATIONAL_ID')[0].text).toBe(
+      '921-74-8302'
+    );
+    expect(only('ITIN 900-65-1187 on file.', 'NATIONAL_ID')[0].text).toBe('900-65-1187');
+    expect(only('Filed under 954-91-0075 last quarter.', 'NATIONAL_ID')[0].text).toBe(
+      '954-91-0075'
+    );
+    expect(only('Return references 968-96-4410 as the ID.', 'NATIONAL_ID')[0].text).toBe(
+      '968-96-4410'
+    );
+  });
+
+  it('ITIN wins over PHONE on the same 3-2-4 span', () => {
+    // The dashed run reads as a phone (0.6); the ITIN (0.92) outranks it, so
+    // overlap resolution leaves no PHONE span behind — this is the gap-case fix.
+    expect(only('Tax ID 987-65-4321 verified.', 'PHONE')).toHaveLength(0);
+    expect(only('Tax ID 987-65-4321 verified.', 'NATIONAL_ID')[0].text).toBe('987-65-4321');
+  });
+
+  it('rejects a 9XX 3-2-4 run whose group is outside the ITIN ranges', () => {
+    // Held-out 9xx runs with groups in the unassigned bands (11, 40, 66–69, 89,
+    // 93). The area starts with 9 but the group gate declines them, so they are
+    // never upgraded to NATIONAL_ID — the guard that keeps arbitrary 9xx dashed
+    // runs from being claimed as taxpayer IDs.
+    expect(only('955-40-1188', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('903-66-4210', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('912-89-0044', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('948-93-7761', 'NATIONAL_ID')).toHaveLength(0);
+  });
+
   it('detects a German tax ID by structure + ISO 7064 checksum', () => {
     // Held-out valid Steuer-IDs (structure: one digit repeated, MOD 11,10 check digit).
     expect(only('Steuer-ID 86095742719 confirmed.', 'NATIONAL_ID')[0].text).toBe('86095742719');

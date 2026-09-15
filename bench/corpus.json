@@ -1078,6 +1078,28 @@
     "entities": []
   },
   {
+    "text": "Customer taxpayer ID 972-88-3106 verified for filing.",
+    "entities": [
+      {
+        "type": "NATIONAL_ID",
+        "text": "972-88-3106"
+      }
+    ]
+  },
+  {
+    "text": "Applicant ITIN on record: 954-91-0075.",
+    "entities": [
+      {
+        "type": "NATIONAL_ID",
+        "text": "954-91-0075"
+      }
+    ]
+  },
+  {
+    "text": "Batch id-903-66-4210 processed overnight.",
+    "entities": []
+  },
+  {
     "text": "German tax ID 65929970489 is on the invoice.",
     "entities": [
       {
