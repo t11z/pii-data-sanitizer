@@ -866,6 +866,26 @@ describe('phone detection', () => {
       only('The support team really appreciates and truly values your input (1234567890).', 'PHONE')
     ).toHaveLength(0);
   });
+
+  it('does not flag an out-of-range dotted quad (botched IPv4) as a phone', () => {
+    // A valid dotted quad is claimed by the IP detector and resolved away, but
+    // an out-of-range one (an octet > 255) is rejected there and would fall
+    // through to PHONE on its dot grouping. Held-out near-miss addresses — each
+    // with the out-of-range octet in a different position — prove the guard is
+    // structural (four 1–3-digit groups, one octet > 255), not a memorized case.
+    expect(only('Firewall dropped 10.0.0.299 as invalid.', 'PHONE')).toHaveLength(0);
+    expect(only('Gateway 172.16.300.1 is misconfigured.', 'PHONE')).toHaveLength(0);
+    expect(only('Route to 256.1.1.1 failed.', 'PHONE')).toHaveLength(0);
+    expect(only('Host 192.999.0.5 unreachable.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('still detects a real dotted phone number (in-range groups only)', () => {
+    // Precision guard for the near-miss-IPv4 reject: a genuine dotted phone
+    // whose groups happen to all be ≤ 255 must survive. These are not quads
+    // (last group is 4 digits), so the shape does not collide with IPv4.
+    expect(only('Contact support at 555.123.4567 for help.', 'PHONE')[0].text).toBe('555.123.4567');
+    expect(only('Reach the desk at 212.867.5309 today.', 'PHONE')[0].text).toBe('212.867.5309');
+  });
 });
 
 describe('credit card beats phone on overlap', () => {
