@@ -14,9 +14,20 @@ import type { Span } from '../../types';
 // The case is kept strict (uppercase) on purpose — without the `i` flag a lowercase
 // word after the cue ("passport please") can't be mistaken for a number. Cue casing is
 // handled with explicit leading-character classes instead.
-const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)(?:\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|#))?`;
+//
+// "document" joins the qualifier list because "passport document <number>" is as common
+// a lead-in as "passport no.".
+const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)(?:\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|#|[Dd]ocument))?`;
+// A passport number is very often printed with its two-letter issuing-country code in
+// front ("Passport IN K4759632", "Passnummer IR 98765432"). That code has no digit, so
+// the old regex — which only inspected the token immediately after the cue — matched the
+// bare country code against NUMBER, failed the `\d` lookahead, and dropped the whole
+// entry. We now let an optional `AA ` prefix be consumed (but not captured) so the number
+// itself is what we claim. It stays optional, so the bare "Passport <number>" form is
+// unchanged, and the required cue keeps this from firing on arbitrary "XX <token>" text.
+const ISSUER = String.raw`(?:[A-Z]{2}\s+)?`;
 const NUMBER = String.raw`((?=[A-Z0-9]*\d)[A-Z0-9]{6,12})\b`;
-const PASSPORT_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)${NUMBER}`, 'g');
+const PASSPORT_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)${ISSUER}${NUMBER}`, 'g');
 
 export function detectPassports(text: string): Span[] {
   const spans: Span[] = [];

@@ -1012,6 +1012,33 @@ describe('passport detection (cue-gated)', () => {
   it('does not flag an over-long token beyond the 12-char bound', () => {
     expect(only('Passport No. ABC1234567890 on file.', 'PASSPORT')).toHaveLength(0);
   });
+
+  // Held-out values (none appear in the corpus/feed): a two-letter issuing-country
+  // code in front of the number used to match against NUMBER, fail the digit
+  // lookahead, and drop the whole entry. The optional issuer prefix now steps over
+  // it and claims the number itself — a structural fix, not a memorized value.
+  it('detects a passport number after a two-letter issuing-country code', () => {
+    expect(only('Passport GB 77213Q4 verified.', 'PASSPORT')[0].text).toBe('77213Q4');
+  });
+
+  it('detects an issuer-prefixed number after a German cue', () => {
+    expect(only('Passnummer DE 60934812 hinterlegt.', 'PASSPORT')[0].text).toBe('60934812');
+  });
+
+  it('detects a number after a "passport document" lead-in', () => {
+    expect(only('Passport document AU 90148R6 scanned.', 'PASSPORT')[0].text).toBe('90148R6');
+  });
+
+  // Precision guards for the new issuer step: the country code alone (no following
+  // number) stays unclaimed, and a longer word after the cue is not mistaken for a
+  // "XX " prefix + number.
+  it('does not flag a bare issuing-country code with no number', () => {
+    expect(only('Passport GB was reissued abroad.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  it('does not treat a "documentation" word as a cued number', () => {
+    expect(only('The passport documentation is ready.', 'PASSPORT')).toHaveLength(0);
+  });
 });
 
 describe('date of birth detection (cue-gated)', () => {
