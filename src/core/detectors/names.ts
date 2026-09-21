@@ -147,7 +147,9 @@ function tierOf(source: NameSource, token: Token): Tier | null {
  * Greek.
  */
 function isBicameralNameScript(script: Script): boolean {
-  return script === 'Latin' || script === 'Cyrillic' || script === 'Greek';
+  // Armenian carries case (Ա/ա) like Latin/Cyrillic/Greek, so capitalization is
+  // a real signal and it flows through the same capitalization-gated path.
+  return script === 'Latin' || script === 'Cyrillic' || script === 'Greek' || script === 'Armenian';
 }
 
 function isCaselessNameScript(token: Token): boolean {
@@ -161,7 +163,10 @@ function isCaselessNameScript(token: Token): boolean {
     token.script === 'Telugu' ||
     token.script === 'Gujarati' ||
     token.script === 'Kannada' ||
-    token.script === 'Malayalam'
+    token.script === 'Malayalam' ||
+    // Georgian (Mkhedruli) is unicameral — no case distinction — so a bare DB
+    // hit suffices, like the Indic caseless scripts above.
+    token.script === 'Georgian'
   );
 }
 

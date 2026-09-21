@@ -144,6 +144,51 @@ describe('Greek names (bicameral, capitalization-gated)', () => {
   });
 });
 
+describe('Armenian names (bicameral, capitalization-gated)', () => {
+  const hySource = new PackNameSource();
+  hySource.addWords(['տիգրան', 'պետրոսյան', 'մարիամ'], { script: 'Armenian', tier: 'core' });
+  const hyPersons = (text: string) =>
+    detect(text, { nameSource: hySource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects a capitalized Armenian full name present in the database', () => {
+    expect(hyPersons('Դիմեք Տիգրան Պետրոսյան այսօր։')).toContain('Տիգրան Պետրոսյան');
+  });
+
+  it('does not flag an unknown capitalized Armenian token without context', () => {
+    // Զորբլաքս is absent from the database and carries no title/role cue, so the
+    // bare capitalized token must not detect — Armenian is bicameral, so like
+    // Greek/Latin it is DB membership, not the script alone, that drives a match.
+    expect(hyPersons('Տեսեք Զորբլաքս այսօր։')).not.toContain('Զորբլաքս');
+  });
+
+  it('does not flag a lowercase Armenian word that collides with a name (case gate)', () => {
+    // Armenian carries case (Ա/ա); an ordinary lowercase word matching a name in
+    // the DB is not a name — capitalization is required, exactly as for Greek.
+    expect(hyPersons('սա մարիամ բառը չէ անուն')).not.toContain('մարիամ');
+  });
+});
+
+describe('Georgian names (unicameral / caseless)', () => {
+  const kaSource = new PackNameSource();
+  kaSource.addWords(['გიორგი', 'ბერიძე'], { script: 'Georgian', tier: 'core' });
+  const kaPersons = (text: string) =>
+    detect(text, { nameSource: kaSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects a Georgian full name present in the database', () => {
+    expect(kaPersons('გთხოვთ დაუკავშირდეთ გიორგი ბერიძე ხვალ.')).toContain('გიორგი ბერიძე');
+  });
+
+  it('does not flag an unknown Georgian token without context', () => {
+    // Georgian is caseless, so detection rests entirely on DB membership: an
+    // unknown token with no title/role cue must not match.
+    expect(kaPersons('ნახეთ ზორბლაქსი დღეს.')).not.toContain('ზორბლაქსი');
+  });
+});
+
 describe('context-based detection (generalizes beyond the DB)', () => {
   // All names below are deliberately ABSENT from the name database, so these only
   // pass via the title/role/particle heuristics — never via dictionary lookup.
