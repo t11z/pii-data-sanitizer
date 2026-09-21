@@ -16,8 +16,34 @@ const LETTER = /[A-Za-z]/;
 // phones with a 4-digit component always sit next to at least one 3+-digit
 // component, never two <=2-digit components, so no genuine phone shares this
 // shape. Dropping these is safe for real numbers.
+//
+// The DMY/MDY (year-last) branch captures its two leading fields so they can be
+// calendar-range-checked in {@link isDateShaped}. The bare shape alone is not
+// enough: an international phone written with a country code and hyphen grouping
+// ("91-11-4567-8901", "44-20-7946-0958", "33-1-4070-1234") is structurally
+// identical to DD-MM-YYYY plus a trailing sequence, and the un-ranged shape
+// swallowed all of them. A leading group above 31 (or a middle group above 31)
+// cannot be any calendar day/month, so those runs are phones, not dates.
 const DATE_SHAPE =
-  /^(?:\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}|\d{1,2}[.\-/]\d{1,2}[.\-/]\d{4})(?:[.\-/]\d{1,4})?(?:[ T]\d{1,2}(?::\d{2}){0,2})?$/;
+  /^(?:\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}|(\d{1,2})[.\-/](\d{1,2})[.\-/]\d{4})(?:[.\-/]\d{1,4})?(?:[ T]\d{1,2}(?::\d{2}){0,2})?$/;
+
+/**
+ * True when `s` is a calendar date (or date-prefixed timestamp / ref), so the
+ * phone detector should skip it. The ISO (year-first) branch is always a date.
+ * The DMY/MDY (year-last) branch only counts when its two leading fields fit a
+ * real date under some orientation — day 1-31 and month 1-12 — i.e. both ≤ 31
+ * and at least one ≤ 12. Otherwise the run is a hyphen-grouped phone that merely
+ * resembles a year-last date and must fall through to detection.
+ */
+function isDateShaped(s: string): boolean {
+  const m = DATE_SHAPE.exec(s);
+  if (!m) return false;
+  // ISO / year-first branch: the two capture groups are undefined.
+  if (m[1] === undefined) return true;
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  return a >= 1 && b >= 1 && a <= 31 && b <= 31 && (a <= 12 || b <= 12);
+}
 
 // Closed-class phone-cue words that unambiguously introduce a phone number in
 // support / business prose. Used as one leg of the paren-wrapped bare-run
@@ -131,8 +157,10 @@ export function detectPhones(text: string): Span[] {
       if (groups.length === 1 || groups[0].length === 4) continue;
     }
     // Skip date-shaped candidates: bare dates, ISO timestamps, and
-    // invoice/case refs suffixed with a short sequence number.
-    if (DATE_SHAPE.test(trimmed)) continue;
+    // invoice/case refs suffixed with a short sequence number. The year-last
+    // branch is calendar-range-checked so hyphen-grouped international phones
+    // (leading country code > 31) are not mistaken for DD-MM-YYYY.
+    if (isDateShaped(trimmed)) continue;
     // Skip digit runs embedded in an alphanumeric identifier (order/ticket/
     // invoice/serial numbers like "ORD-2025-001847-X") — not phone numbers.
     if (fusedToLetters(text, start, end)) continue;

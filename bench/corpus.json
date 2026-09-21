@@ -1316,6 +1316,28 @@
     "entities": []
   },
   {
+    "text": "Customer called from 44-20-7946-0958 to dispute the charge.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "44-20-7946-0958"
+      }
+    ]
+  },
+  {
+    "text": "Agent dialed 91-33-4012-3456 for the scheduled callback.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "91-33-4012-3456"
+      }
+    ]
+  },
+  {
+    "text": "Please call back after 31-12-2024 to confirm the appointment.",
+    "entities": []
+  },
+  {
     "text": "Escalated the request to engineer Bjørn Helgø yesterday afternoon.",
     "entities": [
       {

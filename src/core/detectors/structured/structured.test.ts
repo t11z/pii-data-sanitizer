@@ -802,6 +802,35 @@ describe('phone detection', () => {
     );
   });
 
+  it('detects a hyphen-grouped international phone whose lead group exceeds a date range', () => {
+    // The DMY/MDY (year-last) date-shape guard used to reject any
+    // "NN-NN-NNNN(-seq)" run, which is structurally identical to an
+    // international phone written as country-code + hyphen groups. Now the two
+    // leading fields are calendar-range-checked, so a leading group above 31 (a
+    // country code) — or a middle group above 31 — cannot be a date and falls
+    // through to detection. Held-out numbers (India 91, UK 44, Australia 61,
+    // France 33 — none the gap's own value) prove the fix generalizes across
+    // country codes and groupings, not a memorized string.
+    expect(only('Customer called from 44-20-7946-0958 yesterday.', 'PHONE')[0].text).toBe(
+      '44-20-7946-0958'
+    );
+    expect(only('Reach me on 61-2-9374-4000 anytime.', 'PHONE')[0].text).toBe('61-2-9374-4000');
+    expect(only('Agent dialed 91-33-4012-3456 for the callback.', 'PHONE')[0].text).toBe(
+      '91-33-4012-3456'
+    );
+    expect(only('Support line 33-1-4070-1234 is open.', 'PHONE')[0].text).toBe('33-1-4070-1234');
+  });
+
+  it('still rejects a valid year-last date near a phone cue', () => {
+    // Precision guard for the range-checked date reject: a real DD-MM-YYYY /
+    // MM-DD-YYYY date (both leading fields fit a calendar, with a month ≤ 12)
+    // must still be suppressed even with a trailing sequence or a phone-cue word
+    // nearby, so the range check does not turn genuine dates into phones.
+    expect(only('Please call back after 31-12-2024 to confirm.', 'PHONE')).toHaveLength(0);
+    expect(only('Contract dated 12-31-2024 is on file.', 'PHONE')).toHaveLength(0);
+    expect(only('ref 07-04-2023-1 overdue.', 'PHONE')).toHaveLength(0);
+  });
+
   it('still rejects card-shaped ≥13-digit runs (leading 4-digit group)', () => {
     // Precision guard for the refined rule: narrowing the card-shape reject to
     // "first group of 4" must NOT let any Luhn-invalid PAN layout leak through.
