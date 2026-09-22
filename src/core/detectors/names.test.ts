@@ -360,6 +360,48 @@ describe('structural role noun after a name is not absorbed as a surname', () =>
   });
 });
 
+describe('house-number + street-suffix is an address, not a person', () => {
+  // A street name and its suffix both collide with long-tail ext surnames
+  // ("Main"/"Park"/"Fifth" + "Street"/"Avenue"/"Lane"/…), so "123 Main Street"
+  // used to chain into a two-token PERSON span. The guard suppresses the span
+  // ONLY when a house number sits immediately before the chain and the chain
+  // ends in a street-type suffix — the number is the disambiguator, so a bare
+  // "<Given> <street-word surname>" with no leading number is left untouched.
+  // Uses the FULL committed DB so the street words are genuine ext-tier hits
+  // (asserted at the end): the guard, not absence from the dictionary, is what
+  // suppresses the address.
+  const streetSource = nameSourceFromBuildInputs();
+  const personsStreet = (text: string) =>
+    detect(text, { nameSource: streetSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('suppresses "<number> <street name> <suffix>" as a PERSON', () => {
+    // Held-out street names/suffixes (none benchmarked in corpus) prove the
+    // guard generalizes rather than memorizing the two corpus strings.
+    expect(personsStreet('Deliver to 88 Oak Avenue tomorrow.')).toHaveLength(0);
+    expect(personsStreet('The office moved to 500 Maple Place.')).toHaveLength(0);
+    expect(personsStreet('Meet me at 7 Chapel Lane after lunch.')).toHaveLength(0);
+    expect(personsStreet('Files were sent to 22 Elm Court last week.')).toHaveLength(0);
+  });
+
+  it('still detects a street-word surname when NO house number precedes it', () => {
+    // Same street words, but used as genuine surnames after a given name and
+    // with no leading number — recall must be preserved (FN would leak PII).
+    expect(personsStreet('Please contact Nathan Court about the refund.')).toContain(
+      'Nathan Court'
+    );
+    expect(personsStreet('The claim was filed by Diana Lane yesterday.')).toContain('Diana Lane');
+  });
+
+  it('proves the street suffixes are genuine ext-tier DB hits (guard, not membership)', () => {
+    for (const word of ['street', 'lane', 'court', 'place', 'way']) {
+      const hit = streetSource.hasGiven(word, 'Latin') || streetSource.hasFamily(word, 'Latin');
+      expect(hit, `${word} should be in the committed DB`).toBe(true);
+    }
+  });
+});
+
 describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   // Support / KYC / CRM prose labels an identifier with the "number"
   // abbreviation — "Passport No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº

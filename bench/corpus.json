@@ -130,6 +130,28 @@
     ]
   },
   {
+    "text": "Ship the parcel for Emily Davis to 123 Main Street.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Emily Davis"
+      }
+    ]
+  },
+  {
+    "text": "The invoice lists 45 Park Avenue as the billing address.",
+    "entities": []
+  },
+  {
+    "text": "Please contact Sarah Lane about the overdue balance.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Sarah Lane"
+      }
+    ]
+  },
+  {
     "text": "Ask Dr. Anjali Sharma for the sign-off.",
     "entities": [
       {
