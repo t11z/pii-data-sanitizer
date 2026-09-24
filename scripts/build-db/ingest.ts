@@ -64,6 +64,8 @@ const TELUGU_LANGS = ['te'];
 const GUJARATI_LANGS = ['gu'];
 const KANNADA_LANGS = ['kn'];
 const MALAYALAM_LANGS = ['ml'];
+const ARMENIAN_LANGS = ['hy'];
+const GEORGIAN_LANGS = ['ka'];
 
 const NATIVE_LANGS = [
   ...CYRILLIC_LANGS,
@@ -78,6 +80,8 @@ const NATIVE_LANGS = [
   ...GUJARATI_LANGS,
   ...KANNADA_LANGS,
   ...MALAYALAM_LANGS,
+  ...ARMENIAN_LANGS,
+  ...GEORGIAN_LANGS,
 ];
 
 // Which script a label language predominantly yields. Used only by the scoped
@@ -96,6 +100,8 @@ const NATIVE_LANG_SCRIPT: Array<[readonly string[], Script]> = [
   [GUJARATI_LANGS, 'Gujarati'],
   [KANNADA_LANGS, 'Kannada'],
   [MALAYALAM_LANGS, 'Malayalam'],
+  [ARMENIAN_LANGS, 'Armenian'],
+  [GEORGIAN_LANGS, 'Georgian'],
 ];
 function langScript(lang: string): Script {
   for (const [langs, script] of NATIVE_LANG_SCRIPT) if (langs.includes(lang)) return script;
@@ -252,6 +258,17 @@ const HUMAN_BY_COUNTRY: Array<[string, string]> = [
   ['wd:Q668', 'gu'], // India — Gujarati (Gujarat, Rajasthan; 50M+ speakers)
   ['wd:Q668', 'kn'], // India — Kannada (Karnataka; 44M+ speakers)
   ['wd:Q668', 'ml'], // India — Malayalam (Kerala; 35M+ speakers)
+  // Caucasus: two bicameral/unicameral own-script languages previously entirely
+  // absent from the name database. Armenian (hy) is bicameral — native labels
+  // detect through the same capitalization-gated path as Latin/Cyrillic/Greek
+  // (isBicameralNameScript). Georgian (ka) is unicameral/caseless — a bare DB
+  // hit suffices (isCaselessNameScript), like the Indic scripts. English (en)
+  // labels feed the Latin pack as romanized forms; the native entries add the
+  // own-script forms.
+  ['wd:Q399', 'hy'],
+  ['wd:Q399', 'en'], // Armenia
+  ['wd:Q230', 'ka'],
+  ['wd:Q230', 'en'], // Georgia
 ];
 
 const GIVEN_CLASSES = ['wd:Q202444', 'wd:Q12308941', 'wd:Q11879590', 'wd:Q3409032'];
@@ -274,6 +291,8 @@ const CAPS: Record<string, number> = {
   Gujarati: 20000,
   Kannada: 20000,
   Malayalam: 20000,
+  Armenian: 20000,
+  Georgian: 20000,
 };
 
 // Romanized/ASCII-folded variants shorter than this are dropped: 2-letter

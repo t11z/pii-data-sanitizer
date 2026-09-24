@@ -2305,5 +2305,41 @@
         "text": "Georgios Papadopoulos"
       }
     ]
+  },
+  {
+    "text": "Դիմեք Տիգրան Պետրոսյան այսօր։",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Տիգրան Պետրոսյան"
+      }
+    ]
+  },
+  {
+    "text": "Please contact Tigran Petrosyan about the invoice.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Tigran Petrosyan"
+      }
+    ]
+  },
+  {
+    "text": "გთხოვთ დაუკავშირდეთ გიორგი ბერიძე ხვალ.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "გიორგი ბერიძე"
+      }
+    ]
+  },
+  {
+    "text": "The report was filed by Giorgi Beridze last week.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Giorgi Beridze"
+      }
+    ]
   }
 ]
