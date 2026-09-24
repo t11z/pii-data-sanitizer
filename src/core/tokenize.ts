@@ -24,6 +24,11 @@ const SCRIPT_TESTS: Array<[Script, RegExp]> = [
   ['Gujarati', /\p{Script=Gujarati}/u],
   ['Kannada', /\p{Script=Kannada}/u],
   ['Malayalam', /\p{Script=Malayalam}/u],
+  // Armenian is bicameral (has case, like Latin/Cyrillic/Greek); Georgian is
+  // unicameral/caseless (like the Indic scripts). Both use spaces between words,
+  // so the word tokenizer needs no special handling.
+  ['Armenian', /\p{Script=Armenian}/u],
+  ['Georgian', /\p{Script=Georgian}/u],
   ['Han', /\p{Script=Han}/u],
 ];
 
