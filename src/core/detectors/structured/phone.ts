@@ -19,6 +19,16 @@ const LETTER = /[A-Za-z]/;
 const DATE_SHAPE =
   /^(?:\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}|\d{1,2}[.\-/]\d{1,2}[.\-/]\d{4})(?:[.\-/]\d{1,4})?(?:[ T]\d{1,2}(?::\d{2}){0,2})?$/;
 
+// A dotted-quad candidate: exactly four dot-separated 1–3-digit groups, the
+// textual shape of an IPv4 literal. Valid IPv4s are claimed by the IP detector
+// and overlap-resolved away from PHONE, but an out-of-range quad
+// ("192.168.1.256") fails IPv4 validation, produces no IP span, and would
+// otherwise satisfy the phone grouping signal via its dots. It is still an IP
+// literal (a typo'd or synthetic address), never a phone: real dot-grouped
+// phones use three groups ("555.867.5309") or the five pairs of French style
+// ("01.23.45.67.89"), never exactly four 1–3-digit groups. Drop it here.
+const IPV4_SHAPE = /^\d{1,3}(?:\.\d{1,3}){3}$/;
+
 // Closed-class phone-cue words that unambiguously introduce a phone number in
 // support / business prose. Used as one leg of the paren-wrapped bare-run
 // signal below — a bare 10–15-digit number in balanced parens is only accepted
@@ -133,6 +143,9 @@ export function detectPhones(text: string): Span[] {
     // Skip date-shaped candidates: bare dates, ISO timestamps, and
     // invoice/case refs suffixed with a short sequence number.
     if (DATE_SHAPE.test(trimmed)) continue;
+    // Skip IPv4-shaped candidates (dotted quads). Valid IPs are handled by the
+    // IP detector; out-of-range quads are still IP literals, not phones.
+    if (IPV4_SHAPE.test(trimmed)) continue;
     // Skip digit runs embedded in an alphanumeric identifier (order/ticket/
     // invoice/serial numbers like "ORD-2025-001847-X") — not phone numbers.
     if (fusedToLetters(text, start, end)) continue;
