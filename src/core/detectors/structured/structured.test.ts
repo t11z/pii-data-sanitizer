@@ -744,6 +744,27 @@ describe('phone detection', () => {
     expect(only('Meeting on 2025.03.14 was rescheduled.', 'PHONE')).toHaveLength(0);
   });
 
+  it('does not flag an out-of-range dotted quad (invalid IPv4) as a phone number', () => {
+    // A valid IPv4 is claimed by the IP detector and overlap-resolved away from
+    // PHONE, but an out-of-range quad fails IPv4 validation, produces no IP
+    // span, and would otherwise satisfy the phone grouping signal via its dots.
+    // Held-out addresses distinct from any corpus case: an octet > 255, and a
+    // three-digit-octet variant, both structurally IPv4 (four 1–3-digit groups)
+    // and neither a phone. Proves the guard is shape-based, not value-based.
+    expect(only('Gateway misconfigured as 10.0.0.999 in the router table.', 'PHONE')).toHaveLength(
+      0
+    );
+    expect(only('The node reported 172.300.15.8 on boot.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('still detects a real dot-grouped phone (three groups, not a dotted quad)', () => {
+    // Precision guard for the dotted-quad reject: a genuine North American phone
+    // written with dot separators is three groups, not four, so it must survive.
+    const spans = only('Reach the desk at 555.123.4567 during business hours.', 'PHONE');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('555.123.4567');
+  });
+
   it('still detects real phones whose surrounding prose contains a date', () => {
     // Precision guard for the widened date-shape reject: adding dotted /
     // slashed / trailing-sequence date shapes to the guard must NOT swallow
