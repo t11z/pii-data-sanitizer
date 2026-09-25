@@ -2341,5 +2341,26 @@
         "text": "Giorgi Beridze"
       }
     ]
+  },
+  {
+    "text": "Network note: build ID 77-1234567890 is a legacy format, not a phone.",
+    "entities": []
+  },
+  {
+    "text": "Serial 88-9900112233 shipped to the depot.",
+    "entities": []
+  },
+  {
+    "text": "Order number 55-6677889900 was processed overnight.",
+    "entities": []
+  },
+  {
+    "text": "Please reach the on-call via caller ID +1 202 555 0142 today.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+1 202 555 0142"
+      }
+    ]
   }
 ]

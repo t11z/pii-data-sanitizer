@@ -832,6 +832,39 @@ describe('phone detection', () => {
     expect(only('Order #100. Call +1 202 555 0142 now.', 'PHONE')[0].text).toBe('+1 202 555 0142');
   });
 
+  it('rejects a hyphen-grouped run introduced by a textual identifier label', () => {
+    // The '#'/'№' marker guard has a textual analog: a word label ("build ID",
+    // "Serial", "Batch") introduces a machine/reference identifier, not a phone,
+    // even though the hyphen grouping trips the phone signal. Held-out numbers
+    // and labels (distinct from the gap's "build ID 77-1234567890") prove the
+    // guard keys on the label class, not any specific value.
+    expect(only('Serial 88-9900112233 shipped.', 'PHONE')).toHaveLength(0); // standalone noun
+    expect(only('Firmware 12-3456789012 applied.', 'PHONE')).toHaveLength(0);
+    expect(only('Batch 90-1122334455 quarantined.', 'PHONE')).toHaveLength(0);
+    expect(only('Order number 55-6677889900 processed.', 'PHONE')).toHaveLength(0); // qualified label
+    expect(only('Device ID 44-5566778899 reset.', 'PHONE')).toHaveLength(0);
+    expect(only('Asset code 22-3344556677 tagged.', 'PHONE')).toHaveLength(0);
+    // The gap case: the label kills only the run it introduces — a real phone
+    // elsewhere in the same sentence still surfaces.
+    expect(
+      only('Confirmed +7 495 123-45-67; build ID 77-1234567890 is legacy.', 'PHONE').map(
+        (s) => s.text
+      )
+    ).toEqual(['+7 495 123-45-67']);
+  });
+
+  it('keeps phones whose nearby label is phone-related, not an identifier', () => {
+    // Precision guard for the identifier-label rule: the generic label words
+    // ("ID", "number", "no") only suppress when a non-phone qualifier precedes
+    // them. Phone words ("caller", "contact", "mobile") must NOT be treated as
+    // identifier qualifiers. Held-out numbers, distinct from the positive cases.
+    expect(only('caller ID +1 202 555 0142 logged.', 'PHONE')[0].text).toBe('+1 202 555 0142');
+    expect(only('contact number 44-7911-123456 please.', 'PHONE')[0].text).toBe('44-7911-123456');
+    expect(only('mobile no +49 30 1234567 reachable.', 'PHONE')[0].text).toBe('+49 30 1234567');
+    // No label at all: an ordinary introduced phone is untouched.
+    expect(only('Call me at 077-1234567890 tomorrow.', 'PHONE')[0].text).toBe('077-1234567890');
+  });
+
   it('accepts a bare 10–15-digit run wrapped in parens after a phone-cue word', () => {
     // Held-out digit sequences (distinct from the gap's 9825551234) prove the
     // heuristic is structural — bare digit run wrapped in `(N)`, digit count in
