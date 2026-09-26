@@ -1095,6 +1095,14 @@
     "entities": []
   },
   {
+    "text": "Malicious login blocked; account holder record (ID: 923-11-8842) alerted via SMS.",
+    "entities": []
+  },
+  {
+    "text": "Support flagged token 512-00-7788 during the audit sweep.",
+    "entities": []
+  },
+  {
     "text": "Traveler passport number L898902C3 was logged at the gate.",
     "entities": [
       {
