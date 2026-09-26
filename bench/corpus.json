@@ -1166,6 +1166,41 @@
     "entities": []
   },
   {
+    "text": "Contact after 1988-04-02 birth check pending review.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1988-04-02"
+      }
+    ]
+  },
+  {
+    "text": "Applicant record: 06/14/1988 (Date of Birth) verified at intake.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "06/14/1988"
+      }
+    ]
+  },
+  {
+    "text": "Kundendaten geprüft: 22.09.1975 Geburtsdatum bestätigt.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "22.09.1975"
+      }
+    ]
+  },
+  {
+    "text": "Photos from the 2019-08-01 birthplace tour were archived.",
+    "entities": []
+  },
+  {
+    "text": "Ticket opened 2024-01-15 to verify the birth certificate on file.",
+    "entities": []
+  },
+  {
     "text": "The server logged 192.168.0.10 at 2024-03-01 without incident.",
     "entities": [
       {
