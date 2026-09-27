@@ -672,6 +672,15 @@ describe('MAC detection', () => {
   it('rejects a clock time that looks colon-separated', () => {
     expect(only('meeting at 12:34:56 today', 'MAC')).toHaveLength(0);
   });
+
+  it('does not flag a +prefixed international phone as a MAC', () => {
+    // Held-out numbers (not the gap's +98 case): an all-decimal six-group run in
+    // MAC *shape* but glued to a `+` is the tail of an international phone, never
+    // a MAC. A MAC address never carries a `+`, so the leading-`+` guard drops it
+    // regardless of country code.
+    expect(only('The caller left +81-33-44-55-66-77 on the ticket.', 'MAC')).toHaveLength(0);
+    expect(only('Hotline is +52-55-33-11-99-77 for the region.', 'MAC')).toHaveLength(0);
+  });
 });
 
 describe('phone detection', () => {
@@ -679,6 +688,19 @@ describe('phone detection', () => {
     const spans = only('Please call +49 30 1234567 tomorrow', 'PHONE');
     expect(spans).toHaveLength(1);
     expect(spans[0].text).toBe('+49 30 1234567');
+  });
+
+  it('recovers a +prefixed six-group number that used to be shadowed by MAC', () => {
+    // Held-out numbers (not the gap's +98 case): `+CC-xx-xx-xx-xx-xx` is a valid
+    // MAC *shape*, and before the leading-`+` MAC guard the higher-confidence MAC
+    // span shadowed this PHONE in overlap resolution. It must now surface as a
+    // phone across country codes.
+    expect(only('The caller left +81-33-44-55-66-77 on the ticket.', 'PHONE')[0].text).toBe(
+      '+81-33-44-55-66-77'
+    );
+    expect(only('Hotline is +52-55-33-11-99-77 for the region.', 'PHONE')[0].text).toBe(
+      '+52-55-33-11-99-77'
+    );
   });
 
   it('keeps a real number with an internal hyphen', () => {

@@ -9,8 +9,15 @@ import type { Span } from '../../types';
 // single consistent separator, so a mixed run like `00:1A-2B:...` is rejected.
 // The `(?<![\w:-])`/`(?![\w:-])` guards prevent matching a fragment of a longer
 // hex or separator run.
+//
+// A leading `+` is also excluded: an all-decimal hyphen-grouped run like
+// `98-21-88-77-55-44` is a valid MAC *shape*, but when it is glued to a `+`
+// prefix it is the tail of an international phone number (`+98-21-88-77-55-44`)
+// — a MAC address never carries a `+`. Without this guard the higher-confidence
+// MAC span shadowed the PHONE span in overlap resolution, yielding both a MAC
+// false positive and a PHONE false negative.
 const MAC_SEP_RE =
-  /(?<![\w:-])[0-9A-Fa-f]{2}([:-])(?:[0-9A-Fa-f]{2}\1){4}[0-9A-Fa-f]{2}(?![\w:-])/g;
+  /(?<![\w:+-])[0-9A-Fa-f]{2}([:-])(?:[0-9A-Fa-f]{2}\1){4}[0-9A-Fa-f]{2}(?![\w:-])/g;
 
 // Compact triple-group notation: three 4-hex groups joined by a single
 // consistent '.' (Cisco standard) or '-' (compact hyphenated form). The `\1`
@@ -24,7 +31,7 @@ const MAC_SEP_RE =
 // guard swallowed the trailing period and lost the whole address, which then
 // leaked out as a PHONE.
 const MAC_COMPACT_RE =
-  /(?<![\w.-])[0-9A-Fa-f]{4}([.-])[0-9A-Fa-f]{4}\1[0-9A-Fa-f]{4}(?![\w]|[.-][0-9A-Fa-f])/g;
+  /(?<![\w.+-])[0-9A-Fa-f]{4}([.-])[0-9A-Fa-f]{4}\1[0-9A-Fa-f]{4}(?![\w]|[.-][0-9A-Fa-f])/g;
 
 export function detectMacs(text: string): Span[] {
   const spans: Span[] = [];
