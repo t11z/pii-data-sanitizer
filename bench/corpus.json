@@ -2341,5 +2341,32 @@
         "text": "Giorgi Beridze"
       }
     ]
+  },
+  {
+    "text": "กรุณาติดต่อ สมชาย ชัยวัฒน์ พรุ่งนี้",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "สมชาย ชัยวัฒน์"
+      }
+    ]
+  },
+  {
+    "text": "รายงานถูกส่งโดย ประยุทธ์ ธาริษา เมื่อสัปดาห์ที่แล้ว",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "ประยุทธ์ ธาริษา"
+      }
+    ]
+  },
+  {
+    "text": "Please contact Mr. Somchai Chaiwat about the refund.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Somchai Chaiwat"
+      }
+    ]
   }
 ]

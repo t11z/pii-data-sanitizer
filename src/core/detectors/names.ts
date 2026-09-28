@@ -166,7 +166,10 @@ function isCaselessNameScript(token: Token): boolean {
     token.script === 'Malayalam' ||
     // Georgian (Mkhedruli) is unicameral — no case distinction — so a bare DB
     // hit suffices, like the Indic caseless scripts above.
-    token.script === 'Georgian'
+    token.script === 'Georgian' ||
+    // Thai is likewise caseless (no upper/lower distinction), so a bare DB hit
+    // suffices, matching the Georgian/Indic treatment.
+    token.script === 'Thai'
   );
 }
 

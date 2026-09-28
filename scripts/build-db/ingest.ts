@@ -66,6 +66,7 @@ const KANNADA_LANGS = ['kn'];
 const MALAYALAM_LANGS = ['ml'];
 const ARMENIAN_LANGS = ['hy'];
 const GEORGIAN_LANGS = ['ka'];
+const THAI_LANGS = ['th'];
 
 const NATIVE_LANGS = [
   ...CYRILLIC_LANGS,
@@ -82,6 +83,7 @@ const NATIVE_LANGS = [
   ...MALAYALAM_LANGS,
   ...ARMENIAN_LANGS,
   ...GEORGIAN_LANGS,
+  ...THAI_LANGS,
 ];
 
 // Which script a label language predominantly yields. Used only by the scoped
@@ -102,6 +104,7 @@ const NATIVE_LANG_SCRIPT: Array<[readonly string[], Script]> = [
   [MALAYALAM_LANGS, 'Malayalam'],
   [ARMENIAN_LANGS, 'Armenian'],
   [GEORGIAN_LANGS, 'Georgian'],
+  [THAI_LANGS, 'Thai'],
 ];
 function langScript(lang: string): Script {
   for (const [langs, script] of NATIVE_LANG_SCRIPT) if (langs.includes(lang)) return script;
@@ -269,6 +272,12 @@ const HUMAN_BY_COUNTRY: Array<[string, string]> = [
   ['wd:Q399', 'en'], // Armenia
   ['wd:Q230', 'ka'],
   ['wd:Q230', 'en'], // Georgia
+  // Thai: own-script, unicameral/caseless language (~60M speakers) previously
+  // entirely absent from the name database. Thai (th) native labels are the
+  // primary lever; a bare DB hit suffices to detect them (isCaselessNameScript).
+  // English (en) labels feed the Latin pack as romanized forms.
+  ['wd:Q869', 'th'],
+  ['wd:Q869', 'en'], // Thailand
 ];
 
 const GIVEN_CLASSES = ['wd:Q202444', 'wd:Q12308941', 'wd:Q11879590', 'wd:Q3409032'];
@@ -293,6 +302,7 @@ const CAPS: Record<string, number> = {
   Malayalam: 20000,
   Armenian: 20000,
   Georgian: 20000,
+  Thai: 20000,
 };
 
 // Romanized/ASCII-folded variants shorter than this are dropped: 2-letter

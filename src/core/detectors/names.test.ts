@@ -189,6 +189,29 @@ describe('Georgian names (unicameral / caseless)', () => {
   });
 });
 
+describe('Thai names (unicameral / caseless)', () => {
+  // Held-out real Thai names sourced from the ingested Wikidata (CC0) Thai pack;
+  // the test only proves the caseless-script detection path, not these specific
+  // strings — Thai carries no case, so a bare DB hit must suffice (like Georgian
+  // and the Indic scripts).
+  const thSource = new PackNameSource();
+  thSource.addWords(['สมชาย', 'ชัยวัฒน์'], { script: 'Thai', tier: 'core' });
+  const thPersons = (text: string) =>
+    detect(text, { nameSource: thSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects a Thai full name present in the database', () => {
+    expect(thPersons('กรุณาติดต่อ สมชาย ชัยวัฒน์ พรุ่งนี้')).toContain('สมชาย ชัยวัฒน์');
+  });
+
+  it('does not flag an unknown Thai token without context', () => {
+    // Caseless, so detection rests entirely on DB membership: an unknown token
+    // with no title/role cue must not match.
+    expect(thPersons('ดู ซอกแซกมโนสาเร่ วันนี้')).not.toContain('ซอกแซกมโนสาเร่');
+  });
+});
+
 describe('context-based detection (generalizes beyond the DB)', () => {
   // All names below are deliberately ABSENT from the name database, so these only
   // pass via the title/role/particle heuristics — never via dictionary lookup.
