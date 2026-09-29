@@ -1007,10 +1007,25 @@ describe('passport detection (cue-gated)', () => {
     expect(only('Passnummer AB1234567890 hinterlegt.', 'PASSPORT')[0].text).toBe('AB1234567890');
   });
 
-  // Precision guard: even with the wider bound, an over-long (13+ char) or
+  // Held-out values (absent from the corpus/feed and any name pack): several
+  // national schemes glue a two-letter issuing-country code straight onto the
+  // number with no separator, pushing a legitimate passport to 13–14 chars. The
+  // old `{6,12}\b` quantifier dropped these entirely (a 13-char run has no `\b`
+  // at any interior position, so it failed outright rather than capturing a
+  // prefix). These use fresh countries/formats — not the gap's IN/IR values — so
+  // they prove the length-class fix generalizes, not that a value was memorized.
+  it('detects a 13-character glued issuer-code passport after an English cue', () => {
+    expect(only('Passport BR7Q2W9E4R1T5 scanned.', 'PASSPORT')[0].text).toBe('BR7Q2W9E4R1T5');
+  });
+
+  it('detects a 14-character glued issuer-code passport after a German cue', () => {
+    expect(only('Reisepass US9Z8Y7X6W5V4U geprüft.', 'PASSPORT')[0].text).toBe('US9Z8Y7X6W5V4U');
+  });
+
+  // Precision guard: even with the wider bound, an over-long (15+ char) or
   // uncued/lowercase token must not be claimed as a passport number.
-  it('does not flag an over-long token beyond the 12-char bound', () => {
-    expect(only('Passport No. ABC1234567890 on file.', 'PASSPORT')).toHaveLength(0);
+  it('does not flag an over-long token beyond the 14-char bound', () => {
+    expect(only('Passport No. ABC123456789012 on file.', 'PASSPORT')).toHaveLength(0);
   });
 });
 
