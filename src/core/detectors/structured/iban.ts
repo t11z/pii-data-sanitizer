@@ -41,6 +41,40 @@ const IBAN_RE = /\b[A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30}\b/g;
 const IBAN_CUED_RE =
   /\bIBAN\b(?:\s+(?:is|was|number|no\.?|reads))?[\s:([{#=]+([A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30})\b/g;
 
+// Second cue-anchored path: the *account-declaration* noun ("account", "acct",
+// "a/c") — not the "IBAN" acronym — immediately preceding an IBAN-shaped run.
+// Support/banking prose declares account numbers with this noun far more often
+// than with the acronym ("Transfer to account: IT25 …", "bank account DE89 …"),
+// so the acronym-only safety-net above misses the whole account-cued class of
+// mis-keyed / OCR'd / templated IBANs whose only defect is a wrong mod-97 check
+// digit. The optional linking token mirrors IBAN_CUED_RE's connectors; "holder"
+// is deliberately absent because "Account holder <Name>" is followed by a person,
+// never an IBAN body (see the `bench/corpus.json` account-holder guard cases).
+// "account" is a looser cue than the closed-class "IBAN" acronym, so this path is
+// gated harder than IBAN_CUED_RE: it bypasses mod-97 (the whole point — rescue a
+// declared account with a bad check digit) but still requires a *registered*
+// country code AND the exact registered compact length (`hasRegisteredIbanStructure`),
+// which rejects arbitrary structured IDs ("account ID AB12CD34EF56GH78", unknown
+// CC or wrong length) that the acronym path's shape-only gate would let through.
+// The cue noun is matched case-insensitively via explicit classes; the IBAN
+// SHAPE stays uppercase-only (no `i` flag) exactly like IBAN_CUED_RE, so the
+// greedy `[A-Z0-9]` body stops at following lowercase prose instead of gluing
+// trailing words ("DE… 78 before the next cycle") onto the captured run.
+const IBAN_ACCOUNT_CUED_RE =
+  /\b(?:[Aa]ccount|[Aa]cct\.?|[Aa]\/[Cc])(?:\s+(?:[Nn]umber|[Nn]o\.?|is|was|reads))?[\s:([{#=]+([A-Z]{2}[ ]?\d{2}(?:[ ]?[A-Z0-9]){10,30})\b/g;
+
+// Explicit invalidity/decoy cues. A cued run that fails mod-97 is normally a
+// corrupted *real* account (that is why the cued paths bypass the checksum), but
+// that assumption inverts when the prose itself frames the number as fake:
+// fraud tickets quote decoy IBANs and docs quote sample/placeholder ones, both
+// invalid by construction. When such a word sits within a short window of an
+// invalid cued run, we must NOT resurrect it. Gating this on `!isValidIban`
+// (handled at the call site) means a genuine, mod-97-passing IBAN mentioned in a
+// fraud report is still owned by the strict path and never suppressed.
+const INVALIDITY_CUE_RE =
+  /\b(?:fraudulent|fraud|fake|decoy|bogus|spoofed|phishing|sample|example|dummy|placeholder|fictitious|invalid|specimen)\b/i;
+const INVALIDITY_CUE_WINDOW = 48;
+
 // Official IBAN length per country, from the SWIFT IBAN Registry. Mod-97 alone
 // passes ~1% of random strings by chance, so a longer-than-canonical run that
 // happens to checksum-validate (e.g. a 32-char "BR15 …" with extra zero groups
@@ -160,6 +194,20 @@ export function isValidIban(raw: string): boolean {
   return remainder === 1;
 }
 
+/** Structural-only IBAN check for the account-cued path: ISO shape, a
+ * *registered* country code, and the exact registered compact length — but NOT
+ * mod-97. A declared account number whose only defect is a wrong check digit
+ * (mis-keyed / OCR'd / templated) is still a live account identifier that must
+ * be redacted; the country + length gate is what keeps arbitrary structured IDs
+ * (unknown country code, or a registered code at the wrong length) from leaking
+ * in through the looser "account" cue. */
+export function hasRegisteredIbanStructure(raw: string): boolean {
+  const compact = raw.replace(/\s+/g, '').toUpperCase();
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{10,30}$/.test(compact)) return false;
+  const expected = IBAN_LENGTH_BY_COUNTRY[compact.slice(0, 2)];
+  return expected !== undefined && compact.length === expected;
+}
+
 export function detectIbans(text: string): Span[] {
   const spans: Span[] = [];
   const validated: Array<[number, number]> = [];
@@ -194,6 +242,34 @@ export function detectIbans(text: string): Span[] {
       text: value,
       confidence: 0.96,
       source: 'iban-cued',
+    });
+  }
+  // Account-declaration cue path. Emits at 0.96 (same band as iban-cued) for a
+  // structurally-perfect, registered-country/length IBAN that the strict path
+  // rejected on mod-97 alone — rescuing mis-keyed/OCR'd declared accounts. The
+  // tighter `hasRegisteredIbanStructure` gate (vs. the acronym path's shape-only
+  // check) offsets the looser "account" cue. Decoy/sample numbers are suppressed
+  // by the invalidity-cue guard, but only when the run is genuinely invalid — a
+  // mod-97-valid IBAN is already owned by the strict path above.
+  for (const match of text.matchAll(IBAN_ACCOUNT_CUED_RE)) {
+    const value = match[1];
+    const start = match.index + match[0].length - value.length;
+    const end = start + value.length;
+    if (validated.some(([s, e]) => start >= s && end <= e)) continue;
+    if (spans.some((sp) => start >= sp.start && end <= sp.end)) continue;
+    if (!hasRegisteredIbanStructure(value)) continue;
+    if (!isValidIban(value)) {
+      const windowStart = Math.max(0, match.index - INVALIDITY_CUE_WINDOW);
+      const windowEnd = Math.min(text.length, end + INVALIDITY_CUE_WINDOW);
+      if (INVALIDITY_CUE_RE.test(text.slice(windowStart, windowEnd))) continue;
+    }
+    spans.push({
+      start,
+      end,
+      type: 'IBAN',
+      text: value,
+      confidence: 0.96,
+      source: 'iban-account-cued',
     });
   }
   return spans;

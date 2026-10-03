@@ -2341,5 +2341,36 @@
         "text": "Giorgi Beridze"
       }
     ]
+  },
+  {
+    "text": "Transfer to account: IT25 C054 2811 3080 9606 7611 960 for the vendor.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "IT25 C054 2811 3080 9606 7611 960"
+      }
+    ]
+  },
+  {
+    "text": "Please update bank account DE00 1234 5678 9012 3456 78 before renewal.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "DE00 1234 5678 9012 3456 78"
+      }
+    ]
+  },
+  {
+    "text": "Refund sent to a/c NL00 ABCD 0123 4567 89 last week.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "NL00 ABCD 0123 4567 89"
+      }
+    ]
+  },
+  {
+    "text": "Sample account: FR76 1234 5678 9012 3456 7890 123 (placeholder, do not use).",
+    "entities": []
   }
 ]
