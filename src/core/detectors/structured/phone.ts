@@ -19,6 +19,23 @@ const LETTER = /[A-Za-z]/;
 const DATE_SHAPE =
   /^(?:\d{4}[.\-/]\d{1,2}[.\-/]\d{1,2}|\d{1,2}[.\-/]\d{1,2}[.\-/]\d{4})(?:[.\-/]\d{1,4})?(?:[ T]\d{1,2}(?::\d{2}){0,2})?$/;
 
+// A purely dot-separated numeric run (no '+', space, hyphen, slash, or paren —
+// so a spaced/hyphenated/international phone never reaches here) is phone-shaped
+// only in the North-American "AAA.NNN.NNNN" mould: at most three groups, every
+// group two digits or longer. A run with four or more dotted groups, or any
+// single-digit group, is a dotted *identifier* — a software/build version
+// ("2.4.55.9"), a link/asset id ("287.554.8899.1"), or a dotted reference —
+// never a phone, whose dotted notation never carries a lone one-digit group or
+// a fourth group. Dotted dates ("04.07.1968") and dotted IPs are already claimed
+// upstream (the date-shape guard and the IP detector), so this only removes the
+// version/identifier class that would otherwise leak through as a PHONE.
+const DOTTED_RUN = /^\d+(?:\.\d+)+$/;
+function isDottedIdentifierShape(value: string): boolean {
+  if (!DOTTED_RUN.test(value)) return false;
+  const groups = value.split('.');
+  return groups.length >= 4 || groups.some((g) => g.length === 1);
+}
+
 // Closed-class phone-cue words that unambiguously introduce a phone number in
 // support / business prose. Used as one leg of the paren-wrapped bare-run
 // signal below — a bare 10–15-digit number in balanced parens is only accepted
@@ -133,6 +150,9 @@ export function detectPhones(text: string): Span[] {
     // Skip date-shaped candidates: bare dates, ISO timestamps, and
     // invoice/case refs suffixed with a short sequence number.
     if (DATE_SHAPE.test(trimmed)) continue;
+    // Skip dotted version/identifier runs ("287.554.8899.1", "2.4.55.9") — a
+    // dotted numeric token whose shape never matches a real dotted phone.
+    if (isDottedIdentifierShape(trimmed)) continue;
     // Skip digit runs embedded in an alphanumeric identifier (order/ticket/
     // invoice/serial numbers like "ORD-2025-001847-X") — not phone numbers.
     if (fusedToLetters(text, start, end)) continue;

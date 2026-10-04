@@ -756,6 +756,30 @@ describe('phone detection', () => {
     expect(spans2[0].text).toBe('+33 1 42 68 53 00');
   });
 
+  it('does not flag dotted version / link identifiers as a phone number', () => {
+    // A purely dot-separated numeric run with four or more groups, or any
+    // single-digit group, is a software/build version or a dotted link/asset
+    // id — never a phone. Held-out values (none is the gap's "287.554.8899.1")
+    // prove the guard is structural, not memorized: it keys off the dotted
+    // group shape, not any specific number.
+    expect(only('link id 519.774.2201.6 (version, not phone).', 'PHONE')).toHaveLength(0); // 4 groups
+    expect(only('Deployed build 73.118.4402.6 to staging.', 'PHONE')).toHaveLength(0); // 4 groups
+    expect(only('Artifact tag 5521.0049.7781.3 archived.', 'PHONE')).toHaveLength(0); // 4 groups
+    expect(only('Firmware rev 12.4.5502.9 pushed.', 'PHONE')).toHaveLength(0); // 4 groups
+    expect(only('Sensor reading 88422.1.94471 captured.', 'PHONE')).toHaveLength(0); // 3 groups, lone-digit middle
+  });
+
+  it('still detects real dotted phones (≤3 groups, no lone-digit group)', () => {
+    // Precision guard for the dotted-identifier reject: the North-American
+    // "AAA.NNN.NNNN" dotted phone, and the "+"-prefixed international dotted
+    // form, must survive. Held-out numbers, distinct from the gap case.
+    expect(only('Call the branch at 312.555.0142 before noon.', 'PHONE')[0].text).toBe(
+      '312.555.0142'
+    );
+    expect(only('Reach billing at 889.221.0471 today.', 'PHONE')[0].text).toBe('889.221.0471');
+    expect(only('Mobile +1.415.555.0199 on file.', 'PHONE')[0].text).toBe('+1.415.555.0199');
+  });
+
   it('keeps a real phone in a line that also has an order number', () => {
     const spans = only(
       'Order #ORD-2025-001847-X needs review; call +39 02 1234 5678 today.',

@@ -1316,6 +1316,23 @@
     "entities": []
   },
   {
+    "text": "Rollback note: service build 73.118.4402.6 (version, not phone) still failing.",
+    "entities": []
+  },
+  {
+    "text": "Diagnostics show link id 519.774.2201.6 and firmware rev 12.4.5502.9 diverging.",
+    "entities": []
+  },
+  {
+    "text": "Reach the branch office at 312.555.0142 before the noon cutoff.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "312.555.0142"
+      }
+    ]
+  },
+  {
     "text": "Escalated the request to engineer Bjørn Helgø yesterday afternoon.",
     "entities": [
       {
