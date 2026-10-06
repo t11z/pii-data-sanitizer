@@ -14,7 +14,18 @@ import type { Span } from '../../types';
 // The case is kept strict (uppercase) on purpose — without the `i` flag a lowercase
 // word after the cue ("passport please") can't be mistaken for a number. Cue casing is
 // handled with explicit leading-character classes instead.
-const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)(?:\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|#))?`;
+// The number-indicator that may follow a cue word ("No.", "Number", "Nr.", "#").
+const NUM_IND = String.raw`(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|#)`;
+// Full cue words already name the field, so the indicator stays optional here.
+const FULL_CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)(?:\s*${NUM_IND})?`;
+// German/English shorthand: bare "Pass" (German for passport, and a common informal
+// English abbreviation) is only a cue when an explicit number-indicator follows —
+// "Pass No.", "Pass number", the glued "Passnumber". Requiring the indicator keeps the
+// ordinary English word "pass" from firing, and the leading \b stops us matching the
+// "pass" buried inside bypass / compass / surpass. Hyphenated compounds ("Pass-Nr.")
+// are intentionally left to the hyphen-cue path; \s* only bridges spaces, not hyphens.
+const SHORT_CUE = String.raw`\b[Pp]ass\s*${NUM_IND}`;
+const CUE = String.raw`(?:${FULL_CUE}|${SHORT_CUE})`;
 const NUMBER = String.raw`((?=[A-Z0-9]*\d)[A-Z0-9]{6,12})\b`;
 const PASSPORT_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)${NUMBER}`, 'g');
 

@@ -2341,5 +2341,44 @@
         "text": "Giorgi Beridze"
       }
     ]
+  },
+  {
+    "text": "Account holder submitted Passnumber: RT889201 with the application.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "RT889201"
+      }
+    ]
+  },
+  {
+    "text": "Her Pass number QP334410 was recorded at check-in.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "QP334410"
+      }
+    ]
+  },
+  {
+    "text": "Pass No. ZW771203 presented for identity verification.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "ZW771203"
+      }
+    ]
+  },
+  {
+    "text": "The highway bypass number 7781902 was closed for maintenance.",
+    "entities": []
+  },
+  {
+    "text": "A compass number N4457120 shipped with the survey kit.",
+    "entities": []
+  },
+  {
+    "text": "You need a valid pass A1234567 to enter the secure area.",
+    "entities": []
   }
 ]

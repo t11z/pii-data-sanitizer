@@ -1012,6 +1012,31 @@ describe('passport detection (cue-gated)', () => {
   it('does not flag an over-long token beyond the 12-char bound', () => {
     expect(only('Passport No. ABC1234567890 on file.', 'PASSPORT')).toHaveLength(0);
   });
+
+  // Bare "Pass" stem + a required number-indicator. Held-out values/phrasings that
+  // are not the gaps.json cases (XY567890 / KL456789), proving the stem generalizes.
+  it('detects a passport number after a glued "Passnumber" cue', () => {
+    expect(only('submitted Passnumber: RT889201 today.', 'PASSPORT')[0].text).toBe('RT889201');
+  });
+
+  it('detects a passport number after a spaced "Pass number" cue', () => {
+    expect(only('her Pass number QP334410 was logged.', 'PASSPORT')[0].text).toBe('QP334410');
+  });
+
+  it('detects a passport number after a "Pass No." cue', () => {
+    expect(only('Pass No. ZW771203 on file.', 'PASSPORT')[0].text).toBe('ZW771203');
+  });
+
+  // Precision guards for the new stem: it must require a number-indicator, must be a
+  // standalone word (not the "pass" inside bypass/compass), and still needs a digit.
+  it('does not flag the "pass" inside bypass/compass', () => {
+    expect(only('the highway bypass number 7781902 was closed.', 'PASSPORT')).toHaveLength(0);
+    expect(only('a compass number N4457120 in the kit.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  it('does not treat a bare "pass" without a number-indicator as a cue', () => {
+    expect(only('You need a valid pass A1234567 to enter.', 'PASSPORT')).toHaveLength(0);
+  });
 });
 
 describe('date of birth detection (cue-gated)', () => {
