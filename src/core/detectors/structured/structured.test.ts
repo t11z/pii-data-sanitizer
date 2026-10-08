@@ -687,6 +687,20 @@ describe('phone detection', () => {
     expect(spans[0].text).toBe('089 5550-1234');
   });
 
+  it('includes a leading area-code parenthesis in the span', () => {
+    // The candidate run starts at the first digit, so the closing ')' of an
+    // area code is captured while its opening '(' sits just before the match —
+    // without re-balancing the span would read "212) 555-0199" and redaction
+    // would leave an orphan '('. Held-out numbers (US and UK groupings, not the
+    // benchmark's cases) prove the balancing is structural, not memorized.
+    const us = only('Please call (312) 867-5309 today.', 'PHONE');
+    expect(us).toHaveLength(1);
+    expect(us[0].text).toBe('(312) 867-5309');
+    const uk = only('Reach the desk at (0151) 496 0123 before noon.', 'PHONE');
+    expect(uk).toHaveLength(1);
+    expect(uk[0].text).toBe('(0151) 496 0123');
+  });
+
   it('does not flag a digit run inside a hyphenated identifier', () => {
     // Held-out identifier prefixes (not the gap's "ORD") prove the guard is
     // structural, not a memorized string.

@@ -1968,6 +1968,24 @@
     "entities": []
   },
   {
+    "text": "Reach the office at (020) 7946 0958 before noon.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "(020) 7946 0958"
+      }
+    ]
+  },
+  {
+    "text": "Please call (212) 555-0199 to confirm the booking.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "(212) 555-0199"
+      }
+    ]
+  },
+  {
     "text": "Batch id (0987654321) processed overnight.",
     "entities": []
   },
