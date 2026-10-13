@@ -405,6 +405,53 @@ describe('structural role noun after a name is not absorbed as a surname', () =>
   });
 });
 
+describe('company legal-entity designator is not absorbed as a surname', () => {
+  // "Corp" and "Holding" are real ext-tier census surnames AND company
+  // designators (NON_NAME_WORDS). When one trails a capitalized organization
+  // stem ("Acme Corp", "Quorvex Holding"), the DB hit used to let the chain
+  // absorb the designator and emit a two-token PERSON span — same bug class as
+  // the "<Given> <RoleNoun>" absorption above. The chain-extension guard now
+  // breaks on the designator, leaving the org stem as a lone unknown token that
+  // cannot promote.
+  //
+  // Company stems below (Zentara/Quorvex/Brightmoor/Nordia) are held out —
+  // all absent from the full committed DB (asserted at the end) — so the guard,
+  // not dictionary absence of the designator, is what suppresses the span.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not read "<OrgStem> <Designator>" as a person', () => {
+    expect(personsFull('Zentara Corp filed the claim.')).toHaveLength(0);
+    expect(personsFull('Quorvex Holding declined the refund.')).toHaveLength(0);
+    expect(personsFull('Brightmoor Corporation escalated the case.')).toHaveLength(0);
+    expect(personsFull('Nordia Limited updated the invoice.')).toHaveLength(0);
+  });
+
+  it('keeps detecting a real person adjacent to a company designator', () => {
+    // The guard must only break the chain, never suppress a genuine neighbour.
+    expect(personsFull('Acme Corp account holder Rajesh Iyer confirmed.')).toEqual(['Rajesh Iyer']);
+  });
+
+  it('still detects a genuine two-token name (guard is designator-specific)', () => {
+    expect(personsFull('Priya Gupta reviewed the ticket.')).toContain('Priya Gupta');
+  });
+
+  it('proves the in-DB designators are genuine ext-tier hits (guard, not membership)', () => {
+    for (const designator of ['corp', 'holding']) {
+      const hit =
+        fullSource.hasGiven(designator, 'Latin') || fullSource.hasFamily(designator, 'Latin');
+      expect(hit, `${designator} should be in the committed DB`).toBe(true);
+    }
+    for (const stem of ['zentara', 'quorvex', 'brightmoor', 'nordia']) {
+      const absent = !fullSource.hasGiven(stem, 'Latin') && !fullSource.hasFamily(stem, 'Latin');
+      expect(absent, `${stem} must be held out of the DB`).toBe(true);
+    }
+  });
+});
+
 describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   // Support / KYC / CRM prose labels an identifier with the "number"
   // abbreviation — "Passport No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº
