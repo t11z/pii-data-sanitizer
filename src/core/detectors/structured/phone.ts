@@ -126,7 +126,16 @@ export function detectPhones(text: string): Span[] {
     // through here. A leading 1–3-digit group is the country-code-without-`+`
     // shape ("49 89 32156 7890", "33 1 4070 1234 5678") — common in support
     // prose where the user drops the plus — and must pass.
-    if (digits.length >= 13 && !/[+()\-./]/.test(value)) {
+    //
+    // A run beginning "00" is the ITU-T E.123 international call prefix: the
+    // plus-less form of a `+CC` number ("0049 30 12345678" == "+49 30 …",
+    // "0044 20 7946 0958" == "+44 …"). Its leading group is 4 digits for the
+    // many 2-digit country codes (0049, 0044, 0033, 0039, 0034, 0081, …), which
+    // would otherwise read as a 4-4-… card layout and be dropped here. It can
+    // never be a card — ISO/IEC 7812-1 reserves MII 0, so no PAN starts with 0 —
+    // so the international prefix is exempt from the card-shape gate, like `+`.
+    const intlPrefix = digits.startsWith('00');
+    if (digits.length >= 13 && !intlPrefix && !/[+()\-./]/.test(value)) {
       const groups = value.trim().split(/\s+/);
       if (groups.length === 1 || groups[0].length === 4) continue;
     }

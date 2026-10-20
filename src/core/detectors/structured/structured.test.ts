@@ -802,6 +802,21 @@ describe('phone detection', () => {
     );
   });
 
+  it('keeps an international number written with the "00" dialing prefix', () => {
+    // ITU-T E.123: "00" is the plus-less international call prefix, so
+    // "0049 30 …" is "+49 30 …". With a 2-digit country code the leading group
+    // is 4 digits ("0049"), which the card-shape guard would otherwise drop as
+    // a Visa/MC 4-4-… layout — but a card can never start with 0 (ISO/IEC
+    // 7812-1 reserves MII 0). Held-out country codes (UK 44, FR 33, JP 81 —
+    // distinct from the German "0049" gap value) prove the exemption
+    // generalizes to any "00"+CC number, not a memorized string.
+    expect(only('Please call 0044 20 7946 0958 before noon.', 'PHONE')[0].text).toBe(
+      '0044 20 7946 0958'
+    );
+    expect(only('Reach me on 0033 1 4007 1234 today.', 'PHONE')[0].text).toBe('0033 1 4007 1234');
+    expect(only('Tel 0081 3 1234 5678 for support.', 'PHONE')[0].text).toBe('0081 3 1234 5678');
+  });
+
   it('still rejects card-shaped ≥13-digit runs (leading 4-digit group)', () => {
     // Precision guard for the refined rule: narrowing the card-shape reject to
     // "first group of 4" must NOT let any Luhn-invalid PAN layout leak through.

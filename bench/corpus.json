@@ -112,6 +112,28 @@
     ]
   },
   {
+    "text": "Support ticket: billing phone 0049 30 12345678 logged for the customer.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "0049 30 12345678"
+      }
+    ]
+  },
+  {
+    "text": "Reach the on-call engineer at 0044 20 7946 0958 before noon.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "0044 20 7946 0958"
+      }
+    ]
+  },
+  {
+    "text": "Decoy test: card 4532 9876 5432 1098 (Luhn fail) must not read as a phone.",
+    "entities": []
+  },
+  {
     "text": "The meeting with Kai-Uwe von Braun is confirmed.",
     "entities": [
       {
