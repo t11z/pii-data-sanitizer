@@ -2341,5 +2341,42 @@
         "text": "Giorgi Beridze"
       }
     ]
+  },
+  {
+    "text": "The ship sailed down the River Thames at dawn.",
+    "entities": []
+  },
+  {
+    "text": "Lake Victoria is the largest lake in Africa.",
+    "entities": []
+  },
+  {
+    "text": "We climbed Mount Rainier before the storm rolled in.",
+    "entities": []
+  },
+  {
+    "text": "The storm battered Hudson Bay through the night.",
+    "entities": []
+  },
+  {
+    "text": "The trail follows the Colorado River for miles.",
+    "entities": []
+  },
+  {
+    "text": "We hiked all the way to Victoria Falls last spring.",
+    "entities": []
+  },
+  {
+    "text": "Her train left from Victoria Station at nine.",
+    "entities": []
+  },
+  {
+    "text": "Dr. Amelia Hudson surveyed the delta near Angel Falls.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Amelia Hudson"
+      }
+    ]
   }
 ]

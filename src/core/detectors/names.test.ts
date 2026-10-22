@@ -405,6 +405,58 @@ describe('structural role noun after a name is not absorbed as a surname', () =>
   });
 });
 
+describe('geographic generics are not a name part ("River Thames", "Lake Victoria")', () => {
+  // Geographic "type" nouns ("River", "Lake", "Mount", "Falls", "Bay", ...) are
+  // real ext-tier census surnames AND the generic half of a toponym. Paired with
+  // the proper half of a landmark name they used to chain into a two-token PERSON
+  // span ("River Thames", "Victoria Falls") with the two-DB-hit 0.95 boost. Two
+  // guards close both positions: the chain-extension NON_NAME_WORD break stops a
+  // trailing generic ("Victoria" + "Falls"), and the mid-text anchor guard stops
+  // a leading generic from starting a chain ("River" + "Thames").
+  //
+  // Held out from the benchmark cases: these use DIFFERENT landmarks, proving the
+  // guard generalizes rather than memorizing the corpus strings. Uses the FULL
+  // committed DB so the generics are genuine ext-tier hits (asserted at the end) —
+  // the guard, not absence from the dictionary, is what stops the absorption.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not flag a leading-generic landmark ("<Generic> <Proper>")', () => {
+    expect(personsFull('They rafted down the River Danube in July.')).toEqual([]);
+    expect(personsFull('Lake Baikal froze over last winter.')).toEqual([]);
+    expect(personsFull('We summited Mount Elbrus before noon.')).toEqual([]);
+  });
+
+  it('does not flag a trailing-generic landmark ("<Proper> <Generic>")', () => {
+    expect(personsFull('The barges crossed Chesapeake Bay overnight.')).toEqual([]);
+    expect(personsFull('Tourists gathered at Iguazu Falls all morning.')).toEqual([]);
+    expect(personsFull('The survey covered Monterey Canyon last month.')).toEqual([]);
+  });
+
+  it('still detects a real person whose surname collides ("Hill", "Rivera")', () => {
+    // Generics deliberately EXCLUDED from the set (common personal names) must
+    // keep detecting as ordinary surnames.
+    expect(personsFull('We met Faith Hill at the venue.')).toContain('Faith Hill');
+    expect(personsFull('Email Jordan Rivera about the ticket.')).toContain('Jordan Rivera');
+  });
+
+  it('a title still vouches for the generic as a name part', () => {
+    // The anchor guard only blocks a BARE mid-text DB hit; an explicit title
+    // keeps the escape hatch open (someone genuinely surnamed "Lake").
+    expect(personsFull('Dr. Lake examined the samples.')).toContain('Lake');
+  });
+
+  it('proves the generics are genuine ext-tier DB hits (guard, not membership)', () => {
+    for (const noun of ['river', 'lake', 'mount', 'falls', 'bay', 'canyon']) {
+      const hit = fullSource.hasGiven(noun, 'Latin') || fullSource.hasFamily(noun, 'Latin');
+      expect(hit, `${noun} should be in the committed DB`).toBe(true);
+    }
+  });
+});
+
 describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   // Support / KYC / CRM prose labels an identifier with the "number"
   // abbreviation — "Passport No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº

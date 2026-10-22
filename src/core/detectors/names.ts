@@ -538,6 +538,17 @@ function nameStart(
     ) {
       return null;
     }
+    // A structural / geographic generic that merely happens to be an ext-tier
+    // dictionary surname ("River", "Lake", "Mount", "Manager") must not ANCHOR a
+    // chain on its own DB hit mid-text — otherwise it absorbs the proper name
+    // that follows ("River Thames", "Lake Victoria", "Mount Rainier") into a
+    // two-token PERSON span. The sentence-start guard above already rejects this
+    // for a sentence-initial ext token; this covers the far more common mid-
+    // sentence position ("the River Thames"). It stays a valid name part when a
+    // title/role cue vouches for the surrounding phrase (handled by the branches
+    // below and the chain extension), so genuine "Manager Sarah Brown"-style
+    // introductions are unaffected.
+    if (dbHit && !titleBefore && !roleBefore && isNonNameWord(tok.text)) return null;
     if (titleBefore || dbHit) return { titleBefore, roleBefore, dbHit };
     // Role-only start: generalize beyond the DB, but never start on a structural
     // noun (e.g. "Customer Service") — that path needs a real multi-token name.

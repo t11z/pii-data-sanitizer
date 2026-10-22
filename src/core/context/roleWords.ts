@@ -204,6 +204,51 @@ export const NON_NAME_WORDS = new Set<string>([
   'open',
   'pending',
   'resolved',
+  // Geographic generics — the "type" word in a toponym ("River Thames", "Lake
+  // Victoria", "Mount Rainier", "Victoria Falls", "Hudson Bay", "Colorado
+  // River"). Like the role nouns above, every one of these lands in the ext
+  // long-tail dictionary as a surface given-/family-name token, so it chains
+  // into the adjacent proper name and emits the landmark as a two-token PERSON
+  // span. Treating them as structural nouns stops the chain on both sides: the
+  // generic can neither extend a chain ("Victoria" + "Falls") nor — paired with
+  // the sentence/start guard — anchor one ("River" + "Thames"). Deliberately
+  // LIMITED to generics that are essentially never a standalone personal name;
+  // common surname/given collisions (Hill, Forrest, Brook, Beach, Cliff,
+  // Spring, Rivers, Park) are left OUT so real people keep detecting. Same
+  // precision trade-off NON_NAME_WORDS already makes elsewhere.
+  'river',
+  'lake',
+  'mount',
+  'mountain',
+  'falls',
+  'bay',
+  'gulf',
+  'strait',
+  'canyon',
+  'valley',
+  'glacier',
+  'volcano',
+  'peninsula',
+  'lagoon',
+  'reef',
+  'plateau',
+  'fjord',
+  'isle',
+  'sea',
+  'ocean',
+  'delta',
+  'tundra',
+  'highlands',
+  'lowlands',
+  'harbour',
+  'harbor',
+  // Transit / civic structure generics that pair with a place name the same way
+  // ("Victoria Station", "Union Terminal"). Not in the dictionary themselves, so
+  // they only ever appear here as the structural follower the unknown-cap
+  // extension would otherwise absorb; blocking them keeps the landmark from
+  // promoting while the bare proper name stays below the single-token threshold.
+  'station',
+  'terminal',
   // --- German --- (German compounds most multi-word structures into a single
   // token, so these mainly guard the handoff/role path against the common
   // standalone ticket nouns that can follow a cue.)
