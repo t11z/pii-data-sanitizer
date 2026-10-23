@@ -34,6 +34,15 @@ export const ROLE_WORDS = new Set<string>([
   'technician',
   'developer',
   'administrator',
+  // "admin"/"sysadmin" are the ubiquitous IT/support shorthand for the role noun
+  // "administrator" (already a cue). They introduce a following person name the
+  // same way ("network admin Per Larsson", "sysadmin: Jane Doe") yet were absent,
+  // so the full word detected but its far more common abbreviation did not. They
+  // ride the same precision contract as every other role cue — only credited at
+  // parts >= 2 (see scoring) and blocked by NON_NAME_WORDS — so "admin Console
+  // Dashboard" / lowercase "admin panel" never promote.
+  'admin',
+  'sysadmin',
   'agent',
   'representative',
   'operator',
@@ -181,6 +190,19 @@ export const NON_NAME_WORDS = new Set<string>([
   'transaction',
   'statement',
   'receipt',
+  // IT access-control / configuration nouns. The "admin"/"sysadmin" role cues
+  // sit directly beside these in support prose ("admin Access Rights", "sysadmin
+  // Login Credentials", "admin Settings Options"), so they are the structural
+  // follow-ons most likely to be mistaken for a surname on the role-cue path.
+  // None is a name in the committed DB, so guarding them never drops a real
+  // person. (Not "page"/"panel" etc. — those collide with real surnames.)
+  'access',
+  'rights',
+  'settings',
+  'options',
+  'credentials',
+  'login',
+  'permissions',
   // Common role nouns. Several of these ("Manager", "Director", "Lead", "Head",
   // "Chief") land in the long-tail ext dictionary as both given- and family-name
   // surface tokens (real census surnames), which lets them chain into adjacent

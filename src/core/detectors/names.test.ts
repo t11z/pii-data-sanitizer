@@ -520,6 +520,66 @@ describe('role cue with label colon ("<RoleNoun>: <Name>")', () => {
   });
 });
 
+describe('"admin"/"sysadmin" role-cue shorthand ("network admin <Name>")', () => {
+  // "administrator" was already a role cue, but its ubiquitous IT/support
+  // shorthand "admin"/"sysadmin" was not — so a name introduced by the
+  // abbreviation ("network admin Per Larsson") got no context boost and dropped
+  // when it was not in the dictionary. Detection here must ride ONLY on the role
+  // cue + 2 parts; the names below are held out against the FULL committed DB.
+  it('detects an unknown full name after an "admin" role cue', () => {
+    expect(persons('Ticket routed to network admin Qwenthor Blyvscott.')).toContain(
+      'Qwenthor Blyvscott'
+    );
+    expect(persons('The system admin Zarnivook Threllmann reset the password.')).toContain(
+      'Zarnivook Threllmann'
+    );
+  });
+
+  it('detects an unknown full name after a "sysadmin" role cue', () => {
+    expect(persons('sysadmin Vexyl Grundwald applied the patch overnight.')).toContain(
+      'Vexyl Grundwald'
+    );
+  });
+
+  it('accepts the "admin:" label-colon form', () => {
+    expect(persons('Escalated to admin: Nyrello Vethkamp this morning.')).toContain(
+      'Nyrello Vethkamp'
+    );
+  });
+
+  it('does not promote a single capitalized word after an "admin" cue', () => {
+    // parts === 1 + roleBefore guard: no second name part, no DB hit.
+    expect(persons('Please contact admin Portal for access.')).toHaveLength(0);
+    expect(persons('network admin Tasks are pending.')).toHaveLength(0);
+  });
+
+  it('does not turn an "admin" cue + structural IT nouns into a person', () => {
+    // NON_NAME_WORDS blocks the structural follow-ons the admin cue newly reaches.
+    expect(persons('admin Console Dashboard was updated.')).toHaveLength(0);
+    expect(persons('admin Access Rights were revoked.')).toHaveLength(0);
+    expect(persons('sysadmin Login Credentials reset.')).toHaveLength(0);
+    expect(persons('admin Settings Options changed.')).toHaveLength(0);
+  });
+
+  it('proves the "admin"-cue held-out names are absent from the full DB', () => {
+    const fullSource = nameSourceFromBuildInputs();
+    const heldOut: Array<[string, 'Latin']> = [
+      ['qwenthor', 'Latin'],
+      ['blyvscott', 'Latin'],
+      ['zarnivook', 'Latin'],
+      ['threllmann', 'Latin'],
+      ['vexyl', 'Latin'],
+      ['grundwald', 'Latin'],
+      ['nyrello', 'Latin'],
+      ['vethkamp', 'Latin'],
+    ];
+    for (const [word, script] of heldOut) {
+      expect(fullSource.hasGiven(word, script), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, script), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+});
+
 describe('Spanish plural particle chains ("de los", "de las")', () => {
   // The Spanish multi-word given names "<First> de los <Surname>" and
   // "<First> de las <Surname>" — e.g. "Maria de los Angeles", "Jorge de las
