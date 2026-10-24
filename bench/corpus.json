@@ -2341,5 +2341,27 @@
         "text": "Giorgi Beridze"
       }
     ]
+  },
+  {
+    "text": "Greek IBAN and Czech Tax ID were both on the Russian Passport form.",
+    "entities": []
+  },
+  {
+    "text": "Dutch customer Henrik Bergström opened a ticket.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Henrik Bergström"
+      }
+    ]
+  },
+  {
+    "text": "Portuguese fiscal number pending; reporter Anna-Maria Kowalski escalated it.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Anna-Maria Kowalski"
+      }
+    ]
   }
 ]

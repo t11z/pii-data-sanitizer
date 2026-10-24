@@ -11,6 +11,7 @@ import {
   isSourceFrame,
 } from '../context/roleWords';
 import { isSentenceOpener } from '../context/sentenceOpeners';
+import { isDemonym } from '../context/demonyms';
 import { isLikelyAcronym } from '../context/acronyms';
 import { scoreName } from '../scoring';
 import { latinFold } from '../latinFold';
@@ -538,7 +539,16 @@ function nameStart(
     ) {
       return null;
     }
-    if (titleBefore || dbHit) return { titleBefore, roleBefore, dbHit };
+    // A nationality/language demonym must not anchor a chain on its DB hit
+    // alone. Many demonyms are long-tail ext surnames ("German", "Czech",
+    // "Russian"), so a bare-dbHit start here would let "Czech Tax ID", "Russian
+    // Passport" promote mid-sentence (the demonym anchors, the capitalized
+    // identifier noun extends via allowUnknownCap) — the same "<Demonym>
+    // <IdentifierNoun>" false positive the sentence-start and extension guards
+    // (via isNonNameWord) already close at a sentence boundary. A preceding
+    // title still licenses it (the rare "Dr. French" real surname), so only the
+    // unvouched bare-dbHit anchor is withdrawn.
+    if (titleBefore || (dbHit && !isDemonym(tok.text))) return { titleBefore, roleBefore, dbHit };
     // Role-only start: generalize beyond the DB, but never start on a structural
     // noun (e.g. "Customer Service") — that path needs a real multi-token name.
     if (roleBefore && !isNonNameWord(tok.text)) return { titleBefore, roleBefore, dbHit };

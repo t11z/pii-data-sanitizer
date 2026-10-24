@@ -1,3 +1,5 @@
+import { isDemonym } from './demonyms';
+
 /**
  * Appositive role nouns that strongly introduce a following person name in
  * business / support prose ("Account holder Meera Chatterjee", "Engineer Amir
@@ -414,7 +416,15 @@ export function isRoleAbbreviation(token: string): boolean {
 }
 
 export function isNonNameWord(token: string): boolean {
-  return NON_NAME_WORDS.has(token.toLowerCase());
+  // Structural business nouns (above) OR a nationality/language demonym: both
+  // are words that must never be accepted as a name part. Demonyms ("German",
+  // "Dutch", "Russian") sit in front of an identifier noun in KYC/support prose
+  // ("German Tax ID", "Dutch IBAN") and collide with long-tail ext surnames, so
+  // folding them in here blocks the "<Demonym> <IdentifierNoun>" PERSON false
+  // positive across every chain-start, chain-extension, and derived-name path
+  // that already consults this guard. See `demonyms.ts` for the rationale.
+  const l = token.toLowerCase();
+  return NON_NAME_WORDS.has(l) || isDemonym(l);
 }
 
 /**

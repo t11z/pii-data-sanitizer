@@ -2219,3 +2219,49 @@ describe('Cyrillic names (Russian / Ukrainian / Balkan / Bulgarian)', () => {
     expect(personsFull('сегодня была хорошая погода в городе')).toEqual([]);
   });
 });
+
+describe('nationality demonyms are not PERSON name parts', () => {
+  // A capitalized nationality demonym in front of an identifier noun ("German
+  // Tax ID", "Dutch IBAN", "Russian Passport") is a document-type descriptor,
+  // never a person. Because many demonyms collide with long-tail ext surnames,
+  // the chain detector used to read "<Demonym> <IdentifierNoun>" as a two-token
+  // PERSON span. See src/core/context/demonyms.ts.
+  //
+  // Held out against the FULL committed DB: the demonyms exercised below
+  // ("Dutch", "Russian", "French", "Greek", "Czech", "Danish") are NOT the
+  // "German" case that surfaced the gap, so a pass proves the guard generalizes
+  // across the whole demonym class, not a single memorized token. The fix is a
+  // precision guard, so correctness is "no PERSON span", not a positive match —
+  // the absence assertion below documents that these collide with the ext tier
+  // (i.e. they WOULD promote without the guard), which is the real test.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not emit a PERSON for "<Demonym> <IdentifierNoun>" (held-out demonyms)', () => {
+    expect(personsFull('Dutch IBAN NL91 ABNA 0417 1643 00 was provided.')).toEqual([]);
+    expect(personsFull('Russian Passport issued last year.')).toEqual([]);
+    expect(personsFull('French Tax reference recorded.')).toEqual([]);
+    expect(personsFull('Greek IBAN on file; Czech ID submitted; Danish Phone listed.')).toEqual([]);
+  });
+
+  it('proves the guard, not the dictionary: the demonyms are ext-tier DB hits', () => {
+    // Without the demonym guard these would promote precisely because they are
+    // present as (ext-tier) surnames — so the clean detections above can only
+    // come from the structural guard, not from the words being absent.
+    for (const d of ['dutch', 'russian', 'french', 'greek', 'czech', 'danish']) {
+      expect(fullSource.matchTier(d, 'Latin'), `${d} should be an ext-tier surname`).toBe('ext');
+    }
+  });
+
+  it('still detects a real name sitting next to a demonym (precision guard, not a mute)', () => {
+    // The guard must suppress the demonym only — a genuine name in the same
+    // clause, or immediately after the demonym phrase, must still detect.
+    expect(personsFull('Dutch customer Henrik Bergström called.')).toContain('Henrik Bergström');
+    expect(personsFull('German Tax ID on file; agent Rajesh Kumar assisted.')).toContain(
+      'Rajesh Kumar'
+    );
+  });
+});
