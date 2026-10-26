@@ -189,6 +189,36 @@ describe('Georgian names (unicameral / caseless)', () => {
   });
 });
 
+describe('Odia / Oriya names (unicameral / caseless Indic script)', () => {
+  const orSource = new PackNameSource();
+  orSource.addWords(['ବିଜୟ', 'ମହାନ୍ତି'], { script: 'Oriya', tier: 'core' });
+  const orPersons = (text: string) =>
+    detect(text, { nameSource: orSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects an Odia full name present in the database', () => {
+    expect(orPersons('ଦୟାକରି ଯୋଗାଯୋଗ କରନ୍ତୁ ବିଜୟ ମହାନ୍ତି ଆସନ୍ତାକାଲି।')).toContain('ବିଜୟ ମହାନ୍ତି');
+  });
+
+  it('does not flag an unknown Odia token without context', () => {
+    // Odia is caseless, so detection rests entirely on DB membership: an invented
+    // token with no title/role cue must not match.
+    expect(orPersons('ଆଜି ଜର୍ବଲାକ୍ସ ଦେଖନ୍ତୁ।')).not.toContain('ଜର୍ବଲାକ୍ସ');
+  });
+
+  it('detects a held-out Odia name from the full committed pack', () => {
+    // ସୁରେଶ/ପଟ୍ଟନାୟକ are absent from the minimal source above — detection here
+    // can only come from the ingested Oriya pack, proving the coverage generalizes.
+    const fullSource = nameSourceFromBuildInputs();
+    const personsFull = (text: string) =>
+      detect(text, { nameSource: fullSource })
+        .filter((s) => s.type === 'PERSON')
+        .map((s) => s.text);
+    expect(personsFull('ଦଲିଲ ସ୍ୱାକ୍ଷର କଲେ ସୁରେଶ ପଟ୍ଟନାୟକ ଗତକାଲି।')).toContain('ସୁରେଶ ପଟ୍ଟନାୟକ');
+  });
+});
+
 describe('context-based detection (generalizes beyond the DB)', () => {
   // All names below are deliberately ABSENT from the name database, so these only
   // pass via the title/role/particle heuristics — never via dictionary lookup.
