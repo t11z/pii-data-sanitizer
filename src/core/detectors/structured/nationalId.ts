@@ -30,7 +30,9 @@ function isValidItin(area: string, group: string, serial: string): boolean {
   if (area[0] !== '9') return false;
   if (serial === '0000') return false;
   const g = Number(group);
-  return (g >= 50 && g <= 65) || (g >= 70 && g <= 88) || (g >= 90 && g <= 92) || (g >= 94 && g <= 99);
+  return (
+    (g >= 50 && g <= 65) || (g >= 70 && g <= 88) || (g >= 90 && g <= 92) || (g >= 94 && g <= 99)
+  );
 }
 
 // --- German tax ID (Steuerliche Identifikationsnummer) -------------------------------

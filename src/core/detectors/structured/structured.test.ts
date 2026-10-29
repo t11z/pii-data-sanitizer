@@ -1188,9 +1188,7 @@ describe('national id detection', () => {
     // absent from any dictionary; they pass only via the 9xx-area + group-range
     // heuristic, so this proves generalization, not memorization. Groups exercise
     // each valid band: 74 (70–88), 65 (50–65), 91 (90–92), 96 (94–99).
-    expect(only('Taxpayer ITIN 921-74-8302 confirmed.', 'NATIONAL_ID')[0].text).toBe(
-      '921-74-8302'
-    );
+    expect(only('Taxpayer ITIN 921-74-8302 confirmed.', 'NATIONAL_ID')[0].text).toBe('921-74-8302');
     expect(only('ITIN 900-65-1187 on file.', 'NATIONAL_ID')[0].text).toBe('900-65-1187');
     expect(only('Filed under 954-91-0075 last quarter.', 'NATIONAL_ID')[0].text).toBe(
       '954-91-0075'
@@ -1512,6 +1510,14 @@ describe('passport detection (cue-gated)', () => {
 
   it('detects a passport number when a colon is glued to the number', () => {
     expect(only('Passport:T9R4B1N8 on file.', 'PASSPORT')[0].text).toBe('T9R4B1N8');
+  });
+
+  // Regression guard for the glued-separator change: `#` must stay a CUE
+  // connector too, or the spaced "<cue> #: <number>" label form that already
+  // worked would silently stop matching. Held-out values, none in the corpus.
+  it('still detects a passport number after a spaced "#:" label', () => {
+    expect(only('Passport #: M4P8R2X6 confirmed.', 'PASSPORT')[0].text).toBe('M4P8R2X6');
+    expect(only('Reisepass # : C7V3N9K1 liegt vor.', 'PASSPORT')[0].text).toBe('C7V3N9K1');
   });
 
   // Precision guard: a `#` cue with no valid number (a hashtag / ticket ref)
