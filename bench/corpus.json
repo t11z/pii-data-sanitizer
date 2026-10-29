@@ -2473,5 +2473,30 @@
         "text": "Giorgi Beridze"
       }
     ]
+  },
+  {
+    "text": "Acme Corp account holder Rajesh Iyer confirmed the refund.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Rajesh Iyer"
+      }
+    ]
+  },
+  {
+    "text": "Zentara Corp filed the claim this morning.",
+    "entities": []
+  },
+  {
+    "text": "Quorvex Holding declined the chargeback.",
+    "entities": []
+  },
+  {
+    "text": "Brightmoor Corporation escalated the case.",
+    "entities": []
+  },
+  {
+    "text": "Nordia Limited updated the invoice yesterday.",
+    "entities": []
   }
 ]

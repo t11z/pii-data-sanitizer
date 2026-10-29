@@ -204,6 +204,29 @@ export const NON_NAME_WORDS = new Set<string>([
   'open',
   'pending',
   'resolved',
+  // Company / legal-entity designators. These trail an organization name in
+  // prose ("Acme Corp", "Falkenberg Holding") and several ("Corp", "Holding")
+  // also land in the long-tail ext surname list, so the chain-extension used to
+  // absorb them into a two-token PERSON span ("Acme Corp", even "Just Corp").
+  // Exactly the "manager/director/lead/head/chief" bug class above: capitalized
+  // in context, lexically a legal suffix rather than a person, so treating them
+  // as structural nouns breaks the chain and the preceding stem (a company name,
+  // not a person) is left as a lone unknown token that cannot promote. Only the
+  // unambiguous suffixes are listed — short forms that collide with genuine
+  // surnames ("Co", "Sá"→"Sa", Swedish "AB", "KG") are deliberately omitted so
+  // real names are not suppressed.
+  'corp',
+  'corporation',
+  'inc',
+  'incorporated',
+  'ltd',
+  'limited',
+  'llc',
+  'llp',
+  'plc',
+  'gmbh',
+  'holding',
+  'holdings',
   // --- German --- (German compounds most multi-word structures into a single
   // token, so these mainly guard the handoff/role path against the common
   // standalone ticket nouns that can follow a cue.)
