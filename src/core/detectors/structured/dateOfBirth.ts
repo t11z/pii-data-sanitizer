@@ -48,9 +48,19 @@ const DATE = [
 // keeps incidental dates out.
 const FILLER = String.raw`(?:[a-z]{2,10}[\s:]+){0,3}`;
 
+// "birthday" is a birth cue too ("Birthday: 1995-12-25", "her birthday is …"),
+// but unlike the cues above it doubles as an EVENT noun — "birthday party on
+// <date>", "birthday bash on <date>" name an event date, not a date of birth.
+// So it gets a deliberately TIGHT binding, never the multi-word FILLER: a colon
+// label, the date immediately adjacent, or a single "is"/"was" copula. The
+// event phrasing always inserts an event noun ("party"/"bash"/…) or a longer
+// connective ("scheduled for") between "birthday" and the date, which this
+// binding refuses to cross — keeping those out while catching the DOB forms.
+const BIRTHDAY = String.raw`birthday(?:\s*:\s*|\s+(?:(?:is|was)\s+)?)`;
+
 // Cue, then a colon / whitespace / short connective run, then the date (the date
 // is the trailing capture group so its offset is the match end minus its own length).
-const DOB_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+${FILLER})(${DATE})`, 'gi');
+const DOB_RE = new RegExp(`(?:${CUE}(?:\\s*:\\s*|\\s+${FILLER})|${BIRTHDAY})(${DATE})`, 'gi');
 
 export function detectDatesOfBirth(text: string): Span[] {
   const spans: Span[] = [];

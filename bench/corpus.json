@@ -1227,6 +1227,28 @@
     "entities": []
   },
   {
+    "text": "Birthday: 1977-04-19 confirmed during the identity check.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1977-04-19"
+      }
+    ]
+  },
+  {
+    "text": "Her birthday is 3 March 1980 per the onboarding form.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "3 March 1980"
+      }
+    ]
+  },
+  {
+    "text": "Join the birthday bash on 2026-02-14 in the lobby!",
+    "entities": []
+  },
+  {
     "text": "DOB on file: 1990-07-22 confirmed by the agent.",
     "entities": [
       {

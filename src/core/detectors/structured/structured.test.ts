@@ -1380,9 +1380,26 @@ describe('date of birth detection (cue-gated)', () => {
     expect(only('Geburtstag: 14. Juli 1980.', 'DATE_OF_BIRTH')[0].text).toBe('14. Juli 1980');
   });
 
-  it('does not treat "birthday" as a birth cue (event, not DOB)', () => {
-    // Precision guard: "birthday party" must not turn an adjacent event date into a DOB.
+  it('detects a date after a tight "birthday" cue (label / direct / copula)', () => {
+    // "birthday" is a birth cue, but only in its tight field-label / direct
+    // forms — never across the event phrasing guarded below. Held-out values
+    // and three different date formats prove the binding generalizes rather
+    // than memorizing the gap's "Birthday: 1995-12-25".
+    expect(only('Birthday: 1977-04-19 confirmed.', 'DATE_OF_BIRTH')[0].text).toBe('1977-04-19');
+    expect(only('Customer birthday 07/04/1983 on record.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '07/04/1983'
+    );
+    expect(only('Her birthday is 3 March 1980.', 'DATE_OF_BIRTH')[0].text).toBe('3 March 1980');
+  });
+
+  it('does not treat the "birthday" EVENT phrasing as a DOB cue', () => {
+    // Precision guard: "birthday" doubles as an event noun, so an event phrase
+    // ("party is on …", "bash on …", "celebration scheduled for …") must not
+    // turn its date into a DOB. The tight binding refuses to cross the event
+    // noun / longer connective these forms insert before the date.
     expect(only('The office birthday party is on 2025-06-01.', 'DATE_OF_BIRTH')).toHaveLength(0);
+    expect(only('Join the birthday bash on 2026-02-14!', 'DATE_OF_BIRTH')).toHaveLength(0);
+    expect(only('Birthday celebration scheduled for 12/25/2024.', 'DATE_OF_BIRTH')).toHaveLength(0);
   });
 
   it('does not flag an incidental date with no birth cue', () => {
