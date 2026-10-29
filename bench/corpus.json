@@ -782,6 +782,24 @@
     "entities": []
   },
   {
+    "text": "The caller left the number +81-33-44-55-66-77 on the ticket.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+81-33-44-55-66-77"
+      }
+    ]
+  },
+  {
+    "text": "Escalation hotline is +52-55-33-11-99-77 for the region.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+52-55-33-11-99-77"
+      }
+    ]
+  },
+  {
     "text": "Join the call at https://bergstrom.webex.com/meet/joost.vandenberg today.",
     "entities": [
       {
