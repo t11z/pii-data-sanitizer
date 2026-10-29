@@ -52,6 +52,21 @@ export const TITLES = new Set<string>([
   // Hebrew (transliterated)
   'rav',
   'rabbi',
+  // Native-script "Dr." abbreviations (Hindi डॉ., Punjabi ਡਾ., Bengali ডাঃ) —
+  // the Punjabi form is also a name-pack label, so without this it was read as
+  // a person on its own ("ਡਾ ਨੇ ਕਿਹਾ" = "the doctor said").
+  'डॉ',
+  'ਡਾ',
+  'ডাঃ',
+  // Thai honorifics (Mr., Mrs., Miss, Khun, Master/Miss for children, Dr.).
+  // Usually glued to the given name; detectors/names.ts splits them off.
+  'นาย',
+  'นาง',
+  'นางสาว',
+  'คุณ',
+  'เด็กชาย',
+  'เด็กหญิง',
+  'ดร',
 ]);
 
 export function normalizeTitle(token: string): string {

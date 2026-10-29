@@ -3028,5 +3028,53 @@
         "text": "Somchai Chaiwat"
       }
     ]
+  },
+  {
+    "text": "Visa desk note: Passport Ref No. D4F6G8H2 checked against the booking.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "D4F6G8H2"
+      }
+    ]
+  },
+  {
+    "text": "Scanned form shows PASSPORT NO.: R2T4Y6U8 in the header block.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "R2T4Y6U8"
+      }
+    ]
+  },
+  {
+    "text": "Check-in record: Passport: ITA 52YA81047 presented at the counter.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "52YA81047"
+      }
+    ]
+  },
+  {
+    "text": "ग्राहक ने कहा कि वह भी कल आएगा और फॉर्म भरेगा।",
+    "entities": []
+  },
+  {
+    "text": "גם הוא לא קיבל את זה עדיין.",
+    "entities": []
+  },
+  {
+    "text": "ผู้ติดต่อ: นายวีระ ศรีสุข โทร 089-555-0142",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "วีระ ศรีสุข"
+      },
+      {
+        "type": "PHONE",
+        "text": "089-555-0142"
+      }
+    ]
   }
 ]

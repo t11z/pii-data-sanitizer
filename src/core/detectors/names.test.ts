@@ -2502,3 +2502,65 @@ describe('organization designator after a given name is not absorbed as a surnam
     expect(personsFull('The actress Shirley Temple was famous.')).toContain('Shirley Temple');
   });
 });
+
+describe('caseless scripts: grammar words and common words are not names', () => {
+  // The native packs contain labels that are also the most frequent words of the
+  // language, and with no capitalization signal each scored as a name. Held-out
+  // sentences (not the ones that motivated the word lists) prove the guard works
+  // on the word class, across scripts.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not read function words as names', () => {
+    expect(personsFull('هل هذا هو الطريق إلى المحطة؟')).toEqual([]);
+    expect(personsFull('אני רוצה ללכת איתם עכשיו.')).toEqual([]);
+    expect(personsFull('वह भी साथ में आया था।')).toEqual([]);
+    expect(personsFull('আমরা এখন খুব ব্যস্ত আছি।')).toEqual([]);
+    expect(personsFull('ਉਹ ਵੀ ਨਾਲ ਆਇਆ ਸੀ।')).toEqual([]);
+    expect(personsFull('ଆମେ ଏବେ ଘରେ ଅଛୁ।')).toEqual([]);
+    expect(personsFull('우리 회의는 여기 있습니다.')).toEqual([]);
+  });
+
+  it('does not chain two grammar words into a two-part "person"', () => {
+    // These pairs used to score 1.0 as a full name.
+    expect(personsFull('هو لا يريد ذلك.')).toEqual([]);
+    expect(personsFull('אבל לא היום.')).toEqual([]);
+    expect(personsFull('ਇਹ ਕਰ ਕੇ ਵੇਖੋ।')).toEqual([]);
+  });
+
+  it('drops a lone ambiguous common word but keeps it inside a full name', () => {
+    expect(personsFull('ขนาด: เล็ก')).toEqual([]);
+    expect(personsFull('सरकार ने घोषणा की।')).toEqual([]);
+    // "Sarkar" is a real surname: as the second part of a name it still counts.
+    expect(personsFull('ग्राहक राहुल सरकार ने फोन किया।')).toContain('राहुल सरकार');
+    expect(personsFull('নিখিল সরকার ফোন করেছেন।')).toContain('নিখিল সরকার');
+  });
+
+  it('keeps detecting a lone native given name that is not a common word', () => {
+    expect(personsFull('प्रिया ने फोन किया।')).toContain('प्रिया');
+  });
+});
+
+describe('Thai honorifics glued to the given name', () => {
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('splits the title off so the given name is not left visible', () => {
+    // Before, only the surname detected and the glued given name leaked.
+    expect(personsFull('นางสาวสุนิสา ศรีสุข โทรมา')).toContain('สุนิสา ศรีสุข');
+    expect(personsFull('เด็กชายธนากร ใจดี')).toContain('ธนากร ใจดี');
+    expect(personsFull('คุณประยุทธ์ จันทร์โอชา')).toContain('ประยุทธ์ จันทร์โอชา');
+  });
+
+  it('does not split ordinary words that merely start with a title syllable', () => {
+    // "คุณสมบัติ" = qualification; its tail "สมบัติ" (Sombat) is itself a name,
+    // so only the title + given + surname pattern licenses the split.
+    expect(personsFull('คุณสมบัติ ผู้สมัคร: ปริญญาตรี')).toEqual([]);
+  });
+});

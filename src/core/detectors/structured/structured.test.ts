@@ -1525,6 +1525,34 @@ describe('passport detection (cue-gated)', () => {
   it('does not flag a bare hashtag after a passport cue', () => {
     expect(only('Passport office ticket #reopen soon.', 'PASSPORT')).toHaveLength(0);
   });
+
+  // Consolidated cue grammar (ANCHOR [LABEL]{0,2} SEP [ISSUER] NUMBER). Held-out
+  // values throughout — none appears in the corpus or in the fixtures above — so
+  // these prove the grammar composes its slots, not that it knows the strings.
+  it('detects a passport number after two stacked labels', () => {
+    expect(only('Passport Ref No. W5E7R9T2 on file.', 'PASSPORT')[0].text).toBe('W5E7R9T2');
+    expect(only('Passport ID No. G6H8J2K4 checked.', 'PASSPORT')[0].text).toBe('G6H8J2K4');
+    expect(only('Passport Reference Number: N3B5V7C9', 'PASSPORT')[0].text).toBe('N3B5V7C9');
+    expect(only('Passport-Document No. Q8W6E4R2 filed.', 'PASSPORT')[0].text).toBe('Q8W6E4R2');
+  });
+
+  it('detects the all-caps field labels of printed forms', () => {
+    expect(only('PASSPORT NO.: Y4U6I8O2', 'PASSPORT')[0].text).toBe('Y4U6I8O2');
+    expect(only('REISEPASS-NR. F3G5H7J9 geprüft.', 'PASSPORT')[0].text).toBe('F3G5H7J9');
+    expect(only('PASSPORT OFFICE HOURS CHANGED', 'PASSPORT')).toHaveLength(0);
+  });
+
+  it('claims only the number behind a three-letter ICAO issuer code', () => {
+    expect(only('Passport: FRA 18AB52694 scanned.', 'PASSPORT')[0].text).toBe('18AB52694');
+    expect(only('Passport No. CAN 704419283 issued.', 'PASSPORT')[0].text).toBe('704419283');
+  });
+
+  it('keeps a non-country letter prefix inside the span instead of leaving it visible', () => {
+    // "QX"/"ZZK" are not ISO 3166 codes, so they are read as part of the number;
+    // masking only the digits would leak the rest of the identifier.
+    expect(only('Passport QX 5512093 on file.', 'PASSPORT')[0].text).toBe('QX 5512093');
+    expect(only('Passport ID ZZK 7781230 checked.', 'PASSPORT')[0].text).toBe('ZZK 7781230');
+  });
 });
 
 describe('date of birth detection (cue-gated)', () => {
