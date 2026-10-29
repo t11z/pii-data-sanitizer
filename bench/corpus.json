@@ -2983,5 +2983,23 @@
   {
     "text": "See passport#faq for renewal steps before you travel.",
     "entities": []
+  },
+  {
+    "text": "ଦୟାକରି ଯୋଗାଯୋଗ କରନ୍ତୁ ବିଜୟ ମହାନ୍ତି ଆସନ୍ତାକାଲି।",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "ବିଜୟ ମହାନ୍ତି"
+      }
+    ]
+  },
+  {
+    "text": "ଦଲିଲ ସ୍ୱାକ୍ଷର କଲେ ସୁରେଶ ପଟ୍ଟନାୟକ ଗତକାଲି।",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "ସୁରେଶ ପଟ୍ଟନାୟକ"
+      }
+    ]
   }
 ]

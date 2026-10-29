@@ -165,6 +165,8 @@ function isCaselessNameScript(token: Token): boolean {
     token.script === 'Gujarati' ||
     token.script === 'Kannada' ||
     token.script === 'Malayalam' ||
+    // Odia (Oriya script) is another unicameral/caseless Indic script.
+    token.script === 'Oriya' ||
     // Georgian (Mkhedruli) is unicameral — no case distinction — so a bare DB
     // hit suffices, like the Indic caseless scripts above.
     token.script === 'Georgian' ||

@@ -64,6 +64,7 @@ const TELUGU_LANGS = ['te'];
 const GUJARATI_LANGS = ['gu'];
 const KANNADA_LANGS = ['kn'];
 const MALAYALAM_LANGS = ['ml'];
+const ORIYA_LANGS = ['or'];
 const ARMENIAN_LANGS = ['hy'];
 const GEORGIAN_LANGS = ['ka'];
 const GURMUKHI_LANGS = ['pa'];
@@ -81,6 +82,7 @@ const NATIVE_LANGS = [
   ...GUJARATI_LANGS,
   ...KANNADA_LANGS,
   ...MALAYALAM_LANGS,
+  ...ORIYA_LANGS,
   ...ARMENIAN_LANGS,
   ...GEORGIAN_LANGS,
   ...GURMUKHI_LANGS,
@@ -102,6 +104,7 @@ const NATIVE_LANG_SCRIPT: Array<[readonly string[], Script]> = [
   [GUJARATI_LANGS, 'Gujarati'],
   [KANNADA_LANGS, 'Kannada'],
   [MALAYALAM_LANGS, 'Malayalam'],
+  [ORIYA_LANGS, 'Oriya'],
   [ARMENIAN_LANGS, 'Armenian'],
   [GEORGIAN_LANGS, 'Georgian'],
   [GURMUKHI_LANGS, 'Gurmukhi'],
@@ -261,6 +264,7 @@ const HUMAN_BY_COUNTRY: Array<[string, string]> = [
   ['wd:Q668', 'gu'], // India — Gujarati (Gujarat, Rajasthan; 50M+ speakers)
   ['wd:Q668', 'kn'], // India — Kannada (Karnataka; 44M+ speakers)
   ['wd:Q668', 'ml'], // India — Malayalam (Kerala; 35M+ speakers)
+  ['wd:Q668', 'or'], // India — Odia/Oriya (Odisha; 38M+ speakers)
   // Caucasus: two bicameral/unicameral own-script languages previously entirely
   // absent from the name database. Armenian (hy) is bicameral — native labels
   // detect through the same capitalization-gated path as Latin/Cyrillic/Greek
@@ -304,6 +308,7 @@ const CAPS: Record<string, number> = {
   Gujarati: 20000,
   Kannada: 20000,
   Malayalam: 20000,
+  Oriya: 20000,
   Armenian: 20000,
   Georgian: 20000,
   Gurmukhi: 20000,
