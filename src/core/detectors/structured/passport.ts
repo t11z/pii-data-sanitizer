@@ -51,7 +51,7 @@ const DOC_NOUN = String.raw`(?:\s+(?:[Dd]ocument|[Dd]oc\.?|[Dd]okument|[Dd]ok\.?
 // from the number. `Num`/`Num.` is the common English abbreviation of "Number" (as in
 // "Passport Num. E9X5K2B"); it is distinct from `No.`/`Nr.` and was previously dropped,
 // so the number token then tried to match the lowercase word "Num" — which has no digit
-// and fails the `[A-Z0-9]{6,12}` requirement — and the whole match failed. `[Nn]umber`
+// and fails the digit-bearing NUMBER requirement — and the whole match failed. `[Nn]umber`
 // stays first so the full word is preferred over the abbreviation. The connector is
 // optional and the digit-bearing uppercase token remains required, so widening it here
 // covers the whole "Passport Num[.] X" class for any value without touching precision.
@@ -75,7 +75,18 @@ const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)${DOC_NOUN}(?:\
 // unchanged, and the required cue keeps this from firing on arbitrary "XX <token>" text.
 const ISSUER = String.raw`(?:[A-Z]{2}\s+)?`;
 const NUMBER = String.raw`((?=[A-Z0-9]*\d)[A-Z0-9]{6,})\b`;
-const PASSPORT_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)${ISSUER}${NUMBER}`, 'g');
+// Separator between the cue and the number: either whitespace, or a `:`/`#`
+// marker (optionally space-padded). Letting `:`/`#` *be* the separator — rather
+// than forcing a trailing space — captures the glued forms writers actually use
+// ("Reisepass #DE8A5N2V7R", "Passport#XY987654", "Passport:X1234567"), which the
+// whitespace-only separator dropped entirely (the `#` was consumed as a cue
+// marker, then no space followed the number, so the whole match failed). Some
+// separator/marker is still required, so a cue with no number ("passport please")
+// cannot match.
+// `#` also stays in the CUE connector set above, so the spaced "Passport #: X"
+// form that worked before keeps matching.
+const SEP = String.raw`(?:\s*[:#]\s*|\s+)`;
+const PASSPORT_RE = new RegExp(`${CUE}${SEP}${ISSUER}${NUMBER}`, 'g');
 
 export function detectPassports(text: string): Span[] {
   const spans: Span[] = [];

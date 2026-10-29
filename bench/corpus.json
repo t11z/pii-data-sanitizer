@@ -2943,5 +2943,27 @@
   {
     "text": "The passport GB office relocated to the second floor last week.",
     "entities": []
+  },
+  {
+    "text": "Reisepass #DE8A5N2V7R vorgelegt und geprüft.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "DE8A5N2V7R"
+      }
+    ]
+  },
+  {
+    "text": "Traveler passport#K7Q2M9X4 logged at the gate.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "K7Q2M9X4"
+      }
+    ]
+  },
+  {
+    "text": "See passport#faq for renewal steps before you travel.",
+    "entities": []
   }
 ]
