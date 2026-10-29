@@ -2317,3 +2317,51 @@ describe('Cyrillic names (Russian / Ukrainian / Balkan / Bulgarian)', () => {
     expect(personsFull('сегодня была хорошая погода в городе')).toEqual([]);
   });
 });
+
+describe('organization designator after a given name is not absorbed as a surname', () => {
+  // A known given name directly followed by an institution designator ("Grace
+  // Hospital", "Kingston University", "Victoria College") is an organization
+  // named after a person, not a person. The DB hit on the given name used to let
+  // the chain swallow the (unknown-cap) designator as a surname and emit a
+  // two-token PERSON span. The designators now live in NON_NAME_WORDS, so the
+  // chain-extension guard breaks on them and only the real given name remains
+  // (and a lone/ambiguous given drops below threshold on its own).
+  //
+  // Held out from the fix's corpus cases (Grace Hospital / Victoria University):
+  // the designators below pair with DIFFERENT given names and DIFFERENT
+  // designators, proving the guard generalizes rather than memorizing the
+  // benchmarked strings. Uses the FULL committed DB so the given names are real
+  // hits and the designators are the only thing the guard has to stop.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('emits only the given name, not "<Given> <Designator>"', () => {
+    // Each given is core-tier, so it detects on its own (0.65) once the guard
+    // stops the chain from swallowing the trailing designator.
+    expect(personsFull('Michael Clinic opened a new wing.')).toEqual(['Michael']);
+    expect(personsFull('David Institute published the study.')).toEqual(['David']);
+    expect(personsFull('Thomas Academy enrolled new students.')).toEqual(['Thomas']);
+    expect(personsFull('Robert Foundation funds the grant.')).toEqual(['Robert']);
+    expect(personsFull('James Museum reopened downtown.')).toEqual(['James']);
+    expect(personsFull('Patricia Library extended its hours.')).toEqual(['Patricia']);
+  });
+
+  it('drops the span entirely when the given is ambiguous vocabulary', () => {
+    // "Grace" is an AMBIGUOUS_WORD, so once the designator is stripped the lone
+    // token is below threshold — the whole "Grace Hospital" span disappears.
+    expect(personsFull('She works at Grace Hospital in the city.')).toEqual([]);
+    expect(personsFull('The Rose Cathedral hosted the concert.')).toEqual([]);
+  });
+
+  it('still detects a genuine two-token name (guard is noun-specific)', () => {
+    // Same shape, but the second token is a real surname, not a designator —
+    // the chain must still extend. "Church"/"Temple" are deliberately excluded
+    // from the designator list because they are real surnames.
+    expect(personsFull('Michael Anderson reviewed the ticket.')).toContain('Michael Anderson');
+    expect(personsFull('Please contact Alonzo Church about the paper.')).toContain('Alonzo Church');
+    expect(personsFull('The actress Shirley Temple was famous.')).toContain('Shirley Temple');
+  });
+});

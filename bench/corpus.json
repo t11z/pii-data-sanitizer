@@ -2498,5 +2498,22 @@
   {
     "text": "Nordia Limited updated the invoice yesterday.",
     "entities": []
+  },
+  {
+    "text": "The lab results came back from Grace Hospital this morning.",
+    "entities": []
+  },
+  {
+    "text": "He completed his degree at Victoria University last spring.",
+    "entities": []
+  },
+  {
+    "text": "Dr. Rajesh Iyer now consults at Grace Hospital on Fridays.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Rajesh Iyer"
+      }
+    ]
   }
 ]
