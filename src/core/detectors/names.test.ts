@@ -189,6 +189,30 @@ describe('Georgian names (unicameral / caseless)', () => {
   });
 });
 
+describe('Gurmukhi names (Punjabi, unicameral / caseless)', () => {
+  const paSource = new PackNameSource();
+  // Held-out tokens (Gurpreet / Singh) — a full name NOT equal to the specific
+  // bench cases, so passing demonstrates the caseless path generalizes rather
+  // than memorizing a single string.
+  paSource.addWords(['ਗੁਰਪ੍ਰੀਤ', 'ਸਿੰਘ'], { script: 'Gurmukhi', tier: 'core' });
+  const paPersons = (text: string) =>
+    detect(text, { nameSource: paSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects a Gurmukhi full name present in the database', () => {
+    // Gurmukhi is caseless, so given + family (space-separated) detect through
+    // the same bare-DB-hit path as Georgian and the Indic scripts.
+    expect(paPersons('ਕਿਰਪਾ ਕਰਕੇ ਗੁਰਪ੍ਰੀਤ ਸਿੰਘ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।')).toContain('ਗੁਰਪ੍ਰੀਤ ਸਿੰਘ');
+  });
+
+  it('does not flag an unknown Gurmukhi token without context', () => {
+    // ਜ਼ੌਰਬਲੈਕ is a held-out nonsense token absent from the DB: with no title/role
+    // cue, a caseless script must not match on structure alone.
+    expect(paPersons('ਵੇਖੋ ਜ਼ੌਰਬਲੈਕ ਅੱਜ।')).not.toContain('ਜ਼ੌਰਬਲੈਕ');
+  });
+});
+
 describe('context-based detection (generalizes beyond the DB)', () => {
   // All names below are deliberately ABSENT from the name database, so these only
   // pass via the title/role/particle heuristics — never via dictionary lookup.

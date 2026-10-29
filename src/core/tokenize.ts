@@ -29,6 +29,10 @@ const SCRIPT_TESTS: Array<[Script, RegExp]> = [
   // so the word tokenizer needs no special handling.
   ['Armenian', /\p{Script=Armenian}/u],
   ['Georgian', /\p{Script=Georgian}/u],
+  // Gurmukhi (Punjabi, as written in Indian Punjab) is unicameral/caseless like
+  // Georgian and the other Indic scripts, and space-separated between words, so
+  // the word tokenizer needs no special handling.
+  ['Gurmukhi', /\p{Script=Gurmukhi}/u],
   ['Han', /\p{Script=Han}/u],
 ];
 

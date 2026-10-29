@@ -66,6 +66,7 @@ const KANNADA_LANGS = ['kn'];
 const MALAYALAM_LANGS = ['ml'];
 const ARMENIAN_LANGS = ['hy'];
 const GEORGIAN_LANGS = ['ka'];
+const GURMUKHI_LANGS = ['pa'];
 
 const NATIVE_LANGS = [
   ...CYRILLIC_LANGS,
@@ -82,6 +83,7 @@ const NATIVE_LANGS = [
   ...MALAYALAM_LANGS,
   ...ARMENIAN_LANGS,
   ...GEORGIAN_LANGS,
+  ...GURMUKHI_LANGS,
 ];
 
 // Which script a label language predominantly yields. Used only by the scoped
@@ -102,6 +104,7 @@ const NATIVE_LANG_SCRIPT: Array<[readonly string[], Script]> = [
   [MALAYALAM_LANGS, 'Malayalam'],
   [ARMENIAN_LANGS, 'Armenian'],
   [GEORGIAN_LANGS, 'Georgian'],
+  [GURMUKHI_LANGS, 'Gurmukhi'],
 ];
 function langScript(lang: string): Script {
   for (const [langs, script] of NATIVE_LANG_SCRIPT) if (langs.includes(lang)) return script;
@@ -269,6 +272,16 @@ const HUMAN_BY_COUNTRY: Array<[string, string]> = [
   ['wd:Q399', 'en'], // Armenia
   ['wd:Q230', 'ka'],
   ['wd:Q230', 'en'], // Georgia
+  // Gurmukhi: Punjabi as written in Indian Punjab (~35M script users) was
+  // entirely absent from the name database — Pakistani Punjabi is written in
+  // Shahmukhi (Arabic script, already covered via Pakistan ur/en), but the
+  // Gurmukhi script had no coverage at all. Gurmukhi is unicameral/caseless, so
+  // native labels detect through the bare-DB-hit path (isCaselessNameScript),
+  // like Georgian and the other Indic scripts. English (en) labels for India are
+  // already harvested above and feed the Latin pack; the 'pa' entries add the
+  // native Gurmukhi forms.
+  ['wd:Q668', 'pa'], // India (Punjab)
+  ['wd:Q843', 'pa'], // Pakistan (Punjabi speakers labeled in Gurmukhi)
 ];
 
 const GIVEN_CLASSES = ['wd:Q202444', 'wd:Q12308941', 'wd:Q11879590', 'wd:Q3409032'];
@@ -293,6 +306,7 @@ const CAPS: Record<string, number> = {
   Malayalam: 20000,
   Armenian: 20000,
   Georgian: 20000,
+  Gurmukhi: 20000,
 };
 
 // Romanized/ASCII-folded variants shorter than this are dropped: 2-letter

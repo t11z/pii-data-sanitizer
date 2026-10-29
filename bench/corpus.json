@@ -2628,6 +2628,24 @@
     ]
   },
   {
+    "text": "ਕਿਰਪਾ ਕਰਕੇ ਅਮਰਿੰਦਰ ਸਿੰਘ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "ਅਮਰਿੰਦਰ ਸਿੰਘ"
+      }
+    ]
+  },
+  {
+    "text": "ਇਹ ਰਿਪੋਰਟ ਹਰਪ੍ਰੀਤ ਕੌਰ ਨੇ ਤਿਆਰ ਕੀਤੀ।",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "ਹਰਪ੍ਰੀਤ ਕੌਰ"
+      }
+    ]
+  },
+  {
     "text": "The report was filed by Giorgi Beridze last week.",
     "entities": [
       {

@@ -40,6 +40,7 @@ export type Script =
   | 'Malayalam'
   | 'Armenian'
   | 'Georgian'
+  | 'Gurmukhi'
   | 'Other';
 
 export interface Token {
