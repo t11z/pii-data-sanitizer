@@ -2515,5 +2515,48 @@
         "text": "Rajesh Iyer"
       }
     ]
+  },
+  {
+    "text": "Ticket routed to network admin Qwenthor Blyvscott overnight.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Qwenthor Blyvscott"
+      }
+    ]
+  },
+  {
+    "text": "The system admin Zarnivook Threllmann reset the password.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Zarnivook Threllmann"
+      }
+    ]
+  },
+  {
+    "text": "sysadmin Vexyl Grundwald applied the patch.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Vexyl Grundwald"
+      }
+    ]
+  },
+  {
+    "text": "admin Console Dashboard was updated last night.",
+    "entities": []
+  },
+  {
+    "text": "admin Access Rights were revoked for the group.",
+    "entities": []
+  },
+  {
+    "text": "sysadmin Login Credentials reset is required.",
+    "entities": []
+  },
+  {
+    "text": "Please contact network admin for portal access.",
+    "entities": []
   }
 ]
