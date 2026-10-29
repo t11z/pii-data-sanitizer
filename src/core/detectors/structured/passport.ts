@@ -38,7 +38,15 @@ const DOC_NOUN = String.raw`(?:\s+(?:[Dd]ocument|[Dd]oc\.?|[Dd]okument|[Dd]ok\.?
 // separator + digit-bearing NUMBER gate still makes the backtracking pick the
 // form that actually precedes a number, so a cue with no number ("Passport Ref
 // please") stays unmatched.
-const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)${DOC_NOUN}(?:\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|[Rr]eference|[Rr]ef\.?|#))?`;
+//
+// The base word and its abbreviation are joined by an optional `\s*-?\s*` connector, not
+// just whitespace: German (and English) routinely hyphenate the compound — "Reisepass-Nr.",
+// "Pass-Nr.", "Passport-No.". With whitespace-only, the hyphen fell outside the optional
+// abbreviation group, so the group matched nothing and the following `-Nr. NUMBER` no longer
+// lined up against the required separator, dropping the whole match. Allowing a single hyphen
+// covers the entire hyphenated-compound class without loosening the strict, digit-bearing
+// number gate that guards precision.
+const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)${DOC_NOUN}(?:\s*-?\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|[Rr]eference|[Rr]ef\.?|#))?`;
 const NUMBER = String.raw`((?=[A-Z0-9]*\d)[A-Z0-9]{6,})\b`;
 const PASSPORT_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)${NUMBER}`, 'g');
 

@@ -2846,5 +2846,27 @@
   {
     "text": "Passport document scanned and archived overnight.",
     "entities": []
+  },
+  {
+    "text": "Reisepass-Nr. PZ9K4M2Q für den Kunden hinterlegt.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "PZ9K4M2Q"
+      }
+    ]
+  },
+  {
+    "text": "Passport-No. R7T3W8N5 issued at the consulate.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "R7T3W8N5"
+      }
+    ]
+  },
+  {
+    "text": "Please submit your Passport-No. before Friday.",
+    "entities": []
   }
 ]
