@@ -2240,6 +2240,19 @@
     ]
   },
   {
+    "text": "Passport No L898902C3 issued in 2019 and still valid.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "L898902C3"
+      }
+    ]
+  },
+  {
+    "text": "Ref No ABX-7 remains open pending review.",
+    "entities": []
+  },
+  {
     "text": "Account No. 4471-AA was flagged for review.",
     "entities": []
   },

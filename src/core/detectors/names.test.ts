@@ -412,8 +412,9 @@ describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   // Vietnamese "No"), so the backward unknown-cap anchor read the abbreviation
   // as a surname and dragged the preceding structural noun in with it, emitting
   // a false PERSON span ("Passport No", "Account Nr"). The fix recognises the
-  // abbreviation structurally (letters + trailing '.', or the °-ligature), never
-  // by dictionary membership.
+  // abbreviation structurally — letters + trailing '.', the °-ligature, or the
+  // dot-less form where "No"/"Nr" directly introduces an identifier value
+  // (optionally via ':') — never by dictionary membership.
   const fullSource2 = nameSourceFromBuildInputs();
   const personsFull2 = (text: string) =>
     detect(text, { nameSource: fullSource2 })
@@ -428,6 +429,20 @@ describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
     expect(personsFull2('Serial No. ZQ8871 reported by the team.')).toHaveLength(0);
     expect(personsFull2('Docket Nr. 55-01 was escalated.')).toHaveLength(0);
     expect(personsFull2('Reference Nº 7788 pending review.')).toHaveLength(0);
+  });
+
+  it('guards the dot-less label form when an identifier value follows', () => {
+    // The abbreviation dot is routinely dropped in KYC / form prose. Held-out
+    // label nouns, each directly introducing an identifier (letter-prefixed,
+    // digits, or via a ':' separator), prove the dot-less rule generalizes.
+    expect(personsFull2('Passport No L898902C3 issued in 2019.')).toHaveLength(0);
+    expect(personsFull2('Passport No: L898902C3 issued in 2019.')).toHaveLength(0);
+    expect(personsFull2('Ref No ABX-7 is still open.')).toHaveLength(0);
+    expect(personsFull2('Docket Nr 55-01 was escalated.')).toHaveLength(0);
+    // A real given name still rides the "<given> <ext surname>" chain: the value
+    // after "No" here is an ordinary word, not an identifier, so the guard keeps
+    // its hands off.
+    expect(personsFull2('Kevin No reported the outage.')).toContain('Kevin No');
   });
 
   it('does not absorb a trailing number label into a real name chain', () => {

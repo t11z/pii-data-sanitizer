@@ -254,16 +254,57 @@ function adjoinsDigit(token: Token, text: string): boolean {
  * ("Passport", "Account", "Serial") in with it — a whole class of false PERSON
  * spans ("Passport No", "Account Nr"). Recognising the abbreviation structurally
  * — the letters immediately followed by '.', or the °-ligature form — blocks the
- * class without touching the dictionary. A genuine "No"/"Nr" *surname* is written
- * without the abbreviation dot ("Kevin No called"), so it still detects; only the
- * rare surname sitting sentence-final directly before a '.' is given up, an
- * acceptable trade under the precision-first rule.
+ * class without touching the dictionary.
+ *
+ * In practice the dot is frequently dropped ("Passport No L898902C3", "Account
+ * No: 55-01", "Ref No ABX-7"), so the dot alone under-covers the class. We also
+ * treat "No"/"Nr" as the abbreviation when it directly introduces the value it
+ * labels — an identifier token (one containing a digit), reached across optional
+ * horizontal whitespace and an optional ':' value separator. That value shape is
+ * the discriminator: a genuine "No"/"Nr" *surname* is followed by an ordinary
+ * word or another name part ("Kevin No called", "No Yong-Jin"), never by a bare
+ * identifier, so those still detect. Only the rare surname sitting directly
+ * before a '.' or an identifier is given up — an acceptable trade under the
+ * precision-first rule.
  */
 function isNumberLabel(token: Token, text: string): boolean {
   if (token.script !== 'Latin') return false;
   const l = token.text.toLowerCase();
-  if ((l === 'no' || l === 'nr') && text.charCodeAt(token.end) === 46 /* '.' */) return true;
-  return l === 'nº' || l === 'n°';
+  if (l === 'nº' || l === 'n°') return true;
+  if (l !== 'no' && l !== 'nr') return false;
+  if (text.charCodeAt(token.end) === 46 /* '.' */) return true;
+  return labelsIdentifierValue(text, token.end);
+}
+
+/**
+ * True when the text starting at `pos` (the end of a "No"/"Nr" token) is an
+ * identifier value the label introduces: optional horizontal whitespace, an
+ * optional single ':' value separator, then an ASCII alphanumeric/hyphen run
+ * that contains at least one digit. The digit requirement is what keeps an
+ * ordinary following word ("called") or a plain name part ("Yong-Jin") from
+ * being read as a labeled value.
+ */
+function labelsIdentifierValue(text: string, pos: number): boolean {
+  let j = pos;
+  while (j < text.length && HORIZONTAL_WS.test(text[j])) j++;
+  if (text.charCodeAt(j) === 58 /* ':' */) {
+    j++;
+    while (j < text.length && HORIZONTAL_WS.test(text[j])) j++;
+  }
+  let hasDigit = false;
+  let any = false;
+  for (; j < text.length; j++) {
+    const c = text.charCodeAt(j);
+    if (c >= 48 && c <= 57) {
+      hasDigit = true;
+      any = true;
+    } else if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 45 /* '-' */) {
+      any = true;
+    } else {
+      break;
+    }
+  }
+  return any && hasDigit;
 }
 // Whitespace plus an optional abbreviation dot, so "Dr. Smith" (the common form)
 // gets the title boost — not just "Dr Smith". Never spans a line break.
