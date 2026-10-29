@@ -2558,5 +2558,17 @@
   {
     "text": "Please contact network admin for portal access.",
     "entities": []
+  },
+  {
+    "text": "Device network MAC ff:ff:ff:ff:ff:ff broadcast test; no customer PII involved.",
+    "entities": []
+  },
+  {
+    "text": "The switch flooded the frame to FF-FF-FF-FF-FF-FF on the trunk.",
+    "entities": []
+  },
+  {
+    "text": "Flood frame egressed to FFFF.FFFF.FFFF on the uplink.",
+    "entities": []
   }
 ]
