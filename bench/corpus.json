@@ -2715,5 +2715,31 @@
   {
     "text": "Sample account: FR76 1234 5678 9012 3456 7890 123 (placeholder, do not use).",
     "entities": []
+  },
+  {
+    "text": "Customer record includes birth certificate 1962-08-05 and passport L8K2M9P4.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1962-08-05"
+      },
+      {
+        "type": "PASSPORT",
+        "text": "L8K2M9P4"
+      }
+    ]
+  },
+  {
+    "text": "Laut Geburtsurkunde 1954-12-19 wurde der Antrag geprüft.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1954-12-19"
+      }
+    ]
+  },
+  {
+    "text": "The birth certificate issued 2021-03-30 by the registry office was scanned.",
+    "entities": []
   }
 ]
