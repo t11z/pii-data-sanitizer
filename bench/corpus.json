@@ -3028,5 +3028,32 @@
         "text": "Somchai Chaiwat"
       }
     ]
+  },
+  {
+    "text": "Visa desk note: Passport Ref No. D4F6G8H2 checked against the booking.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "D4F6G8H2"
+      }
+    ]
+  },
+  {
+    "text": "Scanned form shows PASSPORT NO.: R2T4Y6U8 in the header block.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "R2T4Y6U8"
+      }
+    ]
+  },
+  {
+    "text": "Check-in record: Passport: ITA 52YA81047 presented at the counter.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "52YA81047"
+      }
+    ]
   }
 ]
