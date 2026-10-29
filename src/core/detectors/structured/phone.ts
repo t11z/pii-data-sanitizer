@@ -214,11 +214,27 @@ export function detectPhones(text: string): Span[] {
     // Skip runs marked as a case/ticket/order reference ("Case #567-89-1234",
     // "№ 12 345 678") — the '#'/'№' marker makes it an identifier, not a phone.
     if (precededByRefMarker(text, start)) continue;
+    // Re-balance a leading area-code parenthesis. The candidate run starts at the
+    // first digit, so "(212) 555-0199" matches as "212) 555-0199": the inner ')'
+    // that closes the area code is captured (digits follow it) but its opening '('
+    // sits one char before the match. When the span carries an unmatched trailing
+    // ')' and a '(' immediately precedes it, pull that '(' in so the span is
+    // balanced and redaction leaves no orphan '('. (The bare "(5551234567)" shape
+    // has no interior ')' — its closing paren trails the last digit and is never
+    // captured — so it is untouched here.)
+    let spanStart = start;
+    let spanText = trimmed;
+    const unmatchedClose =
+      (spanText.match(/\)/g)?.length ?? 0) > (spanText.match(/\(/g)?.length ?? 0);
+    if (unmatchedClose && text[spanStart - 1] === '(') {
+      spanStart -= 1;
+      spanText = '(' + spanText;
+    }
     spans.push({
-      start,
+      start: spanStart,
       end,
       type: 'PHONE',
-      text: trimmed,
+      text: spanText,
       confidence: 0.6,
       source: 'phone',
     });
