@@ -2419,6 +2419,37 @@
     "entities": []
   },
   {
+    "text": "Account verified (Passport IN2B3C4D5E6F7; born earlier).",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "IN2B3C4D5E6F7"
+      }
+    ]
+  },
+  {
+    "text": "Reisepass BR7Q2W9E4R1T5 vorgelegt und geprüft.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "BR7Q2W9E4R1T5"
+      }
+    ]
+  },
+  {
+    "text": "Passport US9Z8Y7X6W5V4U logged at the gate.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "US9Z8Y7X6W5V4U"
+      }
+    ]
+  },
+  {
+    "text": "Passport No. ABC123456789012 rejected as malformed.",
+    "entities": []
+  },
+  {
     "text": "Customer profile shows born 01-15-1995 on file.",
     "entities": [
       {
