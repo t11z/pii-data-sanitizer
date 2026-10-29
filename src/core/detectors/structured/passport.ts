@@ -30,7 +30,15 @@ const MAX_LEN = 14;
 // still required to be an uppercase, digit-bearing 6–14 char run, so a trailing prose
 // word ("passport document scanned") can never be mistaken for a number.
 const DOC_NOUN = String.raw`(?:\s+(?:[Dd]ocument|[Dd]oc\.?|[Dd]okument|[Dd]ok\.?|[Bb]ook(?:let)?))?`;
-const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)${DOC_NOUN}(?:\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|#))?`;
+//
+// The optional connector between the cue word and the number covers the common
+// label forms: "No."/"Number"/"Nr."/"#" plus "Reference"/"Ref." — the latter is
+// how support tickets and case files routinely tag a passport ("Passport Ref:
+// X"). "Reference" is listed before "Ref" only for readability; the required
+// separator + digit-bearing NUMBER gate still makes the backtracking pick the
+// form that actually precedes a number, so a cue with no number ("Passport Ref
+// please") stays unmatched.
+const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)${DOC_NOUN}(?:\s*(?:[Nn]o\.?|[Nn]umber|[Nn]r\.?|[Rr]eference|[Rr]ef\.?|#))?`;
 const NUMBER = String.raw`((?=[A-Z0-9]*\d)[A-Z0-9]{6,})\b`;
 const PASSPORT_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)${NUMBER}`, 'g');
 
