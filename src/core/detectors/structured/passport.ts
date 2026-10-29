@@ -55,7 +55,14 @@ const DOC_NOUN = String.raw`(?:\s+(?:[Dd]ocument|[Dd]oc\.?|[Dd]okument|[Dd]ok\.?
 // stays first so the full word is preferred over the abbreviation. The connector is
 // optional and the digit-bearing uppercase token remains required, so widening it here
 // covers the whole "Passport Num[.] X" class for any value without touching precision.
-const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)${DOC_NOUN}(?:\s*-?\s*(?:[Nn]umber|[Nn]um\.?|[Nn]o\.?|[Nn]r\.?|[Rr]eference|[Rr]ef\.?|#))?`;
+//
+// The optional connector after the base cue absorbs the label word that often
+// sits between "passport" and the value. "No./Number/Nr./#" are the classic ones;
+// "Code"/"ID" are just as common in forms and customs records ("passport code X",
+// "passport ID: X") and were silently dropping those numbers, because the connector
+// is optional and the following lowercase label was then consumed as the (failed)
+// number token. Listing the label words keeps the cue strict while covering the class.
+const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)${DOC_NOUN}(?:\s*-?\s*(?:[Nn]umber|[Nn]um\.?|[Nn]o\.?|[Nn]r\.?|[Rr]eference|[Rr]ef\.?|[Cc]ode|[Ii][Dd]|#))?`;
 const NUMBER = String.raw`((?=[A-Z0-9]*\d)[A-Z0-9]{6,})\b`;
 const PASSPORT_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)${NUMBER}`, 'g');
 
