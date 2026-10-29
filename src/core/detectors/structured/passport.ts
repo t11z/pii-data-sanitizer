@@ -62,9 +62,20 @@ const DOC_NOUN = String.raw`(?:\s+(?:[Dd]ocument|[Dd]oc\.?|[Dd]okument|[Dd]ok\.?
 // "passport ID: X") and were silently dropping those numbers, because the connector
 // is optional and the following lowercase label was then consumed as the (failed)
 // number token. Listing the label words keeps the cue strict while covering the class.
-const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)${DOC_NOUN}(?:\s*-?\s*(?:[Nn]umber|[Nn]um\.?|[Nn]o\.?|[Nn]r\.?|[Rr]eference|[Rr]ef\.?|[Cc]ode|[Ii][Dd]|#))?`;
+//
+// "document" joins the qualifier list because "passport document <number>" is as common
+// a lead-in as "passport no.".
+const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)${DOC_NOUN}(?:\s*-?\s*(?:[Nn]umber|[Nn]um\.?|[Nn]o\.?|[Nn]r\.?|[Rr]eference|[Rr]ef\.?|[Cc]ode|[Ii][Dd]|#|[Dd]ocument))?`;
+// A passport number is very often printed with its two-letter issuing-country code in
+// front ("Passport IN K4759632", "Passnummer IR 98765432"). That code has no digit, so
+// the old regex — which only inspected the token immediately after the cue — matched the
+// bare country code against NUMBER, failed the `\d` lookahead, and dropped the whole
+// entry. We now let an optional `AA ` prefix be consumed (but not captured) so the number
+// itself is what we claim. It stays optional, so the bare "Passport <number>" form is
+// unchanged, and the required cue keeps this from firing on arbitrary "XX <token>" text.
+const ISSUER = String.raw`(?:[A-Z]{2}\s+)?`;
 const NUMBER = String.raw`((?=[A-Z0-9]*\d)[A-Z0-9]{6,})\b`;
-const PASSPORT_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)${NUMBER}`, 'g');
+const PASSPORT_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+)${ISSUER}${NUMBER}`, 'g');
 
 export function detectPassports(text: string): Span[] {
   const spans: Span[] = [];
