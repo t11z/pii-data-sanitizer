@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { detect } from '../../index';
-import { isValidIban } from './iban';
+import { isValidIban, hasRegisteredIbanStructure } from './iban';
 import { isValidLuhn } from './creditCard';
 import { isCompactDateRef } from './phone';
 
@@ -334,6 +334,73 @@ describe('IBAN detection', () => {
     //   4-4-4 digit groups inside an IBAN body → PHONE@0.6 (well below 0.96):
     const c = detect('Settlement IBAN XQ12 0110 0001 2345 6789 0001 done.');
     expect(c.filter((s) => s.type === 'PHONE')).toHaveLength(0);
+  });
+
+  it('account-declaration cue catches a structurally-perfect IBAN that strict mod-97 rejects', () => {
+    // Gap-report class: the account noun (not the "IBAN" acronym) declares the
+    // number ("Transfer to account: …", "bank account …", "a/c …"). Each value
+    // below is strict-invalid (mod-97 fails) yet has a *registered* country code
+    // at its *exact* registered length, so only the account-cued path can emit.
+    // Held-out values, none in the gap feed — proving the heuristic generalizes
+    // across country, grouping, and linking token rather than memorizing a value.
+    expect(isValidIban('DE00 1234 5678 9012 3456 78')).toBe(false);
+    expect(isValidIban('FR76 1234 5678 9012 3456 7890 123')).toBe(false);
+    expect(isValidIban('NL00 ABCD 0123 4567 89')).toBe(false);
+    expect(hasRegisteredIbanStructure('DE00 1234 5678 9012 3456 78')).toBe(true);
+    // "Transfer to account: <IBAN>" — the exact gap shape (held-out IT value):
+    expect(
+      only('Transfer to account: IT25 C054 2811 3080 9606 7611 960 today.', 'IBAN')[0].text
+    ).toBe('IT25 C054 2811 3080 9606 7611 960');
+    // "bank account <IBAN>" — noun with no linker:
+    expect(
+      only('Please update bank account DE00 1234 5678 9012 3456 78 soon.', 'IBAN')[0].text
+    ).toBe('DE00 1234 5678 9012 3456 78');
+    // "Account number: <IBAN>" — linker + colon separator:
+    expect(only('Account number: FR76 1234 5678 9012 3456 7890 123 on file.', 'IBAN')[0].text).toBe(
+      'FR76 1234 5678 9012 3456 7890 123'
+    );
+    // "a/c <IBAN>" — the abbreviated account noun:
+    expect(only('Refund a/c NL00 ABCD 0123 4567 89 processed.', 'IBAN')[0].text).toBe(
+      'NL00 ABCD 0123 4567 89'
+    );
+  });
+
+  it('account cue requires a registered country code AND exact length (precision)', () => {
+    // The looser "account" cue is gated harder than the acronym path: a run with
+    // an unregistered country code, or a registered code at the wrong compact
+    // length, must NOT resurrect even though the account noun precedes it. This
+    // is what keeps arbitrary structured IDs ("account ID / reference <token>")
+    // from leaking through the cue.
+    expect(
+      only('Account reference AB12 3456 7890 1234 logged for the batch.', 'IBAN')
+    ).toHaveLength(0); // AB is not a registered IBAN country
+    expect(only('Account ID GB00 1234 5678 901 recorded today.', 'IBAN')).toHaveLength(0); // GB=22, this is 15
+    // "Account holder <Name>" must stay IBAN-free — the shape gate (no CC+digits
+    // after the noun) is load-bearing, mirroring the corpus account-holder cases.
+    expect(only('Account holder Nadia Brzezinski paid the invoice.', 'IBAN')).toHaveLength(0);
+    // Bare account noun with no IBAN body after it emits nothing.
+    expect(only('Please close the account by end of week.', 'IBAN')).toHaveLength(0);
+  });
+
+  it('account cue respects invalidity/decoy cues on strict-invalid runs', () => {
+    // When the prose frames the number as fake, the mis-key/OCR assumption that
+    // justifies the checksum bypass inverts: do NOT resurrect. Held-out decoy
+    // values are strict-invalid but structurally perfect (registered CC+length),
+    // so only the invalidity guard — not the structure gate — can suppress them.
+    expect(hasRegisteredIbanStructure('DE00 1234 5678 9012 3456 78')).toBe(true);
+    expect(isValidIban('DE00 1234 5678 9012 3456 78')).toBe(false);
+    expect(
+      only('Sample account: DE00 1234 5678 9012 3456 78 (placeholder, do not use).', 'IBAN')
+    ).toHaveLength(0);
+    expect(
+      only('Fraudulent account FR76 1234 5678 9012 3456 7890 123 flagged in the report.', 'IBAN')
+    ).toHaveLength(0);
+    // A genuinely VALID IBAN mentioned in a fraud report is still redacted — the
+    // strict path owns it and the invalidity guard only gates the bypass path.
+    expect(
+      only('Fraudulent transfer drained account DE89 3704 0044 0532 0130 00 overnight.', 'IBAN')[0]
+        .text
+    ).toBe('DE89 3704 0044 0532 0130 00');
   });
 });
 
