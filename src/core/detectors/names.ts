@@ -12,6 +12,7 @@ import {
 } from '../context/roleWords';
 import { isSentenceOpener } from '../context/sentenceOpeners';
 import { isLikelyAcronym } from '../context/acronyms';
+import { isCountryName } from '../context/places';
 import { scoreName } from '../scoring';
 import { latinFold } from '../latinFold';
 
@@ -164,9 +165,16 @@ function isCaselessNameScript(token: Token): boolean {
     token.script === 'Gujarati' ||
     token.script === 'Kannada' ||
     token.script === 'Malayalam' ||
+    // Odia (Oriya script) is another unicameral/caseless Indic script.
+    token.script === 'Oriya' ||
     // Georgian (Mkhedruli) is unicameral — no case distinction — so a bare DB
     // hit suffices, like the Indic caseless scripts above.
-    token.script === 'Georgian'
+    token.script === 'Georgian' ||
+    // Gurmukhi (Punjabi) is caseless too, like the other Indic scripts.
+    token.script === 'Gurmukhi' ||
+    // Thai is likewise caseless (no upper/lower distinction), so a bare DB hit
+    // suffices, matching the Georgian/Indic treatment.
+    token.script === 'Thai'
   );
 }
 
@@ -254,16 +262,57 @@ function adjoinsDigit(token: Token, text: string): boolean {
  * ("Passport", "Account", "Serial") in with it — a whole class of false PERSON
  * spans ("Passport No", "Account Nr"). Recognising the abbreviation structurally
  * — the letters immediately followed by '.', or the °-ligature form — blocks the
- * class without touching the dictionary. A genuine "No"/"Nr" *surname* is written
- * without the abbreviation dot ("Kevin No called"), so it still detects; only the
- * rare surname sitting sentence-final directly before a '.' is given up, an
- * acceptable trade under the precision-first rule.
+ * class without touching the dictionary.
+ *
+ * In practice the dot is frequently dropped ("Passport No L898902C3", "Account
+ * No: 55-01", "Ref No ABX-7"), so the dot alone under-covers the class. We also
+ * treat "No"/"Nr" as the abbreviation when it directly introduces the value it
+ * labels — an identifier token (one containing a digit), reached across optional
+ * horizontal whitespace and an optional ':' value separator. That value shape is
+ * the discriminator: a genuine "No"/"Nr" *surname* is followed by an ordinary
+ * word or another name part ("Kevin No called", "No Yong-Jin"), never by a bare
+ * identifier, so those still detect. Only the rare surname sitting directly
+ * before a '.' or an identifier is given up — an acceptable trade under the
+ * precision-first rule.
  */
 function isNumberLabel(token: Token, text: string): boolean {
   if (token.script !== 'Latin') return false;
   const l = token.text.toLowerCase();
-  if ((l === 'no' || l === 'nr') && text.charCodeAt(token.end) === 46 /* '.' */) return true;
-  return l === 'nº' || l === 'n°';
+  if (l === 'nº' || l === 'n°') return true;
+  if (l !== 'no' && l !== 'nr') return false;
+  if (text.charCodeAt(token.end) === 46 /* '.' */) return true;
+  return labelsIdentifierValue(text, token.end);
+}
+
+/**
+ * True when the text starting at `pos` (the end of a "No"/"Nr" token) is an
+ * identifier value the label introduces: optional horizontal whitespace, an
+ * optional single ':' value separator, then an ASCII alphanumeric/hyphen run
+ * that contains at least one digit. The digit requirement is what keeps an
+ * ordinary following word ("called") or a plain name part ("Yong-Jin") from
+ * being read as a labeled value.
+ */
+function labelsIdentifierValue(text: string, pos: number): boolean {
+  let j = pos;
+  while (j < text.length && HORIZONTAL_WS.test(text[j])) j++;
+  if (text.charCodeAt(j) === 58 /* ':' */) {
+    j++;
+    while (j < text.length && HORIZONTAL_WS.test(text[j])) j++;
+  }
+  let hasDigit = false;
+  let any = false;
+  for (; j < text.length; j++) {
+    const c = text.charCodeAt(j);
+    if (c >= 48 && c <= 57) {
+      hasDigit = true;
+      any = true;
+    } else if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122) || c === 45 /* '-' */) {
+      any = true;
+    } else {
+      break;
+    }
+  }
+  return any && hasDigit;
 }
 // Whitespace plus an optional abbreviation dot, so "Dr. Smith" (the common form)
 // gets the title boost — not just "Dr Smith". Never spans a line break.
@@ -589,9 +638,10 @@ function nameStart(
  * Cap-initial token with at least one lowercase letter (which excludes
  * acronyms like "CEO", "HR", "NYC"), not adjoining a digit, and not a known
  * non-name word, role/title cue, or ambiguous common word. Together these
- * gates keep `<Name> (CEO)`, `<Name> (Berlin)`, `<Name> (Active)` (when the
- * word is in NON_NAME_WORDS / AMBIGUOUS_WORDS / role words) from promoting,
- * while letting a real out-of-DB given-name alias detect on the cue alone.
+ * gates keep `<Name> (CEO)`, `<Name> (Berlin)`, `<Name> (Sweden)`,
+ * `<Name> (Active)` (when the word is in NON_NAME_WORDS / AMBIGUOUS_WORDS /
+ * COUNTRY_NAMES / role words) from promoting, while letting a real out-of-DB
+ * given-name alias detect on the cue alone.
  */
 function aliasInParens(tokens: Token[], prevTailIdx: number, text: string): Span | null {
   const alias = tokens[prevTailIdx + 1];
@@ -615,6 +665,12 @@ function aliasInParens(tokens: Token[], prevTailIdx: number, text: string): Span
   if (isRoleWord(alias.text) || isRoleAbbreviation(alias.text)) return null;
   if (isNonNameWord(alias.text)) return null;
   if (isAmbiguousWord(alias.text.toLowerCase())) return null;
+  // A country name in the appositive slot is a nationality / location note, not
+  // a nickname — "Ingrid Bergman (Sweden)", "Klaus Müller (Germany)". Mirrors
+  // the AMBIGUOUS_WORDS city/month guard above (see context/places.ts); country
+  // short-names are not in AMBIGUOUS_WORDS, so without this the whole
+  // `<Name> (<Country>)` class promoted the country as a PERSON alias.
+  if (isCountryName(alias.text.toLowerCase())) return null;
   // The closing paren must follow the alias directly — a second token inside
   // the parens ("(Smith Watson)", "(Berlin office)") is handled (or rejected)
   // by the normal chain path, not this cue.

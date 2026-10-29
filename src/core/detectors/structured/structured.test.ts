@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { detect } from '../../index';
-import { isValidIban } from './iban';
+import { isValidIban, hasRegisteredIbanStructure } from './iban';
 import { isValidLuhn } from './creditCard';
+import { isCompactDateRef } from './phone';
 
 const only = (text: string, type: string) => detect(text).filter((s) => s.type === type);
 
@@ -215,6 +216,42 @@ describe('IBAN detection', () => {
     );
   });
 
+  it('cue-anchored path catches IBANs when the "IBAN" cue TRAILS the number as a parenthetical label', () => {
+    // Postfix mirror of the prefix cued path: writers annotate an
+    // already-written account number with "(IBAN)" / "[IBAN]" / "{IBAN}"
+    // ("refund to <number> (IBAN)"), the shape from the gap report. Each value
+    // is held-out from the gap feed and mod-97-invalid (asserted below) so ONLY
+    // the trailing-cue path can emit — proving the heuristic, not the checksum
+    // or the dictionary, does the work. Covers a spaced DE, a bracketed GB, and
+    // the no-space FR form that produced the original miss.
+    expect(isValidIban('DE89 3704 0044 0532 0130 01')).toBe(false);
+    expect(isValidIban('GB29 NWBK 6016 1331 9268 20')).toBe(false);
+    expect(isValidIban('FR7630006000011234567890188')).toBe(false);
+    expect(
+      only('Refund requested to DE89 3704 0044 0532 0130 01 (IBAN) per the customer.', 'IBAN')[0]
+        .text
+    ).toBe('DE89 3704 0044 0532 0130 01');
+    expect(
+      only('Settlement wired to GB29 NWBK 6016 1331 9268 20 [IBAN] overnight.', 'IBAN')[0].text
+    ).toBe('GB29 NWBK 6016 1331 9268 20');
+    expect(
+      only('Chargeback to FR7630006000011234567890188 (IBAN) is pending review.', 'IBAN')[0].text
+    ).toBe('FR7630006000011234567890188');
+  });
+
+  it('trailing cue does not leak when "(IBAN)" has no IBAN shape immediately before it', () => {
+    // Precision guard for the postfix path: the parenthetical label must follow
+    // a real IBAN shape *adjacently*. A benign "(IBAN)" annotation, or a shape
+    // separated from the label by intervening words, must stay silent — the
+    // shape+adjacency conjunction keeps the path from leaking.
+    expect(
+      only('Please have your account number (IBAN) ready when you call.', 'IBAN')
+    ).toHaveLength(0);
+    expect(
+      only('The code XZ12 3456 7890 1234 5678 was logged; see (IBAN) section.', 'IBAN')
+    ).toHaveLength(0);
+  });
+
   it('cue-anchored path catches IBANs preceded by an English linking word ("IBAN is/was/number/no./reads")', () => {
     // Held-out, strict-invalid IBAN-shape values immediately after the cue word
     // separated by the natural-English linking tokens that support / banking
@@ -334,6 +371,73 @@ describe('IBAN detection', () => {
     const c = detect('Settlement IBAN XQ12 0110 0001 2345 6789 0001 done.');
     expect(c.filter((s) => s.type === 'PHONE')).toHaveLength(0);
   });
+
+  it('account-declaration cue catches a structurally-perfect IBAN that strict mod-97 rejects', () => {
+    // Gap-report class: the account noun (not the "IBAN" acronym) declares the
+    // number ("Transfer to account: …", "bank account …", "a/c …"). Each value
+    // below is strict-invalid (mod-97 fails) yet has a *registered* country code
+    // at its *exact* registered length, so only the account-cued path can emit.
+    // Held-out values, none in the gap feed — proving the heuristic generalizes
+    // across country, grouping, and linking token rather than memorizing a value.
+    expect(isValidIban('DE00 1234 5678 9012 3456 78')).toBe(false);
+    expect(isValidIban('FR76 1234 5678 9012 3456 7890 123')).toBe(false);
+    expect(isValidIban('NL00 ABCD 0123 4567 89')).toBe(false);
+    expect(hasRegisteredIbanStructure('DE00 1234 5678 9012 3456 78')).toBe(true);
+    // "Transfer to account: <IBAN>" — the exact gap shape (held-out IT value):
+    expect(
+      only('Transfer to account: IT25 C054 2811 3080 9606 7611 960 today.', 'IBAN')[0].text
+    ).toBe('IT25 C054 2811 3080 9606 7611 960');
+    // "bank account <IBAN>" — noun with no linker:
+    expect(
+      only('Please update bank account DE00 1234 5678 9012 3456 78 soon.', 'IBAN')[0].text
+    ).toBe('DE00 1234 5678 9012 3456 78');
+    // "Account number: <IBAN>" — linker + colon separator:
+    expect(only('Account number: FR76 1234 5678 9012 3456 7890 123 on file.', 'IBAN')[0].text).toBe(
+      'FR76 1234 5678 9012 3456 7890 123'
+    );
+    // "a/c <IBAN>" — the abbreviated account noun:
+    expect(only('Refund a/c NL00 ABCD 0123 4567 89 processed.', 'IBAN')[0].text).toBe(
+      'NL00 ABCD 0123 4567 89'
+    );
+  });
+
+  it('account cue requires a registered country code AND exact length (precision)', () => {
+    // The looser "account" cue is gated harder than the acronym path: a run with
+    // an unregistered country code, or a registered code at the wrong compact
+    // length, must NOT resurrect even though the account noun precedes it. This
+    // is what keeps arbitrary structured IDs ("account ID / reference <token>")
+    // from leaking through the cue.
+    expect(
+      only('Account reference AB12 3456 7890 1234 logged for the batch.', 'IBAN')
+    ).toHaveLength(0); // AB is not a registered IBAN country
+    expect(only('Account ID GB00 1234 5678 901 recorded today.', 'IBAN')).toHaveLength(0); // GB=22, this is 15
+    // "Account holder <Name>" must stay IBAN-free — the shape gate (no CC+digits
+    // after the noun) is load-bearing, mirroring the corpus account-holder cases.
+    expect(only('Account holder Nadia Brzezinski paid the invoice.', 'IBAN')).toHaveLength(0);
+    // Bare account noun with no IBAN body after it emits nothing.
+    expect(only('Please close the account by end of week.', 'IBAN')).toHaveLength(0);
+  });
+
+  it('account cue respects invalidity/decoy cues on strict-invalid runs', () => {
+    // When the prose frames the number as fake, the mis-key/OCR assumption that
+    // justifies the checksum bypass inverts: do NOT resurrect. Held-out decoy
+    // values are strict-invalid but structurally perfect (registered CC+length),
+    // so only the invalidity guard — not the structure gate — can suppress them.
+    expect(hasRegisteredIbanStructure('DE00 1234 5678 9012 3456 78')).toBe(true);
+    expect(isValidIban('DE00 1234 5678 9012 3456 78')).toBe(false);
+    expect(
+      only('Sample account: DE00 1234 5678 9012 3456 78 (placeholder, do not use).', 'IBAN')
+    ).toHaveLength(0);
+    expect(
+      only('Fraudulent account FR76 1234 5678 9012 3456 7890 123 flagged in the report.', 'IBAN')
+    ).toHaveLength(0);
+    // A genuinely VALID IBAN mentioned in a fraud report is still redacted — the
+    // strict path owns it and the invalidity guard only gates the bypass path.
+    expect(
+      only('Fraudulent transfer drained account DE89 3704 0044 0532 0130 00 overnight.', 'IBAN')[0]
+        .text
+    ).toBe('DE89 3704 0044 0532 0130 00');
+  });
 });
 
 describe('credit card detection', () => {
@@ -441,6 +545,32 @@ describe('credit card detection', () => {
     expect(only('Card: 5018 1234 5678 900', 'CREDIT_CARD')[0].text).toBe('5018 1234 5678 900');
     // Diners 4-6-4 (14): 3056 930902 5904 — Luhn-valid Diners test PAN.
     expect(only('Card: 3056 930902 5904', 'CREDIT_CARD')[0].text).toBe('3056 930902 5904');
+  });
+
+  it('detects a masked last-four when cued by "<card> ending [in] NNNN"', () => {
+    // Gap shape: fraud/support prose quotes only the last four digits behind a
+    // "card ending" cue. All four-digit values below are held out (they are not
+    // the gap's 9903/3456), and none is a Luhn-complete PAN — detection comes
+    // purely from the card-masking cue, so it generalizes to any number.
+    expect(only('Visa ending 1881 was declined.', 'CREDIT_CARD')[0].text).toBe('1881');
+    expect(only('Card ending in 4242 refunded.', 'CREDIT_CARD')[0].text).toBe('4242');
+    expect(only('Mastercard ending with 7788 on file.', 'CREDIT_CARD')[0].text).toBe('7788');
+    // Optional "no./number" filler between the card noun and "ending".
+    expect(only('card no. ending 0421 charged', 'CREDIT_CARD')[0].text).toBe('0421');
+    expect(only('card number ending in 5150 flagged', 'CREDIT_CARD')[0].text).toBe('5150');
+    // Confidence stays below a full PAN — it is a partial value.
+    expect(only('Visa ending 1881 was declined.', 'CREDIT_CARD')[0].confidence).toBeLessThan(0.95);
+  });
+
+  it('does not flag a bare four-digit run without a card-masking cue', () => {
+    // Precision guards: "ending NNNN" is only a card cue when a card noun leads
+    // it. Unrelated four-digit tokens (suite, ticket, order, year) stay silent,
+    // and "card" as a mere suffix of another word ("scorecard") does not arm it.
+    expect(only('order ending 1234 shipped', 'CREDIT_CARD')).toHaveLength(0);
+    expect(only('ticket ending in 9999 escalated', 'CREDIT_CARD')).toHaveLength(0);
+    expect(only('suite 4242 on the third floor', 'CREDIT_CARD')).toHaveLength(0);
+    expect(only('the standard ending 2020 was met', 'CREDIT_CARD')).toHaveLength(0);
+    expect(only('scorecard ending 1234 posted', 'CREDIT_CARD')).toHaveLength(0);
   });
 });
 
@@ -672,6 +802,37 @@ describe('MAC detection', () => {
   it('rejects a clock time that looks colon-separated', () => {
     expect(only('meeting at 12:34:56 today', 'MAC')).toHaveLength(0);
   });
+
+  it('does not flag a +prefixed international phone as a MAC', () => {
+    // Held-out numbers (not the gap's +98 case): an all-decimal six-group run in
+    // MAC *shape* but glued to a `+` is the tail of an international phone, never
+    // a MAC. A MAC address never carries a `+`, so the leading-`+` guard drops it
+    // regardless of country code.
+    expect(only('The caller left +81-33-44-55-66-77 on the ticket.', 'MAC')).toHaveLength(0);
+    expect(only('Hotline is +52-55-33-11-99-77 for the region.', 'MAC')).toHaveLength(0);
+  });
+
+  // The broadcast MAC (all-FF) is a well-formed address that identifies no
+  // device, so it is not PII. Held-out from the gap case (lowercase colon form):
+  // these exercise every notation + casing to prove the guard is structural, not
+  // a memorized literal.
+  it('rejects the broadcast MAC in colon notation (any case)', () => {
+    expect(only('sent to FF:FF:FF:FF:FF:FF broadcast', 'MAC')).toHaveLength(0);
+    expect(only('sent to ff:ff:ff:ff:ff:ff broadcast', 'MAC')).toHaveLength(0);
+  });
+
+  it('rejects the broadcast MAC in hyphen and Cisco-dot notation', () => {
+    expect(only('flood ff-ff-ff-ff-ff-ff out', 'MAC')).toHaveLength(0);
+    expect(only('flood ffff.ffff.ffff out', 'MAC')).toHaveLength(0);
+  });
+
+  it('still detects a real MAC that merely contains FF groups', () => {
+    // Held-out address with ff groups but not all-broadcast: must survive so the
+    // guard stays narrow and does not weaken proven recall of real MACs.
+    const spans = only('nic 00:ff:00:ff:00:ff active', 'MAC');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('00:ff:00:ff:00:ff');
+  });
 });
 
 describe('phone detection', () => {
@@ -681,10 +842,37 @@ describe('phone detection', () => {
     expect(spans[0].text).toBe('+49 30 1234567');
   });
 
+  it('recovers a +prefixed six-group number that used to be shadowed by MAC', () => {
+    // Held-out numbers (not the gap's +98 case): `+CC-xx-xx-xx-xx-xx` is a valid
+    // MAC *shape*, and before the leading-`+` MAC guard the higher-confidence MAC
+    // span shadowed this PHONE in overlap resolution. It must now surface as a
+    // phone across country codes.
+    expect(only('The caller left +81-33-44-55-66-77 on the ticket.', 'PHONE')[0].text).toBe(
+      '+81-33-44-55-66-77'
+    );
+    expect(only('Hotline is +52-55-33-11-99-77 for the region.', 'PHONE')[0].text).toBe(
+      '+52-55-33-11-99-77'
+    );
+  });
+
   it('keeps a real number with an internal hyphen', () => {
     const spans = only('Reach the desk at 089 5550-1234 before noon.', 'PHONE');
     expect(spans).toHaveLength(1);
     expect(spans[0].text).toBe('089 5550-1234');
+  });
+
+  it('includes a leading area-code parenthesis in the span', () => {
+    // The candidate run starts at the first digit, so the closing ')' of an
+    // area code is captured while its opening '(' sits just before the match —
+    // without re-balancing the span would read "212) 555-0199" and redaction
+    // would leave an orphan '('. Held-out numbers (US and UK groupings, not the
+    // benchmark's cases) prove the balancing is structural, not memorized.
+    const us = only('Please call (312) 867-5309 today.', 'PHONE');
+    expect(us).toHaveLength(1);
+    expect(us[0].text).toBe('(312) 867-5309');
+    const uk = only('Reach the desk at (0151) 496 0123 before noon.', 'PHONE');
+    expect(uk).toHaveLength(1);
+    expect(uk[0].text).toBe('(0151) 496 0123');
   });
 
   it('does not flag a digit run inside a hyphenated identifier', () => {
@@ -744,6 +932,36 @@ describe('phone detection', () => {
     expect(only('Meeting on 2025.03.14 was rescheduled.', 'PHONE')).toHaveLength(0);
   });
 
+  it('does not flag compact "YYYYMMDD-NNN" date-prefixed refs as a phone number', () => {
+    // Ticket / case IDs built from a solid ISO date plus a sequence number
+    // ("ticket ID 20260908-001", "Case 20260908-042"). The 8-digit date block
+    // has no internal separators, so the separated-date guard never sees it and
+    // the trailing "-NNN" reads as phone grouping. Held-out dates/sequences
+    // (not the gap's own 20260908-001) prove the guard is structural — a valid
+    // YYYYMMDD calendar block glued to a hyphenated sequence — and generalizes.
+    expect(only('ticket ID 19991231-7 archived.', 'PHONE')).toHaveLength(0);
+    expect(only('Case 20240229-1234 escalated.', 'PHONE')).toHaveLength(0);
+    expect(only('reference 20180101-42 pending.', 'PHONE')).toHaveLength(0);
+    // Slash / dot separators before the sequence read the same way.
+    expect(only('batch 20220630/9 released.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('still flags a real phone on a line that also has a compact-date ref', () => {
+    // Precision guard for the compact-date reject: a genuine phone sharing a
+    // line with a "YYYYMMDD-NNN" reference must still surface.
+    const spans = only('Ticket 20250314-9 open; call +81 3-6205-4000 now.', 'PHONE');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('+81 3-6205-4000');
+  });
+
+  it('leaves compact digit runs whose leading block is not a valid date alone', () => {
+    // The guard fires only on a real YYYYMMDD block: "99887766-01" (month 77,
+    // day 66) is not a date, so the compact-date reject does not claim it — the
+    // validity gate is what keeps the guard from over-rejecting arbitrary runs.
+    expect(isCompactDateRef('99887766-01')).toBe(false);
+    expect(isCompactDateRef('20260908-001')).toBe(true);
+  });
+
   it('still detects real phones whose surrounding prose contains a date', () => {
     // Precision guard for the widened date-shape reject: adding dotted /
     // slashed / trailing-sequence date shapes to the guard must NOT swallow
@@ -800,6 +1018,50 @@ describe('phone detection', () => {
     expect(only('Mobile 34 91 5555 678 901 confirmed.', 'PHONE')[0].text).toBe(
       '34 91 5555 678 901'
     );
+  });
+
+  it('keeps an international number written with the "00" dialing prefix', () => {
+    // ITU-T E.123: "00" is the plus-less international call prefix, so
+    // "0049 30 …" is "+49 30 …". With a 2-digit country code the leading group
+    // is 4 digits ("0049"), which the card-shape guard would otherwise drop as
+    // a Visa/MC 4-4-… layout — but a card can never start with 0 (ISO/IEC
+    // 7812-1 reserves MII 0). Held-out country codes (UK 44, FR 33, JP 81 —
+    // distinct from the German "0049" gap value) prove the exemption
+    // generalizes to any "00"+CC number, not a memorized string.
+    expect(only('Please call 0044 20 7946 0958 before noon.', 'PHONE')[0].text).toBe(
+      '0044 20 7946 0958'
+    );
+    expect(only('Reach me on 0033 1 4007 1234 today.', 'PHONE')[0].text).toBe('0033 1 4007 1234');
+    expect(only('Tel 0081 3 1234 5678 for support.', 'PHONE')[0].text).toBe('0081 3 1234 5678');
+  });
+
+  it('detects a hyphen-grouped international phone whose lead group exceeds a date range', () => {
+    // The DMY/MDY (year-last) date-shape guard used to reject any
+    // "NN-NN-NNNN(-seq)" run, which is structurally identical to an
+    // international phone written as country-code + hyphen groups. Now the two
+    // leading fields are calendar-range-checked, so a leading group above 31 (a
+    // country code) — or a middle group above 31 — cannot be a date and falls
+    // through to detection. Held-out numbers (India 91, UK 44, Australia 61,
+    // France 33 — none the gap's own value) prove the fix generalizes across
+    // country codes and groupings, not a memorized string.
+    expect(only('Customer called from 44-20-7946-0958 yesterday.', 'PHONE')[0].text).toBe(
+      '44-20-7946-0958'
+    );
+    expect(only('Reach me on 61-2-9374-4000 anytime.', 'PHONE')[0].text).toBe('61-2-9374-4000');
+    expect(only('Agent dialed 91-33-4012-3456 for the callback.', 'PHONE')[0].text).toBe(
+      '91-33-4012-3456'
+    );
+    expect(only('Support line 33-1-4070-1234 is open.', 'PHONE')[0].text).toBe('33-1-4070-1234');
+  });
+
+  it('still rejects a valid year-last date near a phone cue', () => {
+    // Precision guard for the range-checked date reject: a real DD-MM-YYYY /
+    // MM-DD-YYYY date (both leading fields fit a calendar, with a month ≤ 12)
+    // must still be suppressed even with a trailing sequence or a phone-cue word
+    // nearby, so the range check does not turn genuine dates into phones.
+    expect(only('Please call back after 31-12-2024 to confirm.', 'PHONE')).toHaveLength(0);
+    expect(only('Contract dated 12-31-2024 is on file.', 'PHONE')).toHaveLength(0);
+    expect(only('ref 07-04-2023-1 overdue.', 'PHONE')).toHaveLength(0);
   });
 
   it('still rejects card-shaped ≥13-digit runs (leading 4-digit group)', () => {
@@ -866,6 +1128,26 @@ describe('phone detection', () => {
       only('The support team really appreciates and truly values your input (1234567890).', 'PHONE')
     ).toHaveLength(0);
   });
+
+  it('does not flag an out-of-range dotted quad (botched IPv4) as a phone', () => {
+    // A valid dotted quad is claimed by the IP detector and resolved away, but
+    // an out-of-range one (an octet > 255) is rejected there and would fall
+    // through to PHONE on its dot grouping. Held-out near-miss addresses — each
+    // with the out-of-range octet in a different position — prove the guard is
+    // structural (four 1–3-digit groups, one octet > 255), not a memorized case.
+    expect(only('Firewall dropped 10.0.0.299 as invalid.', 'PHONE')).toHaveLength(0);
+    expect(only('Gateway 172.16.300.1 is misconfigured.', 'PHONE')).toHaveLength(0);
+    expect(only('Route to 256.1.1.1 failed.', 'PHONE')).toHaveLength(0);
+    expect(only('Host 192.999.0.5 unreachable.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('still detects a real dotted phone number (in-range groups only)', () => {
+    // Precision guard for the near-miss-IPv4 reject: a genuine dotted phone
+    // whose groups happen to all be ≤ 255 must survive. These are not quads
+    // (last group is 4 digits), so the shape does not collide with IPv4.
+    expect(only('Contact support at 555.123.4567 for help.', 'PHONE')[0].text).toBe('555.123.4567');
+    expect(only('Reach the desk at 212.867.5309 today.', 'PHONE')[0].text).toBe('212.867.5309');
+  });
 });
 
 describe('credit card beats phone on overlap', () => {
@@ -899,6 +1181,39 @@ describe('national id detection', () => {
 
   it('does not claim a bare 9-digit run as an SSN', () => {
     expect(only('Reference 123456789 attached.', 'NATIONAL_ID')).toHaveLength(0);
+  });
+
+  it('detects a US ITIN (9XX area, IRS-assigned group range)', () => {
+    // Held-out ITIN values — none equal to the gap case (987-65-4321) and all
+    // absent from any dictionary; they pass only via the 9xx-area + group-range
+    // heuristic, so this proves generalization, not memorization. Groups exercise
+    // each valid band: 74 (70–88), 65 (50–65), 91 (90–92), 96 (94–99).
+    expect(only('Taxpayer ITIN 921-74-8302 confirmed.', 'NATIONAL_ID')[0].text).toBe('921-74-8302');
+    expect(only('ITIN 900-65-1187 on file.', 'NATIONAL_ID')[0].text).toBe('900-65-1187');
+    expect(only('Filed under 954-91-0075 last quarter.', 'NATIONAL_ID')[0].text).toBe(
+      '954-91-0075'
+    );
+    expect(only('Return references 968-96-4410 as the ID.', 'NATIONAL_ID')[0].text).toBe(
+      '968-96-4410'
+    );
+  });
+
+  it('ITIN wins over PHONE on the same 3-2-4 span', () => {
+    // The dashed run reads as a phone (0.6); the ITIN (0.92) outranks it, so
+    // overlap resolution leaves no PHONE span behind — this is the gap-case fix.
+    expect(only('Tax ID 987-65-4321 verified.', 'PHONE')).toHaveLength(0);
+    expect(only('Tax ID 987-65-4321 verified.', 'NATIONAL_ID')[0].text).toBe('987-65-4321');
+  });
+
+  it('rejects a 9XX 3-2-4 run whose group is outside the ITIN ranges', () => {
+    // Held-out 9xx runs with groups in the unassigned bands (11, 40, 66–69, 89,
+    // 93). The area starts with 9 but the group gate declines them, so they are
+    // never upgraded to NATIONAL_ID — the guard that keeps arbitrary 9xx dashed
+    // runs from being claimed as taxpayer IDs.
+    expect(only('955-40-1188', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('903-66-4210', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('912-89-0044', 'NATIONAL_ID')).toHaveLength(0);
+    expect(only('948-93-7761', 'NATIONAL_ID')).toHaveLength(0);
   });
 
   it('detects a German tax ID by structure + ISO 7064 checksum', () => {
@@ -1007,10 +1322,208 @@ describe('passport detection (cue-gated)', () => {
     expect(only('Passnummer AB1234567890 hinterlegt.', 'PASSPORT')[0].text).toBe('AB1234567890');
   });
 
-  // Precision guard: even with the wider bound, an over-long (13+ char) or
+  // Held-out values (absent from the corpus/feed and any name pack): several
+  // national schemes glue a two-letter issuing-country code straight onto the
+  // number with no separator, pushing a legitimate passport to 13–14 chars. The
+  // old `{6,12}\b` quantifier dropped these entirely (a 13-char run has no `\b`
+  // at any interior position, so it failed outright rather than capturing a
+  // prefix). These use fresh countries/formats — not the gap's IN/IR values — so
+  // they prove the length-class fix generalizes, not that a value was memorized.
+  it('detects a 13-character glued issuer-code passport after an English cue', () => {
+    expect(only('Passport BR7Q2W9E4R1T5 scanned.', 'PASSPORT')[0].text).toBe('BR7Q2W9E4R1T5');
+  });
+
+  it('detects a 14-character glued issuer-code passport after a German cue', () => {
+    expect(only('Reisepass US9Z8Y7X6W5V4U geprüft.', 'PASSPORT')[0].text).toBe('US9Z8Y7X6W5V4U');
+  });
+
+  // Precision guard: even with the wider bound, an over-long (15+ char) or
   // uncued/lowercase token must not be claimed as a passport number.
-  it('does not flag an over-long token beyond the 12-char bound', () => {
-    expect(only('Passport No. ABC1234567890 on file.', 'PASSPORT')).toHaveLength(0);
+  it('does not flag an over-long token beyond the 14-char bound', () => {
+    expect(only('Passport No. ABC123456789012 on file.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  // Held-out values (absent from the corpus/feed): forms and records commonly put a
+  // document-type noun between the cue and the number. These prove the connector-noun
+  // heuristic generalizes across the phrasing class, not a single memorized value.
+  it('detects a passport number after a "document" noun connector', () => {
+    expect(only('Passport document R7K2P9Q1 filed.', 'PASSPORT')[0].text).toBe('R7K2P9Q1');
+  });
+
+  it('detects a passport number after a "book number" connector', () => {
+    expect(only('Passport book number H4J8L2M6 verified.', 'PASSPORT')[0].text).toBe('H4J8L2M6');
+  });
+
+  it('detects a passport number after a German "Dokument" connector', () => {
+    expect(only('Reisepass Dokument T3X7B9K2 geprüft.', 'PASSPORT')[0].text).toBe('T3X7B9K2');
+  });
+
+  // Precision guards for the document-noun connector: the number token is still
+  // required, so a document noun followed by prose (no digit-bearing token) or by the
+  // "office" of a passport desk must stay unflagged.
+  it('does not flag a document noun followed by a non-number word', () => {
+    expect(only('Passport document scanned and archived.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  it('does not treat "passport office" as a cue for a nearby number', () => {
+    expect(only('The passport office at desk 12 reopens Monday.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  // Held-out values (absent from the corpus/feed): the "Ref"/"Reference" label is
+  // how support tickets tag a passport ("Passport Ref: X"). It was missing from the
+  // connector alternation, so the anchored cue→number chain broke on the word "Ref"
+  // and the real number was silently dropped. These prove the fix generalizes across
+  // the label form and the number, not the specific feed value.
+  it('detects a passport number after a "Ref:" label', () => {
+    expect(only('Passport Ref: PT4829Q1 filed.', 'PASSPORT')[0].text).toBe('PT4829Q1');
+  });
+
+  it('detects a passport number after a spelled-out "Reference" label', () => {
+    expect(only('Passport Reference DE71B4K9 attached.', 'PASSPORT')[0].text).toBe('DE71B4K9');
+  });
+
+  it('detects a passport number after an abbreviated "Ref." label', () => {
+    expect(only('Passport Ref. K3M9P1N7 on file.', 'PASSPORT')[0].text).toBe('K3M9P1N7');
+  });
+
+  // Precision guards: the "Ref"/"Reference" label must still require a following
+  // digit-bearing number — a bare label or a non-passport "reference" sentence
+  // stays unclaimed.
+  it('does not flag a "Ref" label with no following number', () => {
+    expect(only('Passport Ref please bring it tomorrow.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  it('does not flag "passport reference number" prose with no number', () => {
+    expect(only('Passport reference number pending.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  // Held-out values (absent from the corpus/feed): the base word and its abbreviation
+  // are commonly hyphenated ("Reisepass-Nr.", "Passport-No."). Whitespace-only joining
+  // dropped these entirely; a single-hyphen connector must recover the class for any
+  // number, proving this is a cue-shape fix, not memorization.
+  it('detects a passport number after a hyphenated German compound cue', () => {
+    expect(only('Reisepass-Nr. PZ9K4M2Q hinterlegt.', 'PASSPORT')[0].text).toBe('PZ9K4M2Q');
+  });
+
+  it('detects a passport number after a hyphenated English compound cue', () => {
+    expect(only('Passport-No. R7T3W8N5 issued.', 'PASSPORT')[0].text).toBe('R7T3W8N5');
+  });
+
+  it('detects a passport number when the hyphen is spaced out', () => {
+    expect(only('Reisepass - Nr.: H4J6L8Q2 vorgelegt.', 'PASSPORT')[0].text).toBe('H4J6L8Q2');
+  });
+
+  // Precision guard: the hyphen connector must not manufacture a cue from prose with
+  // no digit-bearing token to claim.
+  it('does not flag a hyphenated cue with no number token', () => {
+    expect(only('Passport-No. please bring it tomorrow.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  // Held-out values (absent from the corpus/feed): "Num"/"Num." is the common English
+  // abbreviation of "Number" and must be recognized as a connector, like "No."/"Number".
+  // Before the fix the number token tried to match the lowercase word "Num" and the whole
+  // match failed, silently dropping the real number.
+  it('detects a passport number after a "Num." abbreviation cue', () => {
+    expect(only('Passport Num. P4KZ8Q7 verified.', 'PASSPORT')[0].text).toBe('P4KZ8Q7');
+  });
+
+  it('detects a passport number after a "Num" (no period) abbreviation cue', () => {
+    expect(only('Passport Num M8N3B6V1C4 on file.', 'PASSPORT')[0].text).toBe('M8N3B6V1C4');
+  });
+
+  // Precision guard: the abbreviation must not let the cue swallow a longer real word
+  // ("Numbering") and then claim a following unrelated token as a passport number.
+  it('does not flag a token after "passport numbering …"', () => {
+    expect(only('Passport Numbering system X1234567 applies.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  // Precision guard: the "Num." connector still requires a digit-bearing token after it.
+  it('does not flag a following word with no digit after "Num."', () => {
+    expect(only('Passport Num. today please.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  // Held-out label words: forms and customs records write the value after "code"
+  // or "ID" just as often as after "No.". These connector words were missing, so
+  // the following lowercase label was consumed as the (failed) number token and the
+  // real value was dropped. Held-out numbers (absent from corpus/feed) prove the fix
+  // is a cue-class extension, not memorization of one value.
+  it('detects a passport number after a "code" connector', () => {
+    expect(only('Customs form: passport code Q9W2E5R8T1 verified.', 'PASSPORT')[0].text).toBe(
+      'Q9W2E5R8T1'
+    );
+  });
+
+  it('detects a passport number after a colon-separated "code" connector', () => {
+    expect(only('passport code: J4H7G2F9D6 on record.', 'PASSPORT')[0].text).toBe('J4H7G2F9D6');
+  });
+
+  it('detects a passport number after an "ID" connector', () => {
+    expect(only('Traveler passport ID M8N3B6V1C4 checked.', 'PASSPORT')[0].text).toBe('M8N3B6V1C4');
+  });
+
+  // Precision guard: the new connector words still require a following digit-bearing
+  // token — a plain sentence after "passport code" must not be claimed.
+  it('does not flag a plain word after a "code" connector', () => {
+    expect(only('Please send the passport code today.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  // Held-out values (none appear in the corpus/feed): a two-letter issuing-country
+  // code in front of the number used to match against NUMBER, fail the digit
+  // lookahead, and drop the whole entry. The optional issuer prefix now steps over
+  // it and claims the number itself — a structural fix, not a memorized value.
+  it('detects a passport number after a two-letter issuing-country code', () => {
+    expect(only('Passport GB 77213Q4 verified.', 'PASSPORT')[0].text).toBe('77213Q4');
+  });
+
+  it('detects an issuer-prefixed number after a German cue', () => {
+    expect(only('Passnummer DE 60934812 hinterlegt.', 'PASSPORT')[0].text).toBe('60934812');
+  });
+
+  it('detects a number after a "passport document" lead-in', () => {
+    expect(only('Passport document AU 90148R6 scanned.', 'PASSPORT')[0].text).toBe('90148R6');
+  });
+
+  // Precision guards for the new issuer step: the country code alone (no following
+  // number) stays unclaimed, and a longer word after the cue is not mistaken for a
+  // "XX " prefix + number.
+  it('does not flag a bare issuing-country code with no number', () => {
+    expect(only('Passport GB was reissued abroad.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  it('does not treat a "documentation" word as a cued number', () => {
+    expect(only('The passport documentation is ready.', 'PASSPORT')).toHaveLength(0);
+  });
+
+  // Held-out values (absent from corpus/feed): the `#`/`No.`/`:` marker glued
+  // straight onto the number is the shape writers actually use. Previously the
+  // `#` was consumed as a cue marker and then the required whitespace separator
+  // failed (no space before the number), dropping the whole class regardless of
+  // country. These prove the separator now accepts a `:`/`#` glue, not a
+  // memorized value.
+  it('detects a passport number when the # marker is glued to the number', () => {
+    expect(only('Reisepass #DE8A5N2V7R vorgelegt.', 'PASSPORT')[0].text).toBe('DE8A5N2V7R');
+  });
+
+  it('detects a passport number when the cue word abuts # then the number', () => {
+    expect(only('Passport#K7Q2M9X4 verified at gate.', 'PASSPORT')[0].text).toBe('K7Q2M9X4');
+  });
+
+  it('detects a passport number when a colon is glued to the number', () => {
+    expect(only('Passport:T9R4B1N8 on file.', 'PASSPORT')[0].text).toBe('T9R4B1N8');
+  });
+
+  // Regression guard for the glued-separator change: `#` must stay a CUE
+  // connector too, or the spaced "<cue> #: <number>" label form that already
+  // worked would silently stop matching. Held-out values, none in the corpus.
+  it('still detects a passport number after a spaced "#:" label', () => {
+    expect(only('Passport #: M4P8R2X6 confirmed.', 'PASSPORT')[0].text).toBe('M4P8R2X6');
+    expect(only('Reisepass # : C7V3N9K1 liegt vor.', 'PASSPORT')[0].text).toBe('C7V3N9K1');
+  });
+
+  // Precision guard: a `#` cue with no valid number (a hashtag / ticket ref)
+  // must not be claimed as a passport number.
+  it('does not flag a bare hashtag after a passport cue', () => {
+    expect(only('Passport office ticket #reopen soon.', 'PASSPORT')).toHaveLength(0);
   });
 });
 
@@ -1063,9 +1576,26 @@ describe('date of birth detection (cue-gated)', () => {
     expect(only('Geburtstag: 14. Juli 1980.', 'DATE_OF_BIRTH')[0].text).toBe('14. Juli 1980');
   });
 
-  it('does not treat "birthday" as a birth cue (event, not DOB)', () => {
-    // Precision guard: "birthday party" must not turn an adjacent event date into a DOB.
+  it('detects a date after a tight "birthday" cue (label / direct / copula)', () => {
+    // "birthday" is a birth cue, but only in its tight field-label / direct
+    // forms — never across the event phrasing guarded below. Held-out values
+    // and three different date formats prove the binding generalizes rather
+    // than memorizing the gap's "Birthday: 1995-12-25".
+    expect(only('Birthday: 1977-04-19 confirmed.', 'DATE_OF_BIRTH')[0].text).toBe('1977-04-19');
+    expect(only('Customer birthday 07/04/1983 on record.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '07/04/1983'
+    );
+    expect(only('Her birthday is 3 March 1980.', 'DATE_OF_BIRTH')[0].text).toBe('3 March 1980');
+  });
+
+  it('does not treat the "birthday" EVENT phrasing as a DOB cue', () => {
+    // Precision guard: "birthday" doubles as an event noun, so an event phrase
+    // ("party is on …", "bash on …", "celebration scheduled for …") must not
+    // turn its date into a DOB. The tight binding refuses to cross the event
+    // noun / longer connective these forms insert before the date.
     expect(only('The office birthday party is on 2025-06-01.', 'DATE_OF_BIRTH')).toHaveLength(0);
+    expect(only('Join the birthday bash on 2026-02-14!', 'DATE_OF_BIRTH')).toHaveLength(0);
+    expect(only('Birthday celebration scheduled for 12/25/2024.', 'DATE_OF_BIRTH')).toHaveLength(0);
   });
 
   it('does not flag an incidental date with no birth cue', () => {
@@ -1125,6 +1655,82 @@ describe('date of birth detection (cue-gated)', () => {
         'Customer born. Separately, a meeting was scheduled 05.06.2020 downtown.',
         'DATE_OF_BIRTH'
       )
+    ).toHaveLength(0);
+  });
+
+  // Birth-*document* cue: a birth certificate's headline date is the date of birth.
+  // Held-out date values, none of which appear in any fixture above.
+  it('detects a DOB after the "birth certificate" document cue', () => {
+    expect(only('birth certificate 1980-03-14 attached.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '1980-03-14'
+    );
+  });
+
+  it('detects a DOB after "birth certificate:" with a colon', () => {
+    expect(only('Birth Certificate: 07/04/1988 on file.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '07/04/1988'
+    );
+  });
+
+  it('detects a DOB after the German "Geburtsurkunde" document cue', () => {
+    expect(only('Geburtsurkunde 1961-09-30 vorgelegt.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '1961-09-30'
+    );
+  });
+
+  // Precision guards: a birth certificate also carries an *issue* date, so the
+  // document cue must bind only a directly-adjacent date — a trailing action verb
+  // ("issued", "expires") means the following date is not the DOB.
+  it('does not treat a birth certificate ISSUE date as a DOB', () => {
+    expect(only('birth certificate issued 2020-01-01 by registry.', 'DATE_OF_BIRTH')).toHaveLength(
+      0
+    );
+  });
+
+  it('does not flag a non-date after the birth certificate cue', () => {
+    expect(only('birth certificate no. 12345678 processed.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
+
+  // A named-subject appositive ("<cue> of <role> <Name>: <date>") is a common
+  // records/support form the bare colon/filler branches miss. Held-out names
+  // and dates (absent from the corpus) prove the heuristic binds across the
+  // appositive by structure, not by memorizing a specific subject.
+  it('binds a DOB cue across an "of <role> <Name>:" appositive', () => {
+    expect(
+      only('Geburtsdatum of network admin Priya Nayar: 1988-07-15 on file.', 'DATE_OF_BIRTH')[0]
+        .text
+    ).toBe('1988-07-15');
+  });
+
+  it('binds an English DOB cue across an "of the <role> <Name>:" appositive', () => {
+    expect(
+      only(
+        'Date of birth of the account holder Rowan Amsel: 04/11/1979 verified.',
+        'DATE_OF_BIRTH'
+      )[0].text
+    ).toBe('04/11/1979');
+  });
+
+  it('binds a German "von" appositive with an accented name', () => {
+    expect(
+      only('Geburtsdatum von Kunde Björn Weiß: 14.07.1980 laut Ausweis.', 'DATE_OF_BIRTH')[0].text
+    ).toBe('14.07.1980');
+  });
+
+  // Precision guards for the appositive branch.
+  it('does not bind an appositive with no connective (arbitrary lead-in)', () => {
+    // No "of"/"for"/"von"… after the cue, so the named-subject branch must not
+    // engage; the run is also >3 words so the filler branch can't reach either.
+    expect(
+      only('Date of birth review committee finalized the report: 2024-03-01.', 'DATE_OF_BIRTH')
+    ).toHaveLength(0);
+  });
+
+  it('does not bridge an appositive across a comma into an unrelated date', () => {
+    // The subject run is alphabetic words only; a comma terminates it before the
+    // colon, so the far-off date stays out.
+    expect(
+      only('Date of birth of the customer noted, invoice dated: 2024-03-01.', 'DATE_OF_BIRTH')
     ).toHaveLength(0);
   });
 });

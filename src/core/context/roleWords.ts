@@ -34,6 +34,15 @@ export const ROLE_WORDS = new Set<string>([
   'technician',
   'developer',
   'administrator',
+  // "admin"/"sysadmin" are the ubiquitous IT/support shorthand for the role noun
+  // "administrator" (already a cue). They introduce a following person name the
+  // same way ("network admin Per Larsson", "sysadmin: Jane Doe") yet were absent,
+  // so the full word detected but its far more common abbreviation did not. They
+  // ride the same precision contract as every other role cue — only credited at
+  // parts >= 2 (see scoring) and blocked by NON_NAME_WORDS — so "admin Console
+  // Dashboard" / lowercase "admin panel" never promote.
+  'admin',
+  'sysadmin',
   'agent',
   'representative',
   'operator',
@@ -158,9 +167,18 @@ export const NON_NAME_WORDS = new Set<string>([
   'update',
   'summary',
   'reference',
+  // "ref" is the ubiquitous abbreviation of "reference" in support/ticket prose
+  // ("case ref", "Passport Ref:"); like its full form it is a label, not a name.
+  'ref',
   'manual',
   'guide',
   'document',
+  // Identity/travel document nouns. These land in the long-tail ext dictionary as
+  // surface name tokens, so a capitalized document label followed by another such
+  // token ("Passport Ref") chains into a bogus PERSON span. Guarding them blocks
+  // that class while the structured PASSPORT/NATIONAL_ID detectors still claim the
+  // actual number that follows.
+  'passport',
   'attachment',
   'schedule',
   'meeting',
@@ -181,6 +199,53 @@ export const NON_NAME_WORDS = new Set<string>([
   'transaction',
   'statement',
   'receipt',
+  // Organization / venue designators. A known given name directly followed by one
+  // of these ("Grace Hospital", "Kingston University", "Victoria College") is an
+  // institution named after a person, not a person — but the DB hit on the given
+  // name lets the chain absorb the (unknown-cap) designator as a surname and emit a
+  // PERSON span. Treating the designator as a structural noun breaks the chain so
+  // only the real given name remains (and, being lone/ambiguous, drops below
+  // threshold). Only designators that are essentially never personal surnames are
+  // listed: "Church", "Temple", "Chapel", "Abbey", "Hall" are deliberately EXCLUDED
+  // because they are common real surnames ("Alonzo Church", "Shirley Temple") the
+  // engine must still detect. Plurals are listed as distinct surface tokens.
+  'hospital',
+  'hospitals',
+  'clinic',
+  'clinics',
+  'university',
+  'universities',
+  'college',
+  'colleges',
+  'institute',
+  'institutes',
+  'academy',
+  'academies',
+  'foundation',
+  'foundations',
+  'hotel',
+  'hotels',
+  'museum',
+  'museums',
+  'library',
+  'libraries',
+  'laboratory',
+  'laboratories',
+  'cathedral',
+  'cathedrals',
+  // IT access-control / configuration nouns. The "admin"/"sysadmin" role cues
+  // sit directly beside these in support prose ("admin Access Rights", "sysadmin
+  // Login Credentials", "admin Settings Options"), so they are the structural
+  // follow-ons most likely to be mistaken for a surname on the role-cue path.
+  // None is a name in the committed DB, so guarding them never drops a real
+  // person. (Not "page"/"panel" etc. — those collide with real surnames.)
+  'access',
+  'rights',
+  'settings',
+  'options',
+  'credentials',
+  'login',
+  'permissions',
   // Common role nouns. Several of these ("Manager", "Director", "Lead", "Head",
   // "Chief") land in the long-tail ext dictionary as both given- and family-name
   // surface tokens (real census surnames), which lets them chain into adjacent
@@ -204,6 +269,29 @@ export const NON_NAME_WORDS = new Set<string>([
   'open',
   'pending',
   'resolved',
+  // Company / legal-entity designators. These trail an organization name in
+  // prose ("Acme Corp", "Falkenberg Holding") and several ("Corp", "Holding")
+  // also land in the long-tail ext surname list, so the chain-extension used to
+  // absorb them into a two-token PERSON span ("Acme Corp", even "Just Corp").
+  // Exactly the "manager/director/lead/head/chief" bug class above: capitalized
+  // in context, lexically a legal suffix rather than a person, so treating them
+  // as structural nouns breaks the chain and the preceding stem (a company name,
+  // not a person) is left as a lone unknown token that cannot promote. Only the
+  // unambiguous suffixes are listed — short forms that collide with genuine
+  // surnames ("Co", "Sá"→"Sa", Swedish "AB", "KG") are deliberately omitted so
+  // real names are not suppressed.
+  'corp',
+  'corporation',
+  'inc',
+  'incorporated',
+  'ltd',
+  'limited',
+  'llc',
+  'llp',
+  'plc',
+  'gmbh',
+  'holding',
+  'holdings',
   // --- German --- (German compounds most multi-word structures into a single
   // token, so these mainly guard the handoff/role path against the common
   // standalone ticket nouns that can follow a cue.)

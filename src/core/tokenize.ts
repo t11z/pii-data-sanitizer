@@ -24,11 +24,25 @@ const SCRIPT_TESTS: Array<[Script, RegExp]> = [
   ['Gujarati', /\p{Script=Gujarati}/u],
   ['Kannada', /\p{Script=Kannada}/u],
   ['Malayalam', /\p{Script=Malayalam}/u],
+  // Odia (the Oriya script) is a unicameral/caseless Indic script, like the
+  // other Brahmic scripts above; words are space-separated, so no special
+  // tokenizer handling is needed. (Unicode names the script "Oriya".)
+  ['Oriya', /\p{Script=Oriya}/u],
   // Armenian is bicameral (has case, like Latin/Cyrillic/Greek); Georgian is
   // unicameral/caseless (like the Indic scripts). Both use spaces between words,
   // so the word tokenizer needs no special handling.
   ['Armenian', /\p{Script=Armenian}/u],
   ['Georgian', /\p{Script=Georgian}/u],
+  // Gurmukhi (Punjabi, as written in Indian Punjab) is unicameral/caseless like
+  // Georgian and the other Indic scripts, and space-separated between words, so
+  // the word tokenizer needs no special handling.
+  ['Gurmukhi', /\p{Script=Gurmukhi}/u],
+  // Thai is unicameral/caseless (like Georgian and the Indic scripts). Thai does
+  // not put spaces between words in running prose, but personal names appear as
+  // discrete space- or delimiter-separated tokens in the structured/mixed text
+  // this engine targets (form fields, "name: …", Thai names inside Latin text),
+  // where the word tokenizer isolates them like any other script.
+  ['Thai', /\p{Script=Thai}/u],
   ['Han', /\p{Script=Han}/u],
 ];
 

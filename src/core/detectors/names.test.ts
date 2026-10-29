@@ -189,6 +189,83 @@ describe('Georgian names (unicameral / caseless)', () => {
   });
 });
 
+describe('Gurmukhi names (Punjabi, unicameral / caseless)', () => {
+  const paSource = new PackNameSource();
+  // Held-out tokens (Gurpreet / Singh) — a full name NOT equal to the specific
+  // bench cases, so passing demonstrates the caseless path generalizes rather
+  // than memorizing a single string.
+  paSource.addWords(['ਗੁਰਪ੍ਰੀਤ', 'ਸਿੰਘ'], { script: 'Gurmukhi', tier: 'core' });
+  const paPersons = (text: string) =>
+    detect(text, { nameSource: paSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects a Gurmukhi full name present in the database', () => {
+    // Gurmukhi is caseless, so given + family (space-separated) detect through
+    // the same bare-DB-hit path as Georgian and the Indic scripts.
+    expect(paPersons('ਕਿਰਪਾ ਕਰਕੇ ਗੁਰਪ੍ਰੀਤ ਸਿੰਘ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।')).toContain('ਗੁਰਪ੍ਰੀਤ ਸਿੰਘ');
+  });
+
+  it('does not flag an unknown Gurmukhi token without context', () => {
+    // ਜ਼ੌਰਬਲੈਕ is a held-out nonsense token absent from the DB: with no title/role
+    // cue, a caseless script must not match on structure alone.
+    expect(paPersons('ਵੇਖੋ ਜ਼ੌਰਬਲੈਕ ਅੱਜ।')).not.toContain('ਜ਼ੌਰਬਲੈਕ');
+  });
+});
+
+describe('Odia / Oriya names (unicameral / caseless Indic script)', () => {
+  const orSource = new PackNameSource();
+  orSource.addWords(['ବିଜୟ', 'ମହାନ୍ତି'], { script: 'Oriya', tier: 'core' });
+  const orPersons = (text: string) =>
+    detect(text, { nameSource: orSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects an Odia full name present in the database', () => {
+    expect(orPersons('ଦୟାକରି ଯୋଗାଯୋଗ କରନ୍ତୁ ବିଜୟ ମହାନ୍ତି ଆସନ୍ତାକାଲି।')).toContain('ବିଜୟ ମହାନ୍ତି');
+  });
+
+  it('does not flag an unknown Odia token without context', () => {
+    // Odia is caseless, so detection rests entirely on DB membership: an invented
+    // token with no title/role cue must not match.
+    expect(orPersons('ଆଜି ଜର୍ବଲାକ୍ସ ଦେଖନ୍ତୁ।')).not.toContain('ଜର୍ବଲାକ୍ସ');
+  });
+
+  it('detects a held-out Odia name from the full committed pack', () => {
+    // ସୁରେଶ/ପଟ୍ଟନାୟକ are absent from the minimal source above — detection here
+    // can only come from the ingested Oriya pack, proving the coverage generalizes.
+    const fullSource = nameSourceFromBuildInputs();
+    const personsFull = (text: string) =>
+      detect(text, { nameSource: fullSource })
+        .filter((s) => s.type === 'PERSON')
+        .map((s) => s.text);
+    expect(personsFull('ଦଲିଲ ସ୍ୱାକ୍ଷର କଲେ ସୁରେଶ ପଟ୍ଟନାୟକ ଗତକାଲି।')).toContain('ସୁରେଶ ପଟ୍ଟନାୟକ');
+  });
+});
+
+describe('Thai names (unicameral / caseless)', () => {
+  // Held-out real Thai names sourced from the ingested Wikidata (CC0) Thai pack;
+  // the test only proves the caseless-script detection path, not these specific
+  // strings — Thai carries no case, so a bare DB hit must suffice (like Georgian
+  // and the Indic scripts).
+  const thSource = new PackNameSource();
+  thSource.addWords(['สมชาย', 'ชัยวัฒน์'], { script: 'Thai', tier: 'core' });
+  const thPersons = (text: string) =>
+    detect(text, { nameSource: thSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects a Thai full name present in the database', () => {
+    expect(thPersons('กรุณาติดต่อ สมชาย ชัยวัฒน์ พรุ่งนี้')).toContain('สมชาย ชัยวัฒน์');
+  });
+
+  it('does not flag an unknown Thai token without context', () => {
+    // Caseless, so detection rests entirely on DB membership: an unknown token
+    // with no title/role cue must not match.
+    expect(thPersons('ดู ซอกแซกมโนสาเร่ วันนี้')).not.toContain('ซอกแซกมโนสาเร่');
+  });
+});
+
 describe('context-based detection (generalizes beyond the DB)', () => {
   // All names below are deliberately ABSENT from the name database, so these only
   // pass via the title/role/particle heuristics — never via dictionary lookup.
@@ -405,6 +482,53 @@ describe('structural role noun after a name is not absorbed as a surname', () =>
   });
 });
 
+describe('company legal-entity designator is not absorbed as a surname', () => {
+  // "Corp" and "Holding" are real ext-tier census surnames AND company
+  // designators (NON_NAME_WORDS). When one trails a capitalized organization
+  // stem ("Acme Corp", "Quorvex Holding"), the DB hit used to let the chain
+  // absorb the designator and emit a two-token PERSON span — same bug class as
+  // the "<Given> <RoleNoun>" absorption above. The chain-extension guard now
+  // breaks on the designator, leaving the org stem as a lone unknown token that
+  // cannot promote.
+  //
+  // Company stems below (Zentara/Quorvex/Brightmoor/Nordia) are held out —
+  // all absent from the full committed DB (asserted at the end) — so the guard,
+  // not dictionary absence of the designator, is what suppresses the span.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not read "<OrgStem> <Designator>" as a person', () => {
+    expect(personsFull('Zentara Corp filed the claim.')).toHaveLength(0);
+    expect(personsFull('Quorvex Holding declined the refund.')).toHaveLength(0);
+    expect(personsFull('Brightmoor Corporation escalated the case.')).toHaveLength(0);
+    expect(personsFull('Nordia Limited updated the invoice.')).toHaveLength(0);
+  });
+
+  it('keeps detecting a real person adjacent to a company designator', () => {
+    // The guard must only break the chain, never suppress a genuine neighbour.
+    expect(personsFull('Acme Corp account holder Rajesh Iyer confirmed.')).toEqual(['Rajesh Iyer']);
+  });
+
+  it('still detects a genuine two-token name (guard is designator-specific)', () => {
+    expect(personsFull('Priya Gupta reviewed the ticket.')).toContain('Priya Gupta');
+  });
+
+  it('proves the in-DB designators are genuine ext-tier hits (guard, not membership)', () => {
+    for (const designator of ['corp', 'holding']) {
+      const hit =
+        fullSource.hasGiven(designator, 'Latin') || fullSource.hasFamily(designator, 'Latin');
+      expect(hit, `${designator} should be in the committed DB`).toBe(true);
+    }
+    for (const stem of ['zentara', 'quorvex', 'brightmoor', 'nordia']) {
+      const absent = !fullSource.hasGiven(stem, 'Latin') && !fullSource.hasFamily(stem, 'Latin');
+      expect(absent, `${stem} must be held out of the DB`).toBe(true);
+    }
+  });
+});
+
 describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   // Support / KYC / CRM prose labels an identifier with the "number"
   // abbreviation — "Passport No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº
@@ -412,8 +536,9 @@ describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   // Vietnamese "No"), so the backward unknown-cap anchor read the abbreviation
   // as a surname and dragged the preceding structural noun in with it, emitting
   // a false PERSON span ("Passport No", "Account Nr"). The fix recognises the
-  // abbreviation structurally (letters + trailing '.', or the °-ligature), never
-  // by dictionary membership.
+  // abbreviation structurally — letters + trailing '.', the °-ligature, or the
+  // dot-less form where "No"/"Nr" directly introduces an identifier value
+  // (optionally via ':') — never by dictionary membership.
   const fullSource2 = nameSourceFromBuildInputs();
   const personsFull2 = (text: string) =>
     detect(text, { nameSource: fullSource2 })
@@ -428,6 +553,20 @@ describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
     expect(personsFull2('Serial No. ZQ8871 reported by the team.')).toHaveLength(0);
     expect(personsFull2('Docket Nr. 55-01 was escalated.')).toHaveLength(0);
     expect(personsFull2('Reference Nº 7788 pending review.')).toHaveLength(0);
+  });
+
+  it('guards the dot-less label form when an identifier value follows', () => {
+    // The abbreviation dot is routinely dropped in KYC / form prose. Held-out
+    // label nouns, each directly introducing an identifier (letter-prefixed,
+    // digits, or via a ':' separator), prove the dot-less rule generalizes.
+    expect(personsFull2('Passport No L898902C3 issued in 2019.')).toHaveLength(0);
+    expect(personsFull2('Passport No: L898902C3 issued in 2019.')).toHaveLength(0);
+    expect(personsFull2('Ref No ABX-7 is still open.')).toHaveLength(0);
+    expect(personsFull2('Docket Nr 55-01 was escalated.')).toHaveLength(0);
+    // A real given name still rides the "<given> <ext surname>" chain: the value
+    // after "No" here is an ordinary word, not an identifier, so the guard keeps
+    // its hands off.
+    expect(personsFull2('Kevin No reported the outage.')).toContain('Kevin No');
   });
 
   it('does not absorb a trailing number label into a real name chain', () => {
@@ -512,6 +651,66 @@ describe('role cue with label colon ("<RoleNoun>: <Name>")', () => {
       ['pendlemoor', 'Latin'],
       ['fingleton', 'Latin'],
       ['bazlovic', 'Latin'],
+    ];
+    for (const [word, script] of heldOut) {
+      expect(fullSource.hasGiven(word, script), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, script), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+});
+
+describe('"admin"/"sysadmin" role-cue shorthand ("network admin <Name>")', () => {
+  // "administrator" was already a role cue, but its ubiquitous IT/support
+  // shorthand "admin"/"sysadmin" was not — so a name introduced by the
+  // abbreviation ("network admin Per Larsson") got no context boost and dropped
+  // when it was not in the dictionary. Detection here must ride ONLY on the role
+  // cue + 2 parts; the names below are held out against the FULL committed DB.
+  it('detects an unknown full name after an "admin" role cue', () => {
+    expect(persons('Ticket routed to network admin Qwenthor Blyvscott.')).toContain(
+      'Qwenthor Blyvscott'
+    );
+    expect(persons('The system admin Zarnivook Threllmann reset the password.')).toContain(
+      'Zarnivook Threllmann'
+    );
+  });
+
+  it('detects an unknown full name after a "sysadmin" role cue', () => {
+    expect(persons('sysadmin Vexyl Grundwald applied the patch overnight.')).toContain(
+      'Vexyl Grundwald'
+    );
+  });
+
+  it('accepts the "admin:" label-colon form', () => {
+    expect(persons('Escalated to admin: Nyrello Vethkamp this morning.')).toContain(
+      'Nyrello Vethkamp'
+    );
+  });
+
+  it('does not promote a single capitalized word after an "admin" cue', () => {
+    // parts === 1 + roleBefore guard: no second name part, no DB hit.
+    expect(persons('Please contact admin Portal for access.')).toHaveLength(0);
+    expect(persons('network admin Tasks are pending.')).toHaveLength(0);
+  });
+
+  it('does not turn an "admin" cue + structural IT nouns into a person', () => {
+    // NON_NAME_WORDS blocks the structural follow-ons the admin cue newly reaches.
+    expect(persons('admin Console Dashboard was updated.')).toHaveLength(0);
+    expect(persons('admin Access Rights were revoked.')).toHaveLength(0);
+    expect(persons('sysadmin Login Credentials reset.')).toHaveLength(0);
+    expect(persons('admin Settings Options changed.')).toHaveLength(0);
+  });
+
+  it('proves the "admin"-cue held-out names are absent from the full DB', () => {
+    const fullSource = nameSourceFromBuildInputs();
+    const heldOut: Array<[string, 'Latin']> = [
+      ['qwenthor', 'Latin'],
+      ['blyvscott', 'Latin'],
+      ['zarnivook', 'Latin'],
+      ['threllmann', 'Latin'],
+      ['vexyl', 'Latin'],
+      ['grundwald', 'Latin'],
+      ['nyrello', 'Latin'],
+      ['vethkamp', 'Latin'],
     ];
     for (const [word, script] of heldOut) {
       expect(fullSource.hasGiven(word, script), `${word} should be out-of-DB`).toBe(false);
@@ -2061,6 +2260,42 @@ describe('AKA-in-parens frame ("<Name> (<Alias>)")', () => {
     expect(personsFull('Maria López (April) approved.')).not.toContain('April');
   });
 
+  it('does not fire on a country name in parens (nationality annotation)', () => {
+    // `<Name> (<Country>)` is a nationality / location note, not a nickname.
+    // Country short-names are not in AMBIGUOUS_WORDS, so before the
+    // COUNTRY_NAMES guard the whole class ("Sweden", "Norway", ...) promoted
+    // the country as a PERSON alias while the leading name still detects. The
+    // country tokens below are held out (absent from the full DB, asserted in
+    // the "held out" test), so the block is the guard, not the dictionary.
+    expect(personsFull('Dr. Ingrid Bergman (Sweden) called support.')).toEqual(['Ingrid Bergman']);
+    expect(personsFull('Maria López (Norway) approved.')).toEqual(['Maria López']);
+    // Held out from the corpus cases too, proving the guard generalizes to
+    // countries the benchmark never carries.
+    expect(personsFull('Maria López (Kazakhstan) approved.')).toEqual(['Maria López']);
+    expect(personsFull('Maria López (Luxembourg) approved.')).toEqual(['Maria López']);
+  });
+
+  it('proves the country-in-parens tokens are held out (absent from the full DB)', () => {
+    // The guard, not dictionary membership, is what suppresses these — none is
+    // a name in the committed DB, so the country class detected ONLY via the
+    // AKA cue before the fix. (Some other country short-names DO sit in the
+    // long-tail ext dictionary as rare given/family names; the guard blocks
+    // those too, but they are unusable as a generalization proof, so the
+    // held-out set below is restricted to countries confirmed absent.)
+    for (const word of ['sweden', 'norway', 'finland', 'kazakhstan', 'luxembourg']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
+  it('still fires on a real given-name alias that collides with nothing geographic', () => {
+    // Precision-first exclusion: dual-use country/given names ("Jordan",
+    // "Georgia", "Chad") are intentionally NOT in COUNTRY_NAMES, so a genuine
+    // nickname in that slot is still recovered.
+    expect(personsFull('Maria López (Jordan) approved.')).toContain('Jordan');
+    expect(personsFull('Maria López (Georgia) approved.')).toContain('Georgia');
+  });
+
   it('does not fire on a parenthesized non-alias (token followed by more content)', () => {
     // The close-paren must follow the alias directly. A second token inside
     // the parens ("(Smith Department)", "(Berlin office)") leaves the chain
@@ -2217,5 +2452,53 @@ describe('Cyrillic names (Russian / Ukrainian / Balkan / Bulgarian)', () => {
     // path rather than the caseless one: a run of common lowercase words must
     // never promote, even if a token collides with a surname in the pack.
     expect(personsFull('сегодня была хорошая погода в городе')).toEqual([]);
+  });
+});
+
+describe('organization designator after a given name is not absorbed as a surname', () => {
+  // A known given name directly followed by an institution designator ("Grace
+  // Hospital", "Kingston University", "Victoria College") is an organization
+  // named after a person, not a person. The DB hit on the given name used to let
+  // the chain swallow the (unknown-cap) designator as a surname and emit a
+  // two-token PERSON span. The designators now live in NON_NAME_WORDS, so the
+  // chain-extension guard breaks on them and only the real given name remains
+  // (and a lone/ambiguous given drops below threshold on its own).
+  //
+  // Held out from the fix's corpus cases (Grace Hospital / Victoria University):
+  // the designators below pair with DIFFERENT given names and DIFFERENT
+  // designators, proving the guard generalizes rather than memorizing the
+  // benchmarked strings. Uses the FULL committed DB so the given names are real
+  // hits and the designators are the only thing the guard has to stop.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('emits only the given name, not "<Given> <Designator>"', () => {
+    // Each given is core-tier, so it detects on its own (0.65) once the guard
+    // stops the chain from swallowing the trailing designator.
+    expect(personsFull('Michael Clinic opened a new wing.')).toEqual(['Michael']);
+    expect(personsFull('David Institute published the study.')).toEqual(['David']);
+    expect(personsFull('Thomas Academy enrolled new students.')).toEqual(['Thomas']);
+    expect(personsFull('Robert Foundation funds the grant.')).toEqual(['Robert']);
+    expect(personsFull('James Museum reopened downtown.')).toEqual(['James']);
+    expect(personsFull('Patricia Library extended its hours.')).toEqual(['Patricia']);
+  });
+
+  it('drops the span entirely when the given is ambiguous vocabulary', () => {
+    // "Grace" is an AMBIGUOUS_WORD, so once the designator is stripped the lone
+    // token is below threshold — the whole "Grace Hospital" span disappears.
+    expect(personsFull('She works at Grace Hospital in the city.')).toEqual([]);
+    expect(personsFull('The Rose Cathedral hosted the concert.')).toEqual([]);
+  });
+
+  it('still detects a genuine two-token name (guard is noun-specific)', () => {
+    // Same shape, but the second token is a real surname, not a designator —
+    // the chain must still extend. "Church"/"Temple" are deliberately excluded
+    // from the designator list because they are real surnames.
+    expect(personsFull('Michael Anderson reviewed the ticket.')).toContain('Michael Anderson');
+    expect(personsFull('Please contact Alonzo Church about the paper.')).toContain('Alonzo Church');
+    expect(personsFull('The actress Shirley Temple was famous.')).toContain('Shirley Temple');
   });
 });

@@ -8,6 +8,14 @@ import type { Span } from '../../types';
 // ubiquitous form-field label that the "date of birth" wording alone misses.
 const CUE = String.raw`(?:date\s+of\s+birth|birth\s*date|d\.?\s*o\.?\s*b\.?|born(?:\s+on)?|geburtsdatum|geburtstag|geboren(?:\s+am)?|geb\.?)`;
 
+// Birth-*document* cues: a birth certificate's headline date is the date of birth,
+// so "birth certificate 1980-03-14" / "Geburtsurkunde 1975-11-02" should surface
+// the DOB. These are weaker than CUE because such a document also carries an
+// *issue* date, so — unlike CUE — this cue binds only a date sitting directly
+// after it (optional colon/whitespace, no verb filler). That keeps a trailing
+// action date out: "birth certificate issued 2020-01-01" stays silent.
+const DOC_CUE = String.raw`(?:birth\s*certificate|geburtsurkunde)`;
+
 const MONTH_EN = String.raw`(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?`;
 const MONTH_DE = String.raw`(?:januar|februar|m[äa]rz|april|mai|juni|juli|august|september|oktober|november|dezember)`;
 const MONTH = `(?:${MONTH_EN}|${MONTH_DE})`;
@@ -48,23 +56,64 @@ const DATE = [
 // keeps incidental dates out.
 const FILLER = String.raw`(?:[a-z]{2,10}[\s:]+){0,3}`;
 
-// Cue, then a colon / whitespace / short connective run, then the date (the date
+// "birthday" is a birth cue too ("Birthday: 1995-12-25", "her birthday is …"),
+// but unlike the cues above it doubles as an EVENT noun — "birthday party on
+// <date>", "birthday bash on <date>" name an event date, not a date of birth.
+// So it gets a deliberately TIGHT binding, never the multi-word FILLER: a colon
+// label, the date immediately adjacent, or a single "is"/"was" copula. The
+// event phrasing always inserts an event noun ("party"/"bash"/…) or a longer
+// connective ("scheduled for") between "birthday" and the date, which this
+// binding refuses to cross — keeping those out while catching the DOB forms.
+const BIRTHDAY = String.raw`birthday(?:\s*:\s*|\s+(?:(?:is|was)\s+)?)`;
+
+// Records and support-desk prose routinely name the *subject* between the cue
+// and the value, closing with a colon before the date:
+//   "Date of birth of the account holder John Smith: 1990-01-01"
+//   "Geburtsdatum of network admin Priya Nayar: 1988-07-15"
+//   "DOB of patient Maria Gomez: 1975-03-22"
+// The subject is an appositive introduced by a small closed set of connectives
+// ("of"/"for" and the German "von"/"des"/"der"/"für") — requiring one keeps this
+// branch from bridging an arbitrary lead-in to an unrelated date. The run itself
+// is a few alphabetic words only (roles + a name — letters, apostrophes, hyphens;
+// no digits, no sentence punctuation), and the trailing colon is the value
+// separator, so the date stays pinned to its label. The birth cue still gates
+// the whole match, so a bare "of the account holder …: <date>" with no cue is
+// ignored. This complements the cue-then-colon and cue-then-filler branches,
+// which don't cover a named-subject appositive.
+const APPOS = String.raw`(?:of|for|von|des|der|für)`;
+const SUBJECT_WORD = String.raw`[A-Za-zÀ-ÿ'’-]{1,20}`;
+const SUBJECT = String.raw`${APPOS}\s+(?:${SUBJECT_WORD}\s+){0,4}${SUBJECT_WORD}`;
+
+// Cue, then a colon / named-subject appositive + colon / whitespace + short
+// connective run — or the tightly bound "birthday" cue — then the date (the date
 // is the trailing capture group so its offset is the match end minus its own length).
-const DOB_RE = new RegExp(`${CUE}(?:\\s*:\\s*|\\s+${FILLER})(${DATE})`, 'gi');
+const DOB_RE = new RegExp(
+  `(?:${CUE}(?:\\s*:\\s*|\\s+${SUBJECT}\\s*:\\s*|\\s+${FILLER})|${BIRTHDAY})(${DATE})`,
+  'gi'
+);
+
+// Document cue with a *directly adjacent* date only — optional colon/whitespace,
+// no filler — so the birth date is captured but a trailing issue/action date is not.
+const DOC_DOB_RE = new RegExp(`${DOC_CUE}\\s*:?\\s*(${DATE})`, 'gi');
 
 export function detectDatesOfBirth(text: string): Span[] {
-  const spans: Span[] = [];
-  for (const m of text.matchAll(DOB_RE)) {
-    const date = m[1];
-    const start = m.index + (m[0].length - date.length);
-    spans.push({
-      start,
-      end: start + date.length,
-      type: 'DATE_OF_BIRTH',
-      text: date,
-      confidence: 0.85,
-      source: 'dob',
-    });
+  const byStart = new Map<number, Span>();
+  for (const re of [DOB_RE, DOC_DOB_RE]) {
+    for (const m of text.matchAll(re)) {
+      const date = m[1];
+      const start = m.index + (m[0].length - date.length);
+      // Dedupe by offset: a date preceded by both a strong and a document cue
+      // resolves to a single span.
+      if (byStart.has(start)) continue;
+      byStart.set(start, {
+        start,
+        end: start + date.length,
+        type: 'DATE_OF_BIRTH',
+        text: date,
+        confidence: 0.85,
+        source: 'dob',
+      });
+    }
   }
-  return spans;
+  return [...byStart.values()];
 }

@@ -36,6 +36,10 @@
     ]
   },
   {
+    "text": "The firewall rejected 10.0.0.299 as an invalid address.",
+    "entities": []
+  },
+  {
     "text": "The probe reached 203.0.113.42.",
     "entities": [
       {
@@ -110,6 +114,28 @@
         "text": "+49 30 1234567"
       }
     ]
+  },
+  {
+    "text": "Support ticket: billing phone 0049 30 12345678 logged for the customer.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "0049 30 12345678"
+      }
+    ]
+  },
+  {
+    "text": "Reach the on-call engineer at 0044 20 7946 0958 before noon.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "0044 20 7946 0958"
+      }
+    ]
+  },
+  {
+    "text": "Decoy test: card 4532 9876 5432 1098 (Luhn fail) must not read as a phone.",
+    "entities": []
   },
   {
     "text": "The meeting with Kai-Uwe von Braun is confirmed.",
@@ -782,6 +808,24 @@
     "entities": []
   },
   {
+    "text": "The caller left the number +81-33-44-55-66-77 on the ticket.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+81-33-44-55-66-77"
+      }
+    ]
+  },
+  {
+    "text": "Escalation hotline is +52-55-33-11-99-77 for the region.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+52-55-33-11-99-77"
+      }
+    ]
+  },
+  {
     "text": "Join the call at https://bergstrom.webex.com/meet/joost.vandenberg today.",
     "entities": [
       {
@@ -1078,6 +1122,28 @@
     "entities": []
   },
   {
+    "text": "Customer taxpayer ID 972-88-3106 verified for filing.",
+    "entities": [
+      {
+        "type": "NATIONAL_ID",
+        "text": "972-88-3106"
+      }
+    ]
+  },
+  {
+    "text": "Applicant ITIN on record: 954-91-0075.",
+    "entities": [
+      {
+        "type": "NATIONAL_ID",
+        "text": "954-91-0075"
+      }
+    ]
+  },
+  {
+    "text": "Batch id-903-66-4210 processed overnight.",
+    "entities": []
+  },
+  {
     "text": "German tax ID 65929970489 is on the invoice.",
     "entities": [
       {
@@ -1093,6 +1159,23 @@
   {
     "text": "Ticket № 345-67-8901 escalated to tier 2.",
     "entities": []
+  },
+  {
+    "text": "Ticket ID 19991231-7 was archived overnight.",
+    "entities": []
+  },
+  {
+    "text": "Case 20240229-1234 escalated to tier 2.",
+    "entities": []
+  },
+  {
+    "text": "Ticket 20250314-9 open; call +81 3-6205-4000 today.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+81 3-6205-4000"
+      }
+    ]
   },
   {
     "text": "Traveler passport number L898902C3 was logged at the gate.",
@@ -1144,6 +1227,28 @@
     "entities": []
   },
   {
+    "text": "Birthday: 1977-04-19 confirmed during the identity check.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1977-04-19"
+      }
+    ]
+  },
+  {
+    "text": "Her birthday is 3 March 1980 per the onboarding form.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "3 March 1980"
+      }
+    ]
+  },
+  {
+    "text": "Join the birthday bash on 2026-02-14 in the lobby!",
+    "entities": []
+  },
+  {
     "text": "DOB on file: 1990-07-22 confirmed by the agent.",
     "entities": [
       {
@@ -1160,6 +1265,32 @@
         "text": "04/11/1979"
       }
     ]
+  },
+  {
+    "text": "Geburtsdatum of the network administrator: 1988-07-15 on file.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1988-07-15"
+      }
+    ]
+  },
+  {
+    "text": "Date of birth of the primary account holder: 05/23/1983 confirmed.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "05/23/1983"
+      }
+    ]
+  },
+  {
+    "text": "Date of birth review committee finalized the report: 2024-03-01.",
+    "entities": []
+  },
+  {
+    "text": "Date of birth of the customer noted, invoice dated: 2024-03-01.",
+    "entities": []
   },
   {
     "text": "He was born in a small coastal village; the audit on 2024-01-15 found issues.",
@@ -1313,6 +1444,28 @@
   },
   {
     "text": "Ticket REF-234-56-7890-2026 attached to the case.",
+    "entities": []
+  },
+  {
+    "text": "Customer called from 44-20-7946-0958 to dispute the charge.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "44-20-7946-0958"
+      }
+    ]
+  },
+  {
+    "text": "Agent dialed 91-33-4012-3456 for the scheduled callback.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "91-33-4012-3456"
+      }
+    ]
+  },
+  {
+    "text": "Please call back after 31-12-2024 to confirm the appointment.",
     "entities": []
   },
   {
@@ -1796,6 +1949,24 @@
     ]
   },
   {
+    "text": "Maria López (Sweden) approved the refund this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Maria López"
+      }
+    ]
+  },
+  {
+    "text": "Dr. Ingrid Bergman (Norway) called the support line today.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Ingrid Bergman"
+      }
+    ]
+  },
+  {
     "text": "Sarah Manager reviewed the ticket this morning.",
     "entities": [
       {
@@ -1911,6 +2082,41 @@
     "entities": []
   },
   {
+    "text": "Refund requested to DE89 3704 0044 0532 0130 01 (IBAN) per the customer.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "DE89 3704 0044 0532 0130 01"
+      }
+    ]
+  },
+  {
+    "text": "Settlement wired to GB29 NWBK 6016 1331 9268 20 [IBAN] overnight.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "GB29 NWBK 6016 1331 9268 20"
+      }
+    ]
+  },
+  {
+    "text": "Chargeback to FR7630006000011234567890188 (IBAN) is pending review.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "FR7630006000011234567890188"
+      }
+    ]
+  },
+  {
+    "text": "Please have your account number (IBAN) ready when you call.",
+    "entities": []
+  },
+  {
+    "text": "The code XZ12 3456 7890 1234 5678 was logged; see (IBAN) section for details.",
+    "entities": []
+  },
+  {
     "text": "Customer complaint from Raj Kumar-Singh: invoice 2024.07.10-12 shows wrong amount.",
     "entities": [
       {
@@ -1966,6 +2172,24 @@
   {
     "text": "Reference (1234567890) logged in the queue.",
     "entities": []
+  },
+  {
+    "text": "Reach the office at (020) 7946 0958 before noon.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "(020) 7946 0958"
+      }
+    ]
+  },
+  {
+    "text": "Please call (212) 555-0199 to confirm the booking.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "(212) 555-0199"
+      }
+    ]
   },
   {
     "text": "Batch id (0987654321) processed overnight.",
@@ -2139,6 +2363,19 @@
     ]
   },
   {
+    "text": "Passport No L898902C3 issued in 2019 and still valid.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "L898902C3"
+      }
+    ]
+  },
+  {
+    "text": "Ref No ABX-7 remains open pending review.",
+    "entities": []
+  },
+  {
     "text": "Account No. 4471-AA was flagged for review.",
     "entities": []
   },
@@ -2178,7 +2415,64 @@
     ]
   },
   {
+    "text": "Case #3345: support ticket lists Passport Ref: PT4829Q1 for the traveler.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "PT4829Q1"
+      }
+    ]
+  },
+  {
+    "text": "Border control noted Passport Reference DE71B4K9 during the check.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "DE71B4K9"
+      }
+    ]
+  },
+  {
+    "text": "The passport reference number will be issued next week.",
+    "entities": []
+  },
+  {
+    "text": "Passport Ref please forward it when you can.",
+    "entities": []
+  },
+  {
     "text": "The passport office at desk 12 reopens Monday.",
+    "entities": []
+  },
+  {
+    "text": "Account verified (Passport IN2B3C4D5E6F7; born earlier).",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "IN2B3C4D5E6F7"
+      }
+    ]
+  },
+  {
+    "text": "Reisepass BR7Q2W9E4R1T5 vorgelegt und geprüft.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "BR7Q2W9E4R1T5"
+      }
+    ]
+  },
+  {
+    "text": "Passport US9Z8Y7X6W5V4U logged at the gate.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "US9Z8Y7X6W5V4U"
+      }
+    ]
+  },
+  {
+    "text": "Passport No. ABC123456789012 rejected as malformed.",
     "entities": []
   },
   {
@@ -2334,11 +2628,404 @@
     ]
   },
   {
+    "text": "ਕਿਰਪਾ ਕਰਕੇ ਅਮਰਿੰਦਰ ਸਿੰਘ ਨਾਲ ਸੰਪਰਕ ਕਰੋ।",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "ਅਮਰਿੰਦਰ ਸਿੰਘ"
+      }
+    ]
+  },
+  {
+    "text": "ਇਹ ਰਿਪੋਰਟ ਹਰਪ੍ਰੀਤ ਕੌਰ ਨੇ ਤਿਆਰ ਕੀਤੀ।",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "ਹਰਪ੍ਰੀਤ ਕੌਰ"
+      }
+    ]
+  },
+  {
     "text": "The report was filed by Giorgi Beridze last week.",
     "entities": [
       {
         "type": "PERSON",
         "text": "Giorgi Beridze"
+      }
+    ]
+  },
+  {
+    "text": "Acme Corp account holder Rajesh Iyer confirmed the refund.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Rajesh Iyer"
+      }
+    ]
+  },
+  {
+    "text": "Zentara Corp filed the claim this morning.",
+    "entities": []
+  },
+  {
+    "text": "Quorvex Holding declined the chargeback.",
+    "entities": []
+  },
+  {
+    "text": "Brightmoor Corporation escalated the case.",
+    "entities": []
+  },
+  {
+    "text": "Nordia Limited updated the invoice yesterday.",
+    "entities": []
+  },
+  {
+    "text": "The lab results came back from Grace Hospital this morning.",
+    "entities": []
+  },
+  {
+    "text": "He completed his degree at Victoria University last spring.",
+    "entities": []
+  },
+  {
+    "text": "Dr. Rajesh Iyer now consults at Grace Hospital on Fridays.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Rajesh Iyer"
+      }
+    ]
+  },
+  {
+    "text": "Ticket routed to network admin Qwenthor Blyvscott overnight.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Qwenthor Blyvscott"
+      }
+    ]
+  },
+  {
+    "text": "The system admin Zarnivook Threllmann reset the password.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Zarnivook Threllmann"
+      }
+    ]
+  },
+  {
+    "text": "sysadmin Vexyl Grundwald applied the patch.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Vexyl Grundwald"
+      }
+    ]
+  },
+  {
+    "text": "admin Console Dashboard was updated last night.",
+    "entities": []
+  },
+  {
+    "text": "admin Access Rights were revoked for the group.",
+    "entities": []
+  },
+  {
+    "text": "sysadmin Login Credentials reset is required.",
+    "entities": []
+  },
+  {
+    "text": "Please contact network admin for portal access.",
+    "entities": []
+  },
+  {
+    "text": "Device network MAC ff:ff:ff:ff:ff:ff broadcast test; no customer PII involved.",
+    "entities": []
+  },
+  {
+    "text": "The switch flooded the frame to FF-FF-FF-FF-FF-FF on the trunk.",
+    "entities": []
+  },
+  {
+    "text": "Flood frame egressed to FFFF.FFFF.FFFF on the uplink.",
+    "entities": []
+  },
+  {
+    "text": "Fraud team flagged the Visa ending 1881; customer will call back.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "1881"
+      }
+    ]
+  },
+  {
+    "text": "Refund processed to the card ending in 4242 this morning.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "4242"
+      }
+    ]
+  },
+  {
+    "text": "Escalation notes: card number ending in 5150 was frozen pending review.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "5150"
+      }
+    ]
+  },
+  {
+    "text": "The order ending 1234 shipped and the ticket ending in 9999 was closed.",
+    "entities": []
+  },
+  {
+    "text": "Guest checked into suite 4242 on the third floor.",
+    "entities": []
+  },
+  {
+    "text": "Transfer to account: IT25 C054 2811 3080 9606 7611 960 for the vendor.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "IT25 C054 2811 3080 9606 7611 960"
+      }
+    ]
+  },
+  {
+    "text": "Please update bank account DE00 1234 5678 9012 3456 78 before renewal.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "DE00 1234 5678 9012 3456 78"
+      }
+    ]
+  },
+  {
+    "text": "Refund sent to a/c NL00 ABCD 0123 4567 89 last week.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "NL00 ABCD 0123 4567 89"
+      }
+    ]
+  },
+  {
+    "text": "Sample account: FR76 1234 5678 9012 3456 7890 123 (placeholder, do not use).",
+    "entities": []
+  },
+  {
+    "text": "Customer record includes birth certificate 1962-08-05 and passport L8K2M9P4.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1962-08-05"
+      },
+      {
+        "type": "PASSPORT",
+        "text": "L8K2M9P4"
+      }
+    ]
+  },
+  {
+    "text": "Laut Geburtsurkunde 1954-12-19 wurde der Antrag geprüft.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1954-12-19"
+      }
+    ]
+  },
+  {
+    "text": "The birth certificate issued 2021-03-30 by the registry office was scanned.",
+    "entities": []
+  },
+  {
+    "text": "Passport document M8N3B6V1C4 attached to the case file.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "M8N3B6V1C4"
+      }
+    ]
+  },
+  {
+    "text": "Reisepass Dokument R3T8N1Q6 vorgelegt und geprüft.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "R3T8N1Q6"
+      }
+    ]
+  },
+  {
+    "text": "Passport document scanned and archived overnight.",
+    "entities": []
+  },
+  {
+    "text": "Reisepass-Nr. PZ9K4M2Q für den Kunden hinterlegt.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "PZ9K4M2Q"
+      }
+    ]
+  },
+  {
+    "text": "Passport-No. R7T3W8N5 issued at the consulate.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "R7T3W8N5"
+      }
+    ]
+  },
+  {
+    "text": "Please submit your Passport-No. before Friday.",
+    "entities": []
+  },
+  {
+    "text": "KYC complete; Passport Num. P4KZ8Q7 recorded against the account.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "P4KZ8Q7"
+      }
+    ]
+  },
+  {
+    "text": "Traveler Passport Num M8N3B6V1C4 on file for the border check.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "M8N3B6V1C4"
+      }
+    ]
+  },
+  {
+    "text": "Passport Numbering system X1234567 applies to new applicants.",
+    "entities": []
+  },
+  {
+    "text": "Customs form shows passport code P7R3S5T1U9 for the traveler.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "P7R3S5T1U9"
+      }
+    ]
+  },
+  {
+    "text": "Onboarding record lists passport ID M8N3B6V1C4 verified at the gate.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "M8N3B6V1C4"
+      }
+    ]
+  },
+  {
+    "text": "Please send the passport code today so we can finish the form.",
+    "entities": []
+  },
+  {
+    "text": "Traveler on file: Passport IN R6041827 issued last spring.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "R6041827"
+      }
+    ]
+  },
+  {
+    "text": "Grenzkontrolle vermerkt: Passnummer PT 71B3049 vorgelegt.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "71B3049"
+      }
+    ]
+  },
+  {
+    "text": "Intake scan: passport document JP 8K5920R attached to the file.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "8K5920R"
+      }
+    ]
+  },
+  {
+    "text": "The passport GB office relocated to the second floor last week.",
+    "entities": []
+  },
+  {
+    "text": "Reisepass #DE8A5N2V7R vorgelegt und geprüft.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "DE8A5N2V7R"
+      }
+    ]
+  },
+  {
+    "text": "Traveler passport#K7Q2M9X4 logged at the gate.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "K7Q2M9X4"
+      }
+    ]
+  },
+  {
+    "text": "See passport#faq for renewal steps before you travel.",
+    "entities": []
+  },
+  {
+    "text": "ଦୟାକରି ଯୋଗାଯୋଗ କରନ୍ତୁ ବିଜୟ ମହାନ୍ତି ଆସନ୍ତାକାଲି।",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "ବିଜୟ ମହାନ୍ତି"
+      }
+    ]
+  },
+  {
+    "text": "ଦଲିଲ ସ୍ୱାକ୍ଷର କଲେ ସୁରେଶ ପଟ୍ଟନାୟକ ଗତକାଲି।",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "ସୁରେଶ ପଟ୍ଟନାୟକ"
+      }
+    ]
+  },
+  {
+    "text": "กรุณาติดต่อ สมชาย ชัยวัฒน์ พรุ่งนี้",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "สมชาย ชัยวัฒน์"
+      }
+    ]
+  },
+  {
+    "text": "รายงานถูกส่งโดย ประยุทธ์ ธาริษา เมื่อสัปดาห์ที่แล้ว",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "ประยุทธ์ ธาริษา"
+      }
+    ]
+  },
+  {
+    "text": "Please contact Mr. Somchai Chaiwat about the refund.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Somchai Chaiwat"
       }
     ]
   }
