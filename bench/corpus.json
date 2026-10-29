@@ -2798,5 +2798,27 @@
   {
     "text": "The birth certificate issued 2021-03-30 by the registry office was scanned.",
     "entities": []
+  },
+  {
+    "text": "Passport document M8N3B6V1C4 attached to the case file.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "M8N3B6V1C4"
+      }
+    ]
+  },
+  {
+    "text": "Reisepass Dokument R3T8N1Q6 vorgelegt und geprüft.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "R3T8N1Q6"
+      }
+    ]
+  },
+  {
+    "text": "Passport document scanned and archived overnight.",
+    "entities": []
   }
 ]
