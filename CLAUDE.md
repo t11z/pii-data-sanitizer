@@ -69,6 +69,11 @@ All scripts live in `package.json`; consult it rather than memorizing flags.
   `src/core/detectors/structured/structured.test.ts`.
 - Add benchmark cases to `bench/corpus.json` (entities as `{ type, text }`) plus
   a focused unit test. Never add to `bench/proven/`.
+- **Guards must not erase real names.** `src/core/detectors/nameCollisions.test.ts`
+  locks real names whose parts are everyday words ("Dawn French", "Ricki Lake",
+  "Della Street"). The corpus can't catch this, since every PR passes it with its
+  own cases. If a false-positive guard breaks a case there, narrow the guard; never
+  trim the list.
 
 ## Where things go
 
