@@ -37,6 +37,12 @@ const SCRIPT_TESTS: Array<[Script, RegExp]> = [
   // Georgian and the other Indic scripts, and space-separated between words, so
   // the word tokenizer needs no special handling.
   ['Gurmukhi', /\p{Script=Gurmukhi}/u],
+  // Thai is unicameral/caseless (like Georgian and the Indic scripts). Thai does
+  // not put spaces between words in running prose, but personal names appear as
+  // discrete space- or delimiter-separated tokens in the structured/mixed text
+  // this engine targets (form fields, "name: …", Thai names inside Latin text),
+  // where the word tokenizer isolates them like any other script.
+  ['Thai', /\p{Script=Thai}/u],
   ['Han', /\p{Script=Han}/u],
 ];
 

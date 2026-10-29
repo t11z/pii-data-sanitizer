@@ -42,6 +42,7 @@ export type Script =
   | 'Georgian'
   | 'Gurmukhi'
   | 'Oriya'
+  | 'Thai'
   | 'Other';
 
 export interface Token {

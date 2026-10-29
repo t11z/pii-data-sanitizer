@@ -171,7 +171,10 @@ function isCaselessNameScript(token: Token): boolean {
     // hit suffices, like the Indic caseless scripts above.
     token.script === 'Georgian' ||
     // Gurmukhi (Punjabi) is caseless too, like the other Indic scripts.
-    token.script === 'Gurmukhi'
+    token.script === 'Gurmukhi' ||
+    // Thai is likewise caseless (no upper/lower distinction), so a bare DB hit
+    // suffices, matching the Georgian/Indic treatment.
+    token.script === 'Thai'
   );
 }
 
