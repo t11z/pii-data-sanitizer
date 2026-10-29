@@ -3,6 +3,7 @@ import { tokenize } from '../tokenize';
 import { isParticle } from '../context/particles';
 import { isTitle } from '../context/titles';
 import { isAmbiguousWord } from '../context/commonWords';
+import { isCaselessFunctionWord, isAmbiguousCaselessWord } from '../context/caselessWords';
 import {
   isRoleWord,
   isRoleAbbreviation,
@@ -225,9 +226,58 @@ function nameLike(token: Token, source: NameSource, allowUnknownCap: boolean): b
     return anyHit(source, token) || allowUnknownCap;
   }
   if (isCaselessNameScript(token)) {
-    return anyHit(source, token);
+    // No capitalization to gate on, so a grammar word that happens to be a
+    // name-pack label must be rejected explicitly (see caselessWords.ts).
+    return anyHit(source, token) && !isCaselessFunctionWord(token.text);
   }
   return false;
+}
+
+// Thai honorifics that are written glued to the given name with no space
+// ("นายสมศักดิ์ ใจดี" = Mr. Somsak Jaidee). Longest first, so "นางสาว" (Miss)
+// wins over its prefix "นาง" (Mrs.).
+const THAI_GLUED_TITLES = ['นางสาว', 'เด็กชาย', 'เด็กหญิง', 'นาง', 'นาย', 'คุณ'];
+
+/**
+ * Splits a glued Thai title off the given name so the title can act as a title
+ * cue and the given name can be looked up on its own. Without this the whole
+ * "นายสมศักดิ์" is one unknown token: only the surname detects and the given
+ * name leaks.
+ *
+ * Why the extra gate (remainder is a DB name AND a DB-name surname follows after
+ * a single space): ordinary Thai words also begin with these syllables —
+ * "คุณสมบัติ" (qualification), "คุณภาพ" (quality), "นางฟ้า" (angel) — and some
+ * remainders are themselves names ("สมบัติ" Sombat). Requiring the full
+ * title + given + surname pattern of Thai name fields keeps those words intact.
+ */
+function splitThaiGluedTitles(tokens: Token[], text: string, source: NameSource): Token[] {
+  const out: Token[] = [];
+  for (let k = 0; k < tokens.length; k++) {
+    const tok = tokens[k];
+    const next = tokens[k + 1];
+    const title =
+      tok.script === 'Thai'
+        ? THAI_GLUED_TITLES.find((t) => tok.text.startsWith(t) && tok.text.length > t.length + 1)
+        : undefined;
+    if (
+      title &&
+      next &&
+      next.script === 'Thai' &&
+      SINGLE_GAP.test(text.slice(tok.end, next.start))
+    ) {
+      const given: Token = {
+        ...tok,
+        text: tok.text.slice(title.length),
+        start: tok.start + title.length,
+      };
+      if (nameLike(given, source, false) && nameLike(next, source, false)) {
+        out.push({ ...tok, text: title, end: given.start }, given);
+        continue;
+      }
+    }
+    out.push(tok);
+  }
+  return out;
 }
 
 // Horizontal whitespace (space, tab, NBSP, ...) but never a line break: name
@@ -618,6 +668,9 @@ function nameStart(
     return null;
   }
   // Caseless scripts: require database membership (or a preceding title/role).
+  // A grammar word that is also a name-pack label never opens a name, whatever
+  // cue precedes it (see caselessWords.ts).
+  if (isCaselessFunctionWord(tok.text)) return null;
   if (dbHit || titleBefore || roleBefore) return { titleBefore, roleBefore, dbHit };
   return null;
 }
@@ -690,7 +743,7 @@ function aliasInParens(tokens: Token[], prevTailIdx: number, text: string): Span
 }
 
 export function detectNames(text: string, source: NameSource, minConfidence: number): Span[] {
-  const tokens = tokenize(text);
+  const tokens = splitThaiGluedTitles(tokenize(text), text, source);
   const spans: Span[] = [];
   let i = 0;
   // Index of the last emitted PERSON span's tail token. Threaded into nameStart
@@ -821,7 +874,9 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
       titleBefore: start.titleBefore,
       roleBefore: start.roleBefore,
       dbHits,
-      singleAmbiguous: parts === 1 && isAmbiguousWord(tokens[i].text.toLowerCase()),
+      singleAmbiguous:
+        parts === 1 &&
+        (isAmbiguousWord(tokens[i].text.toLowerCase()) || isAmbiguousCaselessWord(tokens[i].text)),
       atSentenceStart: isSentenceStart(text, spanStart),
       coreHit,
       extOnly,
