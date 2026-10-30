@@ -40,6 +40,16 @@ function isValidItin(area: string, group: string, serial: string): boolean {
 // a false positive on an arbitrary 11-digit run (e.g. a phone number) very unlikely.
 const TAX_ID_RE = /\b\d{11}\b/g;
 
+// The official presentation groups the eleven digits as "XX XXX XXX XXX" (2-3-3-3,
+// single spaces) — the form printed on the BZSt letter and the way people actually
+// write it. The contiguous \d{11} regex never sees that spacing, so a real tax ID
+// written the normal way is missed here and leaks into PHONE instead (a space-grouped
+// 11-digit run looks like a country-code phone). We accept the canonical 2-3-3-3
+// grouping as well, validated by the *identical* ISO 7064 + BZSt gate: the separators
+// only change the framing, never the acceptance rule, so this stays precision-safe and
+// generalizes to any validly-structured German tax ID, not any specific number.
+const TAX_ID_GROUPED_RE = /\b\d{2} \d{3} \d{3} \d{3}\b/g;
+
 /** ISO 7064 MOD 11,10 check digit over the first 10 digits. */
 function taxIdCheckDigit(first10: string): number {
   let product = 10;
@@ -118,6 +128,22 @@ export function detectNationalIds(text: string): Span[] {
 
   for (const m of text.matchAll(TAX_ID_RE)) {
     if (!isValidGermanTaxId(m[0])) continue;
+    spans.push({
+      start: m.index,
+      end: m.index + m[0].length,
+      type: 'NATIONAL_ID',
+      text: m[0],
+      confidence: 0.9,
+      source: 'tax-id-de',
+    });
+  }
+
+  for (const m of text.matchAll(TAX_ID_GROUPED_RE)) {
+    // A leading '+' makes the run an international phone number ("+49 ..."), never
+    // a tax ID — the same signal the SSN branch rejects above.
+    if (m.index > 0 && text[m.index - 1] === '+') continue;
+    const digits = m[0].replace(/ /g, '');
+    if (!isValidGermanTaxId(digits)) continue;
     spans.push({
       start: m.index,
       end: m.index + m[0].length,
