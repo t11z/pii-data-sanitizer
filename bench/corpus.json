@@ -3028,5 +3028,23 @@
         "text": "Somchai Chaiwat"
       }
     ]
+  },
+  {
+    "text": "Account holder's Steuer-ID 10 172 914 587 is on file for the tax year.",
+    "entities": [
+      {
+        "type": "NATIONAL_ID",
+        "text": "10 172 914 587"
+      }
+    ]
+  },
+  {
+    "text": "Support reached the customer on +49 172 914 587 to confirm the order.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+49 172 914 587"
+      }
+    ]
   }
 ]

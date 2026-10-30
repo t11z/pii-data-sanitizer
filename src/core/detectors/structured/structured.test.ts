@@ -1222,6 +1222,32 @@ describe('national id detection', () => {
     expect(only('IdNr 47036892816 hinterlegt.', 'NATIONAL_ID')[0].text).toBe('47036892816');
   });
 
+  it('detects a German tax ID written in its canonical grouped form', () => {
+    // Held-out valid Steuer-IDs, distinct from the contiguous cases above, in the
+    // official "XX XXX XXX XXX" presentation. This is how the number is actually
+    // printed/written, so the grouping (not just the bare digit run) must detect.
+    expect(only('Steuer-ID 10 172 914 587 on file.', 'NATIONAL_ID')[0].text).toBe('10 172 914 587');
+    expect(only('Steuerliche Identifikationsnummer 11 592 678 133.', 'NATIONAL_ID')[0].text).toBe(
+      '11 592 678 133'
+    );
+  });
+
+  it('does not leak a grouped tax ID into PHONE (NATIONAL_ID wins the overlap)', () => {
+    // A space-grouped 11-digit run otherwise scores as a low-confidence country-code
+    // phone; once it is recognised as a tax ID the higher-confidence NATIONAL_ID span
+    // wins on overlap, so no spurious PHONE remains.
+    expect(only('Steuer-ID 10 172 914 587 on file.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('rejects a grouped 11-digit run that fails the tax-ID gate', () => {
+    // Checksum/structure-invalid placeholder in grouped form: must NOT be upgraded to
+    // NATIONAL_ID just because the spacing looks official.
+    expect(only('German Tax ID 12 345 678 901 on file.', 'NATIONAL_ID')).toHaveLength(0);
+    // A '+'-prefixed run is an international phone, never a tax ID, even if the trailing
+    // 2-3-3-3 digits happen to pass the gate.
+    expect(only('Call +49 172 914 587 now.', 'NATIONAL_ID')).toHaveLength(0);
+  });
+
   it('rejects an 11-digit run with a wrong tax-ID check digit', () => {
     expect(only('Number 86095742718 is not an ID.', 'NATIONAL_ID')).toHaveLength(0);
   });
