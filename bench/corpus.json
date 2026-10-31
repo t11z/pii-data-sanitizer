@@ -3028,5 +3028,18 @@
         "text": "Somchai Chaiwat"
       }
     ]
+  },
+  {
+    "text": "Amex charge 344185 296307 410 approved for the account.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "344185 296307 410"
+      }
+    ]
+  },
+  {
+    "text": "Please reconcile EAN 4269548225702 against the shipment manifest.",
+    "entities": []
   }
 ]
