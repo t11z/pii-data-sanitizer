@@ -2288,12 +2288,51 @@ describe('AKA-in-parens frame ("<Name> (<Alias>)")', () => {
     }
   });
 
+  it('does not fire on a city name in parens (location annotation)', () => {
+    // `<Name> (<City>)` is a where-they-are note, not a nickname — the
+    // sub-national analogue of the country guard. Only a few cities ("Berlin")
+    // sit in AMBIGUOUS_WORDS; the rest slipped straight through before the
+    // CITY_NAMES guard. The cities below span several countries and are held out
+    // from the corpus (and, per the next test, absent from the full DB), so the
+    // block is the guard, not the dictionary, and it generalizes across the list.
+    expect(personsFull('Eng. Klaus von Höfling (Darmstadt) resolved it.')).toEqual([
+      'Klaus von Höfling',
+    ]);
+    expect(personsFull('Maria López (Mannheim) approved.')).toEqual(['Maria López']);
+    expect(personsFull('Maria López (Rotterdam) approved.')).toEqual(['Maria López']);
+    expect(personsFull('Dr. Fatima Al-Rashid (Yokohama) reviewed.')).toEqual(['Fatima Al-Rashid']);
+    expect(personsFull('Maria López (Stuttgart) approved.')).toEqual(['Maria López']);
+    expect(personsFull('Maria López (Munich) approved.')).toEqual(['Maria López']);
+  });
+
+  it('proves the city-in-parens tokens are held out (absent from the full DB)', () => {
+    // The guard, not dictionary membership, is what suppresses these — none is a
+    // name in the committed DB, so the city class detected ONLY via the AKA cue
+    // before the fix. (Some cities, e.g. "Heidelberg", DO sit in the ext
+    // dictionary as rare surnames; the guard blocks those too, but they are
+    // unusable as a generalization proof, so the held-out set below is restricted
+    // to cities confirmed absent.)
+    for (const word of ['darmstadt', 'mannheim', 'rotterdam', 'yokohama', 'stuttgart', 'munich']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
   it('still fires on a real given-name alias that collides with nothing geographic', () => {
     // Precision-first exclusion: dual-use country/given names ("Jordan",
     // "Georgia", "Chad") are intentionally NOT in COUNTRY_NAMES, so a genuine
     // nickname in that slot is still recovered.
     expect(personsFull('Maria López (Jordan) approved.')).toContain('Jordan');
     expect(personsFull('Maria López (Georgia) approved.')).toContain('Georgia');
+  });
+
+  it('still fires on a dual-use city/given-name alias (excluded from CITY_NAMES)', () => {
+    // "Paris", "Milan", "Austin" are as often personal names as cities and are
+    // deliberately NOT in CITY_NAMES, so a genuine nickname in the slot survives
+    // — mirroring the dual-use country exclusions above.
+    expect(personsFull('Maria López (Paris) approved.')).toContain('Paris');
+    expect(personsFull('Maria López (Milan) approved.')).toContain('Milan');
+    expect(personsFull('Maria López (Austin) approved.')).toContain('Austin');
   });
 
   it('does not fire on a parenthesized non-alias (token followed by more content)', () => {
