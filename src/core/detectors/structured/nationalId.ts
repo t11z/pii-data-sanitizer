@@ -142,6 +142,11 @@ export function detectNationalIds(text: string): Span[] {
     // A leading '+' makes the run an international phone number ("+49 ..."), never
     // a tax ID — the same signal the SSN branch rejects above.
     if (m.index > 0 && text[m.index - 1] === '+') continue;
+    // Same for a number that follows a country code ("+49 47 036 892 816"): that is
+    // a dialled phone number already claimed by the PHONE detector on main, and a
+    // NATIONAL_ID span over just the tail would win the overlap and leave the
+    // "+49" prefix behind. Only a short window before the run is inspected.
+    if (/\+\d{1,3} ?$/.test(text.slice(Math.max(0, m.index - 5), m.index))) continue;
     const digits = m[0].replace(/ /g, '');
     if (!isValidGermanTaxId(digits)) continue;
     spans.push({

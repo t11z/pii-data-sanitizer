@@ -1815,3 +1815,21 @@ describe('date of birth detection (cue-gated)', () => {
     ).toHaveLength(0);
   });
 });
+
+describe('grouped-form relaxations keep international phone numbers as phones', () => {
+  // Held-out values (not the ones used to introduce the grouped tax-ID / IIN rules):
+  // a dialled number whose national part happens to be a valid tax ID / PAN must not
+  // be relabelled, because that would truncate the redaction and drop the "+CC".
+  it('does not carve a grouped German tax ID out of a +CC phone number', () => {
+    const t = 'Call +49 47 036 892 816 today.';
+    expect(only(t, 'NATIONAL_ID')).toHaveLength(0);
+    expect(only(t, 'PHONE').map((s) => s.text)).toEqual(['+49 47 036 892 816']);
+    // The same grouped digits without a country code are still the tax ID.
+    expect(only('IdNr. 47 036 892 816', 'NATIONAL_ID')).toHaveLength(1);
+  });
+
+  it('does not relabel a +-prefixed non-canonically grouped run as a card', () => {
+    expect(only('Reach +378282 246310 005 now', 'CREDIT_CARD')).toHaveLength(0);
+    expect(only('Amex 378282 246310 005', 'CREDIT_CARD')).toHaveLength(1);
+  });
+});

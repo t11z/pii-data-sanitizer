@@ -154,9 +154,9 @@ describe('email-adjacency anchor for OOV names', () => {
   it('admits the single-segment shape across bracket variants and with a preceding role cue', () => {
     // The role-abbr prefix ("Sr. Eng.") is orthogonal to the anchor; the chain
     // still admits solely because the diacritic + single-segment email align.
-    expect(
-      persons('Sr. Eng. Łukasz Grębowicz [grebowicz@example.pl] reviewed the case.')
-    ).toEqual(['Łukasz Grębowicz']);
+    expect(persons('Sr. Eng. Łukasz Grębowicz [grebowicz@example.pl] reviewed the case.')).toEqual([
+      'Łukasz Grębowicz',
+    ]);
   });
 
   it('does NOT anchor on the diacritic + short-common-noun chain (e.g. "Café Rouge")', () => {
@@ -173,7 +173,7 @@ describe('email-adjacency anchor for OOV names', () => {
     expect(persons('Novak Peterson (novak@example.com) responded.')).toEqual([]);
   });
 
-  it("does NOT anchor when the single-segment local-part matches no chain token", () => {
+  it('does NOT anchor when the single-segment local-part matches no chain token', () => {
     // The local-part is a full word but doesn't align with either chain token
     // (surface or folded), so the anchor never fires even with a diacritic.
     expect(persons('Öystein Kacperowicz (janusz@example.pl) escalated.')).toEqual([]);

@@ -171,7 +171,12 @@ export function detectCreditCards(text: string): Span[] {
     // Grouped-only by design — the ungrouped 15/16 rule above is left untouched,
     // so solid long integers (EAN-13 barcodes, 18/19-digit references) are never
     // reached by this relaxation.
-    if (grouped && !hasNetworkGrouping(value) && !matchesKnownNetwork(digits)) continue;
+    if (grouped && !hasNetworkGrouping(value)) {
+      if (!matchesKnownNetwork(digits)) continue;
+      // A leading '+' marks an international phone number, never a PAN; the
+      // relaxed (non-canonical) path must not relabel a dialled number as a card.
+      if (match.index > 0 && text[match.index - 1] === '+') continue;
+    }
     if (precededByIbanBodyPrefix(text, match.index)) continue;
     spans.push({
       start: match.index,
