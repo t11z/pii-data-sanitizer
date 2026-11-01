@@ -547,6 +547,61 @@ describe('credit card detection', () => {
     expect(only('Card: 3056 930902 5904', 'CREDIT_CARD')[0].text).toBe('3056 930902 5904');
   });
 
+  it('detects a Luhn-valid PAN printed with a non-canonical grouping via its IIN signature', () => {
+    // Gap shape (bench/self-improve): a real Amex printed "6-6-3" instead of the
+    // canonical "4-6-5" was dropped by the grouping gate and then leaked out as a
+    // PHONE false positive. Print spacing is cosmetic — a Luhn-valid run whose
+    // IIN + exact length match a network (ISO/IEC 7812) is a card regardless of
+    // how a human spaced the digits. All values below are HELD OUT (distinct from
+    // the gap's 378282246310005) and span several networks + spacings, so the
+    // test proves a structural signature, not a memorized value.
+    expect(only('Payment 344185 296307 410 approved.', 'CREDIT_CARD')[0].text).toBe(
+      '344185 296307 410' // Amex 34, 15 digits, 6-6-3
+    );
+    expect(only('Charged 37418 52963 07413 today.', 'CREDIT_CARD')[0].text).toBe(
+      '37418 52963 07413' // Amex 37, 15 digits, 5-5-5
+    );
+    expect(only('Visa 453285 296307 4185 on file.', 'CREDIT_CARD')[0].text).toBe(
+      '453285 296307 4185' // Visa 4, 16 digits, 6-6-4
+    );
+    expect(only('Card 22218529 63074185 settled.', 'CREDIT_CARD')[0].text).toBe(
+      '22218529 63074185' // Mastercard 2-series, 16 digits, 8-8
+    );
+    expect(only('Diners 3641852 9630743 booked.', 'CREDIT_CARD')[0].text).toBe(
+      '3641852 9630743' // Diners 36, 14 digits, 7-7
+    );
+    // And the double-hit is closed: the 0.95 card span outranks the loose PHONE
+    // matcher in overlap resolution, so the token no longer leaks as a phone.
+    const spans = detect('Payment 344185 296307 410 approved.');
+    expect(spans.filter((s) => s.type === 'CREDIT_CARD')).toHaveLength(1);
+    expect(spans.filter((s) => s.type === 'PHONE')).toHaveLength(0);
+  });
+
+  it('keys the non-canonical relaxation on IIN + exact length, not on spacing alone', () => {
+    // Precision guard for the IIN signature. Each value is Luhn-valid and printed
+    // with a NON-canonical grouping (so it only reaches the new branch), but its
+    // IIN/length is NOT a recognized card signature, so it must stay rejected —
+    // proving the relaxation does not simply accept "any oddly-spaced Luhn run".
+    // MII 9 (16 digits) — reserved by ISO 7812, issued by no payment network.
+    expect(only('Token 99998529 63074180 issued.', 'CREDIT_CARD')).toHaveLength(0);
+    // UnionPay-style 62 prefix (16 digits) — deliberately out of the signature set
+    // (its 62 / 16–19 space is too permissive to admit without the grouping gate).
+    expect(only('Ref 62418529 63074182 logged.', 'CREDIT_CARD')).toHaveLength(0);
+    // A 13-digit EAN-13 retail barcode in IIN-range 4 — the legacy 13-digit Visa
+    // length is omitted precisely so Luhn-valid EAN-13s are never claimed as cards.
+    expect(only('Barcode 4 269548 225702 scanned.', 'CREDIT_CARD')).toHaveLength(0);
+  });
+
+  it('leaves the ungrouped 15/16 rule intact (solid long integers stay rejected)', () => {
+    // The relaxation is GROUPED-ONLY on purpose: solid runs still require length
+    // 15 or 16, so a solid EAN-13 barcode or a 19-digit reference — both of which
+    // match a card IIN range — are rejected by length before the signature is
+    // ever consulted. (A broader rule that also relaxed the ungrouped path would
+    // over-flag these, so the scope is kept tight here.)
+    expect(only('EAN 4269548225702 scanned at register.', 'CREDIT_CARD')).toHaveLength(0);
+    expect(only('Reference 4532852963074185123 archived.', 'CREDIT_CARD')).toHaveLength(0);
+  });
+
   it('detects a masked last-four when cued by "<card> ending [in] NNNN"', () => {
     // Gap shape: fraud/support prose quotes only the last four digits behind a
     // "card ending" cue. All four-digit values below are held out (they are not
@@ -1222,6 +1277,32 @@ describe('national id detection', () => {
     expect(only('IdNr 47036892816 hinterlegt.', 'NATIONAL_ID')[0].text).toBe('47036892816');
   });
 
+  it('detects a German tax ID written in its canonical grouped form', () => {
+    // Held-out valid Steuer-IDs, distinct from the contiguous cases above, in the
+    // official "XX XXX XXX XXX" presentation. This is how the number is actually
+    // printed/written, so the grouping (not just the bare digit run) must detect.
+    expect(only('Steuer-ID 10 172 914 587 on file.', 'NATIONAL_ID')[0].text).toBe('10 172 914 587');
+    expect(only('Steuerliche Identifikationsnummer 11 592 678 133.', 'NATIONAL_ID')[0].text).toBe(
+      '11 592 678 133'
+    );
+  });
+
+  it('does not leak a grouped tax ID into PHONE (NATIONAL_ID wins the overlap)', () => {
+    // A space-grouped 11-digit run otherwise scores as a low-confidence country-code
+    // phone; once it is recognised as a tax ID the higher-confidence NATIONAL_ID span
+    // wins on overlap, so no spurious PHONE remains.
+    expect(only('Steuer-ID 10 172 914 587 on file.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('rejects a grouped 11-digit run that fails the tax-ID gate', () => {
+    // Checksum/structure-invalid placeholder in grouped form: must NOT be upgraded to
+    // NATIONAL_ID just because the spacing looks official.
+    expect(only('German Tax ID 12 345 678 901 on file.', 'NATIONAL_ID')).toHaveLength(0);
+    // A '+'-prefixed run is an international phone, never a tax ID, even if the trailing
+    // 2-3-3-3 digits happen to pass the gate.
+    expect(only('Call +49 172 914 587 now.', 'NATIONAL_ID')).toHaveLength(0);
+  });
+
   it('rejects an 11-digit run with a wrong tax-ID check digit', () => {
     expect(only('Number 86095742718 is not an ID.', 'NATIONAL_ID')).toHaveLength(0);
   });
@@ -1732,5 +1813,23 @@ describe('date of birth detection (cue-gated)', () => {
     expect(
       only('Date of birth of the customer noted, invoice dated: 2024-03-01.', 'DATE_OF_BIRTH')
     ).toHaveLength(0);
+  });
+});
+
+describe('grouped-form relaxations keep international phone numbers as phones', () => {
+  // Held-out values (not the ones used to introduce the grouped tax-ID / IIN rules):
+  // a dialled number whose national part happens to be a valid tax ID / PAN must not
+  // be relabelled, because that would truncate the redaction and drop the "+CC".
+  it('does not carve a grouped German tax ID out of a +CC phone number', () => {
+    const t = 'Call +49 47 036 892 816 today.';
+    expect(only(t, 'NATIONAL_ID')).toHaveLength(0);
+    expect(only(t, 'PHONE').map((s) => s.text)).toEqual(['+49 47 036 892 816']);
+    // The same grouped digits without a country code are still the tax ID.
+    expect(only('IdNr. 47 036 892 816', 'NATIONAL_ID')).toHaveLength(1);
+  });
+
+  it('does not relabel a +-prefixed non-canonically grouped run as a card', () => {
+    expect(only('Reach +378282 246310 005 now', 'CREDIT_CARD')).toHaveLength(0);
+    expect(only('Amex 378282 246310 005', 'CREDIT_CARD')).toHaveLength(1);
   });
 });
