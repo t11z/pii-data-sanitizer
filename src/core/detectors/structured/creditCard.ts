@@ -63,6 +63,62 @@ function hasNetworkGrouping(value: string): boolean {
   return NETWORK_GROUPINGS.has(sizes.join('-'));
 }
 
+// ISO/IEC 7812 structural signature: a card is identified by its Issuer
+// Identification Number (the leading digits) plus a fixed per-network length —
+// not by how a human spaced the digits when writing it. Print grouping is
+// cosmetic, so a Luhn-valid run whose IIN + exact length match a real payment
+// network is a card even when it is spaced in a non-canonical width
+// (e.g. an Amex written "378282 246310 005" as 6-6-3 instead of 4-6-5). This
+// signature check lets `detectCreditCards` accept that whole class — keyed on
+// the structural prefix, not on any specific value — while the canonical
+// `NETWORK_GROUPINGS` gate still governs runs it does not recognize.
+//
+// Scope is deliberately NARROW to protect precision, informed by the known
+// over-detection modes of a broader "any grouping for any network" rule:
+//   - It gates on the EXACT network length, never a prefix alone. The 13-digit
+//     legacy Visa form is intentionally OMITTED because it collides with
+//     Luhn-valid EAN-13 retail barcodes (also 13 digits, also IIN-range `4`),
+//     which are not cards.
+//   - UnionPay's very broad `62` / 16–19-digit space is likewise omitted: it is
+//     permissive enough to claim long non-card integers, so it stays governed by
+//     the canonical-grouping gate only.
+// The caller applies this ONLY to grouped candidates; the ungrouped path keeps
+// its strict 15/16-length rule, so a solid long integer (barcode, reference
+// number) is never reached by this relaxation.
+function matchesKnownNetwork(digits: string): boolean {
+  const n = digits.length;
+  // American Express — IIN 34 / 37, length 15.
+  if (n === 15 && (digits.startsWith('34') || digits.startsWith('37'))) return true;
+  // Visa — IIN 4, length 16 or 19 (13-digit legacy form omitted; see above).
+  if ((n === 16 || n === 19) && digits[0] === '4') return true;
+  if (n === 16) {
+    // Mastercard — IIN 51–55 or 2221–2720, length 16.
+    const p2 = Number(digits.slice(0, 2));
+    const p4 = Number(digits.slice(0, 4));
+    if ((p2 >= 51 && p2 <= 55) || (p4 >= 2221 && p4 <= 2720)) return true;
+    // Discover — IIN 6011, 65, or 644–649, length 16.
+    const p3 = Number(digits.slice(0, 3));
+    if (digits.startsWith('6011') || digits.startsWith('65') || (p3 >= 644 && p3 <= 649))
+      return true;
+    // JCB — IIN 3528–3589, length 16.
+    if (p4 >= 3528 && p4 <= 3589) return true;
+  }
+  if (n === 14) {
+    // Diners Club — IIN 300–305, 3095, 36, or 38–39, length 14.
+    const p2 = Number(digits.slice(0, 2));
+    const p3 = Number(digits.slice(0, 3));
+    if (
+      (p3 >= 300 && p3 <= 305) ||
+      digits.startsWith('3095') ||
+      p2 === 36 ||
+      p2 === 38 ||
+      p2 === 39
+    )
+      return true;
+  }
+  return false;
+}
+
 // Masked-card references: support / fraud / TAC prose routinely cites only a
 // card's last four digits ("card ending in 4242", "Visa ending 1881"). Those
 // four digits are the printed, customer-facing identifier of the card and are
@@ -109,7 +165,13 @@ export function detectCreditCards(text: string): Span[] {
     // Require grouping or a known length to avoid flagging long plain integers.
     const grouped = /[ -]/.test(value);
     if (!grouped && digits.length !== 15 && digits.length !== 16) continue;
-    if (grouped && !hasNetworkGrouping(value)) continue;
+    // A grouped run must either carry a canonical print grouping OR match a
+    // network's IIN + exact length (see `matchesKnownNetwork`): print spacing is
+    // cosmetic, so an oddly-spaced-but-structurally-valid PAN is still a card.
+    // Grouped-only by design — the ungrouped 15/16 rule above is left untouched,
+    // so solid long integers (EAN-13 barcodes, 18/19-digit references) are never
+    // reached by this relaxation.
+    if (grouped && !hasNetworkGrouping(value) && !matchesKnownNetwork(digits)) continue;
     if (precededByIbanBodyPrefix(text, match.index)) continue;
     spans.push({
       start: match.index,
