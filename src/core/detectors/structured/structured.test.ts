@@ -572,6 +572,23 @@ describe('credit card detection', () => {
     expect(only('the standard ending 2020 was met', 'CREDIT_CARD')).toHaveLength(0);
     expect(only('scorecard ending 1234 posted', 'CREDIT_CARD')).toHaveLength(0);
   });
+
+  it('does not emit the leading group of a full grouped PAN as a masked last-four', () => {
+    // Regression for the "<card> ending in NNNN NNNN NNNN NNNN" shape: the four
+    // digits after the cue are the FIRST group of a full printed PAN, not a
+    // masked last-four, so the masked path must stay silent and let the
+    // full-PAN path own the token. Numbers below are held out (not in any
+    // existing case) and are deliberately Luhn-invalid synthetic PANs, so the
+    // correct result is NO span at all — proving the guard is structural, not a
+    // lookup. (A Luhn-valid PAN written this way is covered by the full-PAN
+    // tests above.)
+    expect(only('Card ending in 4532 1488 0343 6467 flagged.', 'CREDIT_CARD')).toHaveLength(0);
+    // Same class with hyphen grouping.
+    expect(only('Card ending in 4024-0071-2345-6789 on file.', 'CREDIT_CARD')).toHaveLength(0);
+    // The masked cue still fires when exactly four digits follow (non-digit
+    // next char), regardless of what punctuation trails them.
+    expect(only('Visa ending 3390, per the dispute.', 'CREDIT_CARD')[0].text).toBe('3390');
+  });
 });
 
 describe('IP detection', () => {

@@ -74,8 +74,18 @@ function hasNetworkGrouping(value: string): boolean {
 // class regardless of the specific number, while leaving unrelated 4-digit
 // tokens untouched. Confidence sits below a full PAN: it is a partial value,
 // certain-in-context but only four digits.
+//
+// The tail guard is `(?![ \t-]?\d)`, not merely `(?!\d)`: a masked reference
+// quotes *exactly* four trailing digits, so four digits that continue into
+// another card group ("card ending in 4532 1488 0343 6467", or the hyphenated
+// "4024-0071-2345-6789") are a full PAN being printed — not a last-four mask.
+// A bare `(?!\d)` only blocks a *contiguous* fifth digit and so leaked the
+// leading group of such a PAN out as a partial 4-digit span. Rejecting a
+// separator-plus-digit continuation here hands that whole token to the full-PAN
+// path (Luhn + canonical grouping): a valid PAN surfaces as its full span, an
+// invalid synthetic one correctly yields nothing.
 const MASKED_LAST4_RE =
-  /\b(?:card|visa|mastercard|amex|american express|discover|maestro|unionpay|jcb|diners)\b[ \t]*(?:card|no\.?|number|#)?[ \t]*ending\b(?:[ \t]+(?:in|with))?[ \t]*[:#]?[ \t]*(\d{4})(?!\d)/gi;
+  /\b(?:card|visa|mastercard|amex|american express|discover|maestro|unionpay|jcb|diners)\b[ \t]*(?:card|no\.?|number|#)?[ \t]*ending\b(?:[ \t]+(?:in|with))?[ \t]*[:#]?[ \t]*(\d{4})(?![ \t-]?\d)/gi;
 
 function detectMaskedLast4(text: string): Span[] {
   const spans: Span[] = [];
