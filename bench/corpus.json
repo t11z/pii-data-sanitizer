@@ -3028,5 +3028,27 @@
         "text": "Somchai Chaiwat"
       }
     ]
+  },
+  {
+    "text": "Finance processed wire to DE75512108001245126199 EUR 5000 today.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "DE75512108001245126199"
+      }
+    ]
+  },
+  {
+    "text": "Refund sent to GB33BUKB20201555555555 USD 200 overnight.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "GB33BUKB20201555555555"
+      }
+    ]
+  },
+  {
+    "text": "Credited DE89370400440532013001 EUR 100 but the account was closed.",
+    "entities": []
   }
 ]
