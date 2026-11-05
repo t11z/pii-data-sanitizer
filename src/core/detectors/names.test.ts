@@ -1794,6 +1794,34 @@ describe('frequency tier influences scoring', () => {
   });
 });
 
+describe('a title rescues a common-word (ambiguous) surname', () => {
+  // commonWords.ts' contract: an ambiguous word "needs extra context (a title, or
+  // being part of a multi-token name) before it is treated as PII". These probe
+  // the title half of that contract with held-out words — the corpus fix exercises
+  // "Brown"/"White"/"Green"; here we use the ambiguous words "rose" and "king" so
+  // the behaviour is shown to generalize across the whole AMBIGUOUS_WORDS set, not
+  // just the three cases committed to the benchmark. Checked against the FULL
+  // committed dictionary, where these surnames are only in the ext (bulk) tier, so
+  // they hit the heaviest penalty stack and still must clear threshold on the title.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects an ambiguous ext-only surname after a title', () => {
+    expect(personsFull('Please notify Ms. Rose about the delay.')).toContain('Rose');
+    expect(personsFull('Dr. King confirmed the appointment.')).toContain('King');
+  });
+
+  it('still suppresses the same ambiguous word with no cue (precision held)', () => {
+    // No title, no second name part: the ambiguity discount must still apply, so
+    // the ordinary-vocabulary reading wins and nothing is flagged.
+    expect(personsFull('I bought a Rose today.')).not.toContain('Rose');
+    expect(personsFull('Long live the King.')).not.toContain('King');
+  });
+});
+
 describe('clause-opening name after a colon/sentence boundary', () => {
   // Names constantly open a clause after a label in support prose ("Case
   // escalation: <Name>", "Support note: <Name>"). A known-but-bulk (ext) given
