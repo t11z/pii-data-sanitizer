@@ -833,6 +833,43 @@ describe('MAC detection', () => {
     expect(spans).toHaveLength(1);
     expect(spans[0].text).toBe('00:ff:00:ff:00:ff');
   });
+
+  // --- Separator-less (bare) MAC, gated by an explicit "MAC" cue -----------------
+  // Held-out addresses (not the gap's 001a2b3c4d5e): a bare 12-hex run has no
+  // separators to key on, so it is claimed only when a "MAC" cue precedes it.
+  it('detects a bare 12-hex MAC after a "MAC" cue', () => {
+    const spans = only('NIC reported MAC a1b2c3d4e5f6 at boot.', 'MAC');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('a1b2c3d4e5f6');
+  });
+
+  it('detects a bare MAC when the cue uses a colon or equals separator', () => {
+    expect(only('Interface MAC: 0099aabbccdd registered.', 'MAC')[0]?.text).toBe('0099aabbccdd');
+    expect(only('Adapter MAC=deadbeef0011 assigned.', 'MAC')[0]?.text).toBe('deadbeef0011');
+  });
+
+  it('does not flag a bare 12-hex run when no "MAC" cue precedes it', () => {
+    // The precision guard: the same shape without the cue stays a hash fragment.
+    expect(only('token a1b2c3d4e5f6 issued', 'MAC')).toHaveLength(0);
+    expect(only('commit deadbeef0011 reverted', 'MAC')).toHaveLength(0);
+  });
+
+  it('does not slice a longer hex digest that follows a "MAC" cue', () => {
+    // A 16-hex digest is not a MAC; the exact-12 trailing guard must reject it
+    // rather than grab its first 12 chars.
+    expect(only('signed MAC digest deadbeefcafe0123 stored', 'MAC')).toHaveLength(0);
+    expect(only('MAC a1b2c3d4e5f67 overflow', 'MAC')).toHaveLength(0);
+  });
+
+  it('does not match when a word sits between the "MAC" cue and a hex run', () => {
+    // "MAC fix <hash>" / "MAC address table" are prose, not an address.
+    expect(only('MAC fix deadbeef0011 landed', 'MAC')).toHaveLength(0);
+    expect(only('MAC address table flushed', 'MAC')).toHaveLength(0);
+  });
+
+  it('rejects the bare broadcast MAC even with a cue', () => {
+    expect(only('Broadcast MAC ffffffffffff flooded', 'MAC')).toHaveLength(0);
+  });
 });
 
 describe('phone detection', () => {
