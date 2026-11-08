@@ -3028,5 +3028,36 @@
         "text": "Somchai Chaiwat"
       }
     ]
+  },
+  {
+    "text": "Grenzkontrolle: Reisepass NL-3K8M5P2W für den Reisenden hinterlegt.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "NL-3K8M5P2W"
+      }
+    ]
+  },
+  {
+    "text": "Customer verification: Passport No. SE-7Q4W9N1R on file.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "SE-7Q4W9N1R"
+      }
+    ]
+  },
+  {
+    "text": "Border desk logged passport IT-6B3X8K5M at the gate.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "IT-6B3X8K5M"
+      }
+    ]
+  },
+  {
+    "text": "Passport CA-RENEWED at the embassy appointment last week.",
+    "entities": []
   }
 ]
