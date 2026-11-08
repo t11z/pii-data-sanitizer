@@ -1337,6 +1337,30 @@ describe('passport detection (cue-gated)', () => {
     expect(only('Reisepass US9Z8Y7X6W5V4U geprüft.', 'PASSPORT')[0].text).toBe('US9Z8Y7X6W5V4U');
   });
 
+  // A two-letter issuing-country code is also commonly *hyphen-glued* to the number
+  // ("DE-8F7H4K2Z", "GB-7K5W2N9P"). Unlike the whitespace-separated issuer label
+  // (dropped from the value, see below), the hyphen binds the code into one printed
+  // token, so the whole run — including the "XX-" prefix — is the passport value. These
+  // are held-out countries/formats (not re-using any other case's value), proving the
+  // hyphen-prefix heuristic generalizes across the class rather than memorizing a value.
+  it('detects a hyphen-glued issuer-code passport after an English cue', () => {
+    expect(only('Passport ES-4T7K9M2B scanned.', 'PASSPORT')[0].text).toBe('ES-4T7K9M2B');
+  });
+
+  it('detects a hyphen-glued issuer-code passport after a German cue', () => {
+    expect(only('Passnummer FR-5H3N8Q6W vorgelegt.', 'PASSPORT')[0].text).toBe('FR-5H3N8Q6W');
+  });
+
+  it('detects a hyphen-glued issuer-code passport after a "No." label', () => {
+    expect(only('Passport No. JP-2W9X4R7T reviewed.', 'PASSPORT')[0].text).toBe('JP-2W9X4R7T');
+  });
+
+  // Precision guard: the hyphen form still requires a digit-bearing run after the
+  // hyphen, so a cue followed by a hyphenated prose word is not a passport number.
+  it('does not flag a hyphenated prose word after the cue as a hyphen-glued passport', () => {
+    expect(only('Passport GB-ISSUED at the London office.', 'PASSPORT')).toHaveLength(0);
+  });
+
   // Precision guard: even with the wider bound, an over-long (15+ char) or
   // uncued/lowercase token must not be claimed as a passport number.
   it('does not flag an over-long token beyond the 14-char bound', () => {

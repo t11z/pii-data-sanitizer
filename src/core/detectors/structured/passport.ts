@@ -74,7 +74,19 @@ const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)${DOC_NOUN}(?:\
 // itself is what we claim. It stays optional, so the bare "Passport <number>" form is
 // unchanged, and the required cue keeps this from firing on arbitrary "XX <token>" text.
 const ISSUER = String.raw`(?:[A-Z]{2}\s+)?`;
-const NUMBER = String.raw`((?=[A-Z0-9]*\d)[A-Z0-9]{6,})\b`;
+// The number token, optionally carrying a hyphen-glued two-letter issuing-country
+// prefix ("DE-8F7H4K2Z", "GB-7K5W2N9P", "IN-6L2Y8Q4V"). This is distinct from the
+// whitespace-separated ISSUER above: a space-separated code reads as a detached
+// issuer *label* and is dropped from the value ("Passport IN R6041827" → "R6041827"),
+// but a hyphen binds the code into one printed token that IS the human-readable number,
+// exactly like the already-kept glued form ("Passport IN2B3C4D5E6F7" → the whole run).
+// So the optional `[A-Z]{2}-` is *inside* the capture group. It stays precision-safe:
+// the suffix after the hyphen is still gated by the digit-bearing `[A-Z0-9]{6,}` run, so
+// a cue followed by a hyphenated prose word ("Passport GB-ISSUED") has no digit and
+// cannot match. The `\s+` ISSUER is tried first, so the space-separated forms are
+// unchanged; only the hyphen-glued class, previously an all-or-nothing drop, is newly
+// covered.
+const NUMBER = String.raw`((?:[A-Z]{2}-)?(?=[A-Z0-9]*\d)[A-Z0-9]{6,})\b`;
 // Separator between the cue and the number: either whitespace, or a `:`/`#`
 // marker (optionally space-padded). Letting `:`/`#` *be* the separator — rather
 // than forcing a trailing space — captures the glued forms writers actually use
