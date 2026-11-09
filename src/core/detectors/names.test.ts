@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { detect } from '../index';
 import { nameSourceFromSources, nameSourceFromBuildInputs } from '../db/fromSources';
 import { PackNameSource } from '../db/packSource';
+import type { Script } from '../types';
 
 const nameSource = nameSourceFromSources();
 
@@ -263,6 +264,44 @@ describe('Thai names (unicameral / caseless)', () => {
     // Caseless, so detection rests entirely on DB membership: an unknown token
     // with no title/role cue must not match.
     expect(thPersons('ดู ซอกแซกมโนสาเร่ วันนี้')).not.toContain('ซอกแซกมโนสาเร่');
+  });
+});
+
+describe('Sinhala / Myanmar / Khmer / Lao / Ethiopic names (unicameral / caseless)', () => {
+  // Held-out real names drawn from the ingested Wikidata (CC0) packs for each of
+  // the five newly added abugida scripts. The tests prove only the caseless-script
+  // detection path (a bare DB hit suffices — none of these scripts carry case),
+  // not these specific strings, matching the Thai/Georgian/Indic treatment. Each
+  // pair is held in one variable and interpolated into BOTH the source and the
+  // sentence, so the stored and matched tokens are byte-identical (these scripts
+  // stack combining marks, where a second hand-typed copy can silently differ).
+  const PAIRS: Array<[Script, [string, string]]> = [
+    ['Sinhala', ['අරවින්ද', 'අමරසිංහ']],
+    ['Myanmar', ['ကျော်ကျော်', 'ကိုခိན်']],
+    ['Khmer', ['គង់', 'ឃួង']],
+    ['Lao', ['ທອງລຸນ', 'ປານີ']],
+    ['Ethiopic', ['ሃይሌ', 'መራዊ']],
+  ];
+  const src = new PackNameSource();
+  for (const [script, pair] of PAIRS) src.addWords(pair, { script, tier: 'core' });
+  const persons = (text: string) =>
+    detect(text, { nameSource: src })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  for (const [script, [given, family]] of PAIRS) {
+    it(`detects a ${script} full name present in the database`, () => {
+      // Latin filler bounds the name so the assertion isolates the caseless
+      // DB-hit chain (the engine targets names embedded in mixed-script text).
+      expect(persons(`Contact ${given} ${family} today`)).toContain(`${given} ${family}`);
+    });
+  }
+
+  it('does not flag an unknown token in these caseless scripts without context', () => {
+    // Detection rests entirely on DB membership for caseless scripts: an unknown
+    // native-script token (absent from the source) with no title/role cue must
+    // not match. "ሰላም" (Amharic "hello") is not a name in the source above.
+    expect(persons('Please read ሰላም here')).toHaveLength(0);
   });
 });
 

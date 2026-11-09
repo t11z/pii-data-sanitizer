@@ -174,7 +174,15 @@ function isCaselessNameScript(token: Token): boolean {
     token.script === 'Gurmukhi' ||
     // Thai is likewise caseless (no upper/lower distinction), so a bare DB hit
     // suffices, matching the Georgian/Indic treatment.
-    token.script === 'Thai'
+    token.script === 'Thai' ||
+    // Sinhala, Myanmar/Burmese, Khmer, Lao, and Ethiopic (Ge'ez) are all
+    // unicameral/caseless abugidas with no case distinction, so a bare DB hit
+    // suffices, matching the Thai/Georgian/Indic treatment above.
+    token.script === 'Sinhala' ||
+    token.script === 'Myanmar' ||
+    token.script === 'Khmer' ||
+    token.script === 'Lao' ||
+    token.script === 'Ethiopic'
   );
 }
 

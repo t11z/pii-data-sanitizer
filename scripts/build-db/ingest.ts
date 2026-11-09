@@ -69,6 +69,12 @@ const ARMENIAN_LANGS = ['hy'];
 const GEORGIAN_LANGS = ['ka'];
 const GURMUKHI_LANGS = ['pa'];
 const THAI_LANGS = ['th'];
+const SINHALA_LANGS = ['si'];
+const MYANMAR_LANGS = ['my'];
+const KHMER_LANGS = ['km'];
+const LAO_LANGS = ['lo'];
+// Ethiopic (Ge'ez) script carries both Amharic and Tigrinya.
+const ETHIOPIC_LANGS = ['am', 'ti'];
 
 const NATIVE_LANGS = [
   ...CYRILLIC_LANGS,
@@ -88,6 +94,11 @@ const NATIVE_LANGS = [
   ...GEORGIAN_LANGS,
   ...GURMUKHI_LANGS,
   ...THAI_LANGS,
+  ...SINHALA_LANGS,
+  ...MYANMAR_LANGS,
+  ...KHMER_LANGS,
+  ...LAO_LANGS,
+  ...ETHIOPIC_LANGS,
 ];
 
 // Which script a label language predominantly yields. Used only by the scoped
@@ -111,6 +122,11 @@ const NATIVE_LANG_SCRIPT: Array<[readonly string[], Script]> = [
   [GEORGIAN_LANGS, 'Georgian'],
   [GURMUKHI_LANGS, 'Gurmukhi'],
   [THAI_LANGS, 'Thai'],
+  [SINHALA_LANGS, 'Sinhala'],
+  [MYANMAR_LANGS, 'Myanmar'],
+  [KHMER_LANGS, 'Khmer'],
+  [LAO_LANGS, 'Lao'],
+  [ETHIOPIC_LANGS, 'Ethiopic'],
 ];
 function langScript(lang: string): Script {
   for (const [langs, script] of NATIVE_LANG_SCRIPT) if (langs.includes(lang)) return script;
@@ -295,6 +311,32 @@ const HUMAN_BY_COUNTRY: Array<[string, string]> = [
   // English (en) labels feed the Latin pack as romanized forms.
   ['wd:Q869', 'th'],
   ['wd:Q869', 'en'], // Thailand
+  // Five further own-script, unicameral/caseless languages previously entirely
+  // absent from the name database. Each uses an abugida with no case
+  // distinction, so native labels detect through the bare-DB-hit path
+  // (isCaselessNameScript), like Thai/Georgian/the Indic scripts. English (en)
+  // labels feed the Latin pack as romanized forms; the native entries add the
+  // own-script forms.
+  // Sinhala: Sri Lanka's majority script (~17M speakers). (Tamil in Sri Lanka is
+  // already harvested above via ['wd:Q854', 'ta'].)
+  ['wd:Q854', 'si'], // Sri Lanka — Sinhala
+  // Myanmar/Burmese: ~33M speakers, Myanmar's official script.
+  ['wd:Q836', 'my'],
+  ['wd:Q836', 'en'], // Myanmar
+  // Khmer: Cambodia's official script (~16M speakers).
+  ['wd:Q424', 'km'],
+  ['wd:Q424', 'en'], // Cambodia
+  // Lao: Laos's official script (~7M speakers).
+  ['wd:Q819', 'lo'],
+  ['wd:Q819', 'en'], // Laos
+  // Ethiopic (Ge'ez): Amharic (am) and Tigrinya (ti) across the Horn of Africa
+  // (~60M speakers). Ethiopia (Q115) am/en entries already exist above; the am
+  // labels there now route to the new Ethiopic pack. These add Tigrinya and
+  // Eritrea.
+  ['wd:Q115', 'ti'], // Ethiopia — Tigrinya
+  ['wd:Q986', 'ti'],
+  ['wd:Q986', 'am'],
+  ['wd:Q986', 'en'], // Eritrea
 ];
 
 const GIVEN_CLASSES = ['wd:Q202444', 'wd:Q12308941', 'wd:Q11879590', 'wd:Q3409032'];
@@ -322,6 +364,11 @@ const CAPS: Record<string, number> = {
   Georgian: 20000,
   Gurmukhi: 20000,
   Thai: 20000,
+  Sinhala: 20000,
+  Myanmar: 20000,
+  Khmer: 20000,
+  Lao: 20000,
+  Ethiopic: 20000,
 };
 
 // Romanized/ASCII-folded variants shorter than this are dropped: 2-letter

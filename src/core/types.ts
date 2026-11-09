@@ -43,6 +43,11 @@ export type Script =
   | 'Gurmukhi'
   | 'Oriya'
   | 'Thai'
+  | 'Sinhala'
+  | 'Myanmar'
+  | 'Khmer'
+  | 'Lao'
+  | 'Ethiopic'
   | 'Other';
 
 export interface Token {
