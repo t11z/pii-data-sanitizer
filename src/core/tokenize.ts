@@ -43,6 +43,17 @@ const SCRIPT_TESTS: Array<[Script, RegExp]> = [
   // this engine targets (form fields, "name: …", Thai names inside Latin text),
   // where the word tokenizer isolates them like any other script.
   ['Thai', /\p{Script=Thai}/u],
+  // Sinhala (Sri Lanka), Myanmar/Burmese, Khmer (Cambodia), Lao, and Ethiopic
+  // (Ge'ez — Amharic/Tigrinya) are all unicameral/caseless abugidas, like Thai
+  // and the Indic scripts, and are space- or delimiter-separated in the
+  // structured/mixed text this engine targets, so the word tokenizer needs no
+  // special handling. Each detects through the bare-DB-hit path
+  // (isCaselessNameScript in names.ts).
+  ['Sinhala', /\p{Script=Sinhala}/u],
+  ['Myanmar', /\p{Script=Myanmar}/u],
+  ['Khmer', /\p{Script=Khmer}/u],
+  ['Lao', /\p{Script=Lao}/u],
+  ['Ethiopic', /\p{Script=Ethiopic}/u],
   ['Han', /\p{Script=Han}/u],
 ];
 
