@@ -2844,6 +2844,32 @@
     "entities": []
   },
   {
+    "text": "New ticket TAC #7731: account holder (birth: 1983-07-26) escalated the case.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1983-07-26"
+      }
+    ]
+  },
+  {
+    "text": "Patient intake form — birth: 05/19/1971 — verified against ID.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "05/19/1971"
+      }
+    ]
+  },
+  {
+    "text": "Place of birth: Hamburg; country of birth: Germany on file.",
+    "entities": []
+  },
+  {
+    "text": "After rebirth: 2001-05-05 the migration project relaunched.",
+    "entities": []
+  },
+  {
     "text": "Passport document M8N3B6V1C4 attached to the case file.",
     "entities": [
       {
