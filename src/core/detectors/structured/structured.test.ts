@@ -1576,6 +1576,34 @@ describe('date of birth detection (cue-gated)', () => {
     expect(only('Geburtstag: 14. Juli 1980.', 'DATE_OF_BIRTH')[0].text).toBe('14. Juli 1980');
   });
 
+  it('detects a date after a bare "birth:" label (field / parenthetical)', () => {
+    // The bare "birth:" label (no "date"/"certificate" word) is a common DOB
+    // form field and parenthetical. Held-out date values across forms, absent
+    // from every fixture above — the cue binds by structure, not by the value.
+    expect(only('birth: 1973-08-29 on record.', 'DATE_OF_BIRTH')[0].text).toBe('1973-08-29');
+    expect(only('Account holder (birth: 06/14/1982) confirmed.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '06/14/1982'
+    );
+    expect(only('Birth : 2. Februar 1969 laut Ausweis.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '2. Februar 1969'
+    );
+  });
+
+  // Precision guards for the bare "birth:" label: it binds only a *directly
+  // adjacent* date, and \b keeps compounds out — so a location after "of birth:"
+  // and a date after "rebirth:" are never DOBs.
+  it('does not treat a location after "of birth:" as a DOB', () => {
+    expect(only('Place of birth: Berlin, Germany.', 'DATE_OF_BIRTH')).toHaveLength(0);
+    expect(only('Country of birth: Germany, filed 2020-01-01.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
+
+  it('does not match "birth:" inside a compound word (rebirth / childbirth)', () => {
+    expect(only('After rebirth: 2001-05-05 the project relaunched.', 'DATE_OF_BIRTH')).toHaveLength(
+      0
+    );
+    expect(only('Notes on childbirth: 1998-04-10 appointment.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
+
   it('detects a date after a tight "birthday" cue (label / direct / copula)', () => {
     // "birthday" is a birth cue, but only in its tight field-label / direct
     // forms — never across the event phrasing guarded below. Held-out values
