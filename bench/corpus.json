@@ -2844,6 +2844,41 @@
     "entities": []
   },
   {
+    "text": "Patient birth record 07/11/1983 filed with the intake team.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "07/11/1983"
+      }
+    ]
+  },
+  {
+    "text": "Birth records: 03-Apr-1985 attached to the application.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "03-Apr-1985"
+      }
+    ]
+  },
+  {
+    "text": "Laut Geburtsregister 1959-02-28 wurde der Fall abgeschlossen.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1959-02-28"
+      }
+    ]
+  },
+  {
+    "text": "The birth record was updated 2022-09-14 after the correction request.",
+    "entities": []
+  },
+  {
+    "text": "Reference birth record no. 48213907 was located in the archive.",
+    "entities": []
+  },
+  {
     "text": "Passport document M8N3B6V1C4 attached to the case file.",
     "entities": [
       {

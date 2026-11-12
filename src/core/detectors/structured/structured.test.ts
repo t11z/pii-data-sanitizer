@@ -1678,6 +1678,49 @@ describe('date of birth detection (cue-gated)', () => {
     );
   });
 
+  // A "birth record" is the same class of birth document as a certificate — its
+  // headline date is the subject's date of birth — so it binds identically.
+  // Held-out date values, none of which appear in any fixture above, prove the
+  // cue generalizes across date formats rather than memorizing one value.
+  it('detects a DOB after the "birth record" document cue', () => {
+    expect(only('Patient birth record 07/11/1983 filed.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '07/11/1983'
+    );
+  });
+
+  it('detects a DOB after "birth record:" with a colon', () => {
+    expect(only('Birth record: 1992-05-18.', 'DATE_OF_BIRTH')[0].text).toBe('1992-05-18');
+  });
+
+  it('detects a DOB after the plural "birth records" cue', () => {
+    expect(only('Birth records: 03-Apr-1985 on file.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '03-Apr-1985'
+    );
+  });
+
+  it('detects a DOB after the German "Geburtsregister" / "Geburtseintrag" cues', () => {
+    expect(only('Geburtsregister 1961-09-30 vorgelegt.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '1961-09-30'
+    );
+    expect(only('Geburtseintrag: 14.02.1977 bestätigt.', 'DATE_OF_BIRTH')[0].text).toBe(
+      '14.02.1977'
+    );
+  });
+
+  // Precision guards for the "birth record" cue — same tight binding as the
+  // certificate cue: no bare non-date, no trailing action/issue date.
+  it('does not treat a birth record ISSUE/update date as a DOB', () => {
+    expect(only('birth record updated 2020-01-01 by registry.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
+
+  it('does not flag a non-date after the birth record cue', () => {
+    expect(only('birth record no. 12345678 processed.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
+
+  it('does not bridge the birth record cue to an unrelated later date', () => {
+    expect(only('birth record filed; follow-up 2021-06-01.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
+
   // Precision guards: a birth certificate also carries an *issue* date, so the
   // document cue must bind only a directly-adjacent date — a trailing action verb
   // ("issued", "expires") means the following date is not the DOB.
