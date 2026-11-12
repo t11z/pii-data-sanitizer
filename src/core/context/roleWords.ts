@@ -233,6 +233,34 @@ export const NON_NAME_WORDS = new Set<string>([
   'laboratories',
   'cathedral',
   'cathedrals',
+  // Street / thoroughfare designators. A known given- or family-name token
+  // ("Baker", "Oxford", "Park", "Abbey") directly followed by one of these
+  // ("Baker Street", "Park Avenue", "Abbey Road") is a street address, not a
+  // person — but the DB hit on the leading word lets the chain absorb the
+  // designator as an (unknown- or ambiguous-cap) surname and emit a PERSON span.
+  // Exactly the "Grace Hospital" / "Kingston University" class above: treating
+  // the designator as a structural noun breaks the chain, leaving only the
+  // leading word (lone, below threshold). Only designators that are essentially
+  // never personal surnames are listed. Deliberately EXCLUDED: "Lane", "Court",
+  // "Close", "Square", "Place", "Way", "Walk" — all established real surnames
+  // ("Diane Lane", "Margaret Court", "Glenn Close") the engine must still detect,
+  // same reasoning as the "Church"/"Temple"/"Hall" exclusions above. "Street" is
+  // a rare surname but its thoroughfare sense overwhelmingly dominates, the same
+  // tradeoff the "manager"/"director" guards accept.
+  'street',
+  'streets',
+  'avenue',
+  'avenues',
+  'road',
+  'roads',
+  'boulevard',
+  'boulevards',
+  'drive',
+  'terrace',
+  'terraces',
+  'highway',
+  'parkway',
+  'crescent',
   // IT access-control / configuration nouns. The "admin"/"sysadmin" role cues
   // sit directly beside these in support prose ("admin Access Rights", "sysadmin
   // Login Credentials", "admin Settings Options"), so they are the structural
