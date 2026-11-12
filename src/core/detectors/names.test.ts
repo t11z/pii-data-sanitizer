@@ -529,6 +529,55 @@ describe('company legal-entity designator is not absorbed as a surname', () => {
   });
 });
 
+describe('street / thoroughfare designator after a name is not absorbed as a surname', () => {
+  // "Street", "Avenue", "Road", etc. are thoroughfare designators (NON_NAME_WORDS)
+  // that trail a capitalized given/family-name token in an address ("Baker Street",
+  // "Park Avenue"). The DB hit on the leading word used to let the chain absorb the
+  // designator and emit a two-token PERSON span — the same bug class as the
+  // "<Given> <RoleNoun>" and "<OrgStem> <Designator>" absorptions above. The
+  // chain-extension guard breaks on the designator, leaving the leading word lone
+  // (below threshold).
+  //
+  // Street names below (Harwick/Ellsworth/Thornbury/Caldecott) are held out from
+  // the benchmark's corpus cases (Downing/Baker/Park/Mill/Victoria), so the guard
+  // is proven to generalize rather than memorize the benchmarked strings.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not read "<Word> <Thoroughfare>" as a person', () => {
+    expect(personsFull('The café on Harwick Street is closed.')).toHaveLength(0);
+    expect(personsFull('We parked on Ellsworth Avenue overnight.')).toHaveLength(0);
+    expect(personsFull('The depot sits on Thornbury Road.')).toHaveLength(0);
+    expect(personsFull('Their flat is on Caldecott Boulevard.')).toHaveLength(0);
+  });
+
+  it('still detects a person whose surname collides with a thoroughfare type', () => {
+    // "Lane", "Court", "Close" are deliberately EXCLUDED from the guard because
+    // they are established real surnames — these must still detect.
+    expect(personsFull('We hired Glenn Close for the role.')).toContain('Glenn Close');
+    expect(personsFull('Margaret Court won the title.')).toContain('Margaret Court');
+    expect(personsFull('Please call Sarah Lane about it.')).toContain('Sarah Lane');
+  });
+
+  it('still detects a genuine two-token name adjacent to an address', () => {
+    expect(personsFull('Rajesh Iyer lives on Oxford Street.')).toContain('Rajesh Iyer');
+  });
+
+  it('proves the guard is structural, not dictionary absence', () => {
+    // Both ends are genuine DB hits — the leading words are ext-tier surnames, so
+    // a name chain genuinely would form, and "street" itself is on file. The
+    // NON_NAME_WORDS guard, not absence from the dictionary, is what breaks the
+    // chain and suppresses the span.
+    for (const w of ['harwick', 'ellsworth', 'thornbury', 'caldecott', 'street']) {
+      const hit = fullSource.hasGiven(w, 'Latin') || fullSource.hasFamily(w, 'Latin');
+      expect(hit, `${w} should be in the committed DB`).toBe(true);
+    }
+  });
+});
+
 describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   // Support / KYC / CRM prose labels an identifier with the "number"
   // abbreviation — "Passport No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº
