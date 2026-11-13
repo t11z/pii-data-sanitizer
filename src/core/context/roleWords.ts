@@ -292,6 +292,29 @@ export const NON_NAME_WORDS = new Set<string>([
   'gmbh',
   'holding',
   'holdings',
+  // Organization-type descriptor nouns. These trail a company stem — itself often
+  // a real surname — in prose ("von Neumann Systems", "Takeda Pharmaceuticals",
+  // "Falk Industries"), and the chain-extension absorbs the descriptor into the
+  // surname slot via the unknown-capitalization path (the stem's DB hit sets
+  // allowUnknownCap), emitting a bogus two-token PERSON span. Same class as the
+  // legal-entity suffixes above, but these are the *what-they-do* descriptors
+  // rather than the legal form. Guarding them breaks the chain so only the stem
+  // remains, which — being a lone ext-tier token — then drops below threshold.
+  // None of these is a personal surname in the committed dictionary (unlike
+  // "Labs", a real ext surname, which is deliberately omitted), so the guard
+  // never suppresses a real person. Plurals are the dominant org-suffix surface
+  // form and are listed as the distinct tokens they are.
+  'systems',
+  'industries',
+  'technologies',
+  'solutions',
+  'enterprises',
+  'ventures',
+  'logistics',
+  'pharmaceuticals',
+  'consulting',
+  'communications',
+  'networks',
   // --- German --- (German compounds most multi-word structures into a single
   // token, so these mainly guard the handoff/role path against the common
   // standalone ticket nouns that can follow a cue.)

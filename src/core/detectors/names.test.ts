@@ -529,6 +529,77 @@ describe('company legal-entity designator is not absorbed as a surname', () => {
   });
 });
 
+describe('organization-type descriptor is not absorbed as a surname', () => {
+  // Sibling of the legal-entity designator guard above, for the *what-they-do*
+  // org descriptors ("Systems", "Industries", "Technologies", …). These trail a
+  // company stem that is itself frequently a real surname ("von Neumann Systems",
+  // "Takeda Pharmaceuticals"); the stem's DB hit sets allowUnknownCap, so the
+  // chain used to absorb the (out-of-DB) descriptor into the surname slot and
+  // emit a two-token PERSON span. The chain-extension guard now breaks on the
+  // descriptor, leaving the org stem as a lone token that cannot promote.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not read "<OrgStem> <Descriptor>" as a person (known-surname stem)', () => {
+    // "Neumann" IS a committed ext-tier surname (the exact coverage-gap case),
+    // so dictionary absence cannot be what suppresses the span — only the guard
+    // on "Systems" can. The real people in the sentence still detect.
+    expect(personsFull('von Neumann Systems onboarded Leila Azar and Kaveh Nazari.')).toEqual([
+      'Leila Azar',
+      'Kaveh Nazari',
+    ]);
+  });
+
+  it('does not read "<OrgStem> <Descriptor>" as a person (held-out stems)', () => {
+    // Stems below are held out (absent from the full DB, asserted at the end) and
+    // the descriptors are likewise out-of-DB, so no lone token can promote.
+    expect(personsFull('Quorvex Systems shipped the order.')).toHaveLength(0);
+    expect(personsFull('Zentara Industries signed the contract.')).toHaveLength(0);
+    expect(personsFull('Brightmoor Technologies filed the claim.')).toHaveLength(0);
+    expect(personsFull('Nordia Solutions declined the refund.')).toHaveLength(0);
+    expect(personsFull('Dravenmoor Pharmaceuticals updated the invoice.')).toHaveLength(0);
+    expect(personsFull('Kesterlin Logistics escalated the case.')).toHaveLength(0);
+  });
+
+  it('still detects a genuine two-token name (guard is descriptor-specific)', () => {
+    expect(personsFull('Account holder Johann Neumann confirmed the refund.')).toContain(
+      'Johann Neumann'
+    );
+    expect(personsFull('Priya Gupta reviewed the ticket.')).toContain('Priya Gupta');
+  });
+
+  it('proves the descriptors are out-of-DB and the stems are held out', () => {
+    for (const descriptor of [
+      'systems',
+      'industries',
+      'technologies',
+      'solutions',
+      'pharmaceuticals',
+      'logistics',
+      'enterprises',
+      'ventures',
+      'consulting',
+      'communications',
+      'networks',
+    ]) {
+      const absent =
+        !fullSource.hasGiven(descriptor, 'Latin') && !fullSource.hasFamily(descriptor, 'Latin');
+      expect(absent, `${descriptor} must not be a DB name`).toBe(true);
+    }
+    for (const stem of ['quorvex', 'zentara', 'brightmoor', 'nordia', 'dravenmoor', 'kesterlin']) {
+      const absent = !fullSource.hasGiven(stem, 'Latin') && !fullSource.hasFamily(stem, 'Latin');
+      expect(absent, `${stem} must be held out of the DB`).toBe(true);
+    }
+    // The gap stem IS a committed surname — so the guard, not membership, works.
+    expect(
+      fullSource.hasGiven('neumann', 'Latin') || fullSource.hasFamily('neumann', 'Latin')
+    ).toBe(true);
+  });
+});
+
 describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   // Support / KYC / CRM prose labels an identifier with the "number"
   // abbreviation — "Passport No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº

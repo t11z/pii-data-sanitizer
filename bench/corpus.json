@@ -3028,5 +3028,26 @@
         "text": "Somchai Chaiwat"
       }
     ]
+  },
+  {
+    "text": "von Neumann Systems onboarded the new client this quarter.",
+    "entities": []
+  },
+  {
+    "text": "Quorvex Technologies and Brightmoor Solutions signed the contract.",
+    "entities": []
+  },
+  {
+    "text": "The order shipped from Zentara Industries to Nordia Logistics.",
+    "entities": []
+  },
+  {
+    "text": "Account holder Johann Neumann confirmed the Dravenmoor Pharmaceuticals invoice.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Johann Neumann"
+      }
+    ]
   }
 ]
