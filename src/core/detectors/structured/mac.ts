@@ -33,6 +33,28 @@ const MAC_SEP_RE =
 const MAC_COMPACT_RE =
   /(?<![\w.+-])[0-9A-Fa-f]{4}([.-])[0-9A-Fa-f]{4}\1[0-9A-Fa-f]{4}(?![\w]|[.-][0-9A-Fa-f])/g;
 
+// Dot-separated six 2-hex groups (`00.1a.2b.3c.4d.5e`) — a vendor/tooling MAC
+// notation that mirrors the colon/hyphen six-group form with '.' as the single
+// separator. It gets its own pattern rather than folding '.' into MAC_SEP_RE for
+// two reasons:
+//   1. An all-decimal dotted six-group run (`33.44.55.66.77.88`) otherwise falls
+//      straight through to the PHONE detector, which reads the dotted grouping as
+//      a phone — producing a MAC false negative *and* a PHONE false positive from
+//      one token. The higher-confidence MAC span emitted here shadows the PHONE
+//      span in overlap resolution, closing both at once.
+//   2. The dot form needs the compact detector's nuanced trailing guard: a blanket
+//      `(?![\w.])` would reject a legitimate sentence-ending MAC, while a plain
+//      `(?![\w:-])` would partial-match the first six groups of a longer dotted
+//      hex run. The lookahead rejects only a *continuation* (a 7th `.hex` group)
+//      yet still allows a closing '.'. The lookbehind forbids a preceding word
+//      char, '.', '+' or '-' so the pattern never matches the tail of a longer
+//      dotted/alnum run — and never a '+'-prefixed international phone written
+//      with dots, since a MAC never carries a '+'.
+// Six 2-digit groups is the discriminator from a dotted phone: national dotted
+// groupings (e.g. French `01.42.34.56.78`) run to five pairs / ten digits, never
+// six.
+const MAC_DOT6_RE = /(?<![\w.+-])[0-9A-Fa-f]{2}(?:\.[0-9A-Fa-f]{2}){5}(?![\w]|\.[0-9A-Fa-f])/g;
+
 // The broadcast MAC (all-`FF`) is a reserved sentinel that identifies no device,
 // so it carries no PII — it shows up in configs, docs, and network diagnostics
 // as a "send to everyone" placeholder, not as a hardware id. Reject it
@@ -49,7 +71,7 @@ function isBroadcastMac(raw: string): boolean {
 
 export function detectMacs(text: string): Span[] {
   const spans: Span[] = [];
-  for (const re of [MAC_SEP_RE, MAC_COMPACT_RE]) {
+  for (const re of [MAC_SEP_RE, MAC_COMPACT_RE, MAC_DOT6_RE]) {
     for (const match of text.matchAll(re)) {
       if (isBroadcastMac(match[0])) continue;
       spans.push({

@@ -804,8 +804,48 @@
     "entities": []
   },
   {
+    "text": "Escalation noted MAC 33.44.55.66.77.88 from the access point.",
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "33.44.55.66.77.88"
+      }
+    ]
+  },
+  {
+    "text": "The adapter 0a.1b.2c.3d.4e.5f lost its link overnight.",
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "0a.1b.2c.3d.4e.5f"
+      }
+    ]
+  },
+  {
+    "text": "Interface reported MAC aa.bb.cc.dd.ee.ff.",
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "aa.bb.cc.dd.ee.ff"
+      }
+    ]
+  },
+  {
     "text": "Firmware checksum ab12.cd34.ef56.7890 recorded in the log.",
     "entities": []
+  },
+  {
+    "text": "The flood test used ff.ff.ff.ff.ff.ff as a broadcast placeholder.",
+    "entities": []
+  },
+  {
+    "text": "Reach the Paris desk at 01.42.34.56.78 before noon.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "01.42.34.56.78"
+      }
+    ]
   },
   {
     "text": "The caller left the number +81-33-44-55-66-77 on the ticket.",
