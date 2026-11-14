@@ -833,6 +833,47 @@ describe('MAC detection', () => {
     expect(spans).toHaveLength(1);
     expect(spans[0].text).toBe('00:ff:00:ff:00:ff');
   });
+
+  it('detects a dot-separated six-group MAC', () => {
+    // Held-out all-decimal dotted six-group MAC: before this heuristic it fell
+    // through to the PHONE detector (dotted grouping reads as a phone), yielding
+    // a MAC false negative *and* a PHONE false positive from one token. Six
+    // 2-hex groups is the MAC discriminator — a national dotted phone grouping
+    // never runs to six pairs.
+    const spans = only('Escalation noted MAC 33.44.55.66.77.88 here', 'MAC');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('33.44.55.66.77.88');
+  });
+
+  it('detects a dot-separated six-group MAC that ends a sentence', () => {
+    // The nuanced trailing guard must keep a sentence-ending '.' from eating the
+    // MAC. Held-out hex address (not the all-decimal gap value).
+    const spans = only('The adapter reported MAC 0a.1b.2c.3d.4e.5f.', 'MAC');
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('0a.1b.2c.3d.4e.5f');
+  });
+
+  it('rejects the broadcast MAC in dot-separated six-group notation', () => {
+    expect(only('flood ff.ff.ff.ff.ff.ff out', 'MAC')).toHaveLength(0);
+  });
+
+  it('does not partial-match the first six groups of a longer dotted run', () => {
+    // A seven-group dotted run is not a MAC; grabbing the first six would be a
+    // false positive. The continuation guard rejects it outright.
+    expect(only('checksum 11.22.33.44.55.66.77 stored', 'MAC')).toHaveLength(0);
+  });
+
+  it('does not read a dotted national phone grouping as a MAC', () => {
+    // Held-out French-style five-pair phone (ten digits): five dot groups, not
+    // six, so the six-group MAC pattern must not fire.
+    expect(only('Reach the desk at 01.42.34.56.78 today', 'MAC')).toHaveLength(0);
+  });
+
+  it('does not read a +prefixed dotted six-group number as a MAC', () => {
+    // A MAC never carries a '+'. The leading-'+' lookbehind guard keeps a
+    // dot-grouped international phone a PHONE, mirroring the colon/hyphen form.
+    expect(only('The caller left +81.33.44.55.66.77 now', 'MAC')).toHaveLength(0);
+  });
 });
 
 describe('phone detection', () => {
@@ -853,6 +894,13 @@ describe('phone detection', () => {
     expect(only('Hotline is +52-55-33-11-99-77 for the region.', 'PHONE')[0].text).toBe(
       '+52-55-33-11-99-77'
     );
+  });
+
+  it('does not claim a dot-separated six-group MAC as a phone', () => {
+    // Held-out all-decimal MAC: the dotted grouping used to trip the phone
+    // "grouping" signal, so the token surfaced as a PHONE false positive. Now the
+    // higher-confidence MAC span shadows it in overlap resolution — no phone.
+    expect(only('Escalation noted MAC 33.44.55.66.77.88 here', 'PHONE')).toHaveLength(0);
   });
 
   it('keeps a real number with an internal hyphen', () => {
