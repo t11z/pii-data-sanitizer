@@ -617,7 +617,7 @@ describe('street / thoroughfare designator after a name is not absorbed as a sur
   // (below threshold).
   //
   // Street names below (Harwick/Ellsworth/Thornbury/Caldecott) are held out from
-  // the benchmark's corpus cases (Downing/Baker/Park/Mill/Victoria), so the guard
+  // the benchmark's corpus cases (Park/Mill/Victoria), so the guard
   // is proven to generalize rather than memorize the benchmarked strings.
   const fullSource = nameSourceFromBuildInputs();
   const personsFull = (text: string) =>
@@ -626,7 +626,7 @@ describe('street / thoroughfare designator after a name is not absorbed as a sur
       .map((s) => s.text);
 
   it('does not read "<Word> <Thoroughfare>" as a person', () => {
-    expect(personsFull('The café on Harwick Street is closed.')).toHaveLength(0);
+    expect(personsFull('The café on Harwick Drive is closed.')).toHaveLength(0);
     expect(personsFull('We parked on Ellsworth Avenue overnight.')).toHaveLength(0);
     expect(personsFull('The depot sits on Thornbury Road.')).toHaveLength(0);
     expect(personsFull('Their flat is on Caldecott Boulevard.')).toHaveLength(0);
@@ -640,16 +640,31 @@ describe('street / thoroughfare designator after a name is not absorbed as a sur
     expect(personsFull('Please call Sarah Lane about it.')).toContain('Sarah Lane');
   });
 
+  it('still detects a person surnamed Street / Streets / Roads / Crescent', () => {
+    // These four designators are real surnames on file in the committed DB, so
+    // they are deliberately NOT guarded: blocking them dropped the whole person
+    // ("Julie Street" → nothing) or leaked the surname ("Anna Street" → "Anna").
+    // Given names here are held out from the corpus.
+    expect(personsFull('The agent Julie Street confirmed the booking.')).toContain('Julie Street');
+    expect(personsFull('Customer Della Street reported the issue.')).toContain('Della Street');
+    expect(personsFull('Name: Michael Streets')).toContain('Michael Streets');
+    expect(personsFull('Yesterday Anna Roads called about the refund.')).toContain('Anna Roads');
+    expect(personsFull('Contact: Emily Crescent')).toContain('Emily Crescent');
+    for (const w of ['street', 'streets', 'roads', 'crescent']) {
+      const hit = fullSource.hasGiven(w, 'Latin') || fullSource.hasFamily(w, 'Latin');
+      expect(hit, `${w} should be in the committed DB`).toBe(true);
+    }
+  });
+
   it('still detects a genuine two-token name adjacent to an address', () => {
     expect(personsFull('Rajesh Iyer lives on Oxford Street.')).toContain('Rajesh Iyer');
   });
 
   it('proves the guard is structural, not dictionary absence', () => {
     // Both ends are genuine DB hits — the leading words are ext-tier surnames, so
-    // a name chain genuinely would form, and "street" itself is on file. The
-    // NON_NAME_WORDS guard, not absence from the dictionary, is what breaks the
-    // chain and suppresses the span.
-    for (const w of ['harwick', 'ellsworth', 'thornbury', 'caldecott', 'street']) {
+    // a name chain genuinely would form. The NON_NAME_WORDS guard, not absence
+    // from the dictionary, is what breaks the chain and suppresses the span.
+    for (const w of ['harwick', 'ellsworth', 'thornbury', 'caldecott']) {
       const hit = fullSource.hasGiven(w, 'Latin') || fullSource.hasFamily(w, 'Latin');
       expect(hit, `${w} should be in the committed DB`).toBe(true);
     }

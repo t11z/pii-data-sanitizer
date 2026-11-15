@@ -244,15 +244,17 @@ export const NON_NAME_WORDS = new Set<string>([
   // never personal surnames are listed. Deliberately EXCLUDED: "Lane", "Court",
   // "Close", "Square", "Place", "Way", "Walk" — all established real surnames
   // ("Diane Lane", "Margaret Court", "Glenn Close") the engine must still detect,
-  // same reasoning as the "Church"/"Temple"/"Hall" exclusions above. "Street" is
-  // a rare surname but its thoroughfare sense overwhelmingly dominates, the same
-  // tradeoff the "manager"/"director" guards accept.
-  'street',
-  'streets',
+  // same reasoning as the "Church"/"Temple"/"Hall" exclusions above. Also
+  // EXCLUDED, for the same reason: "Street", "Streets", "Roads", "Crescent" — all
+  // four are surnames on file in the committed dictionary ("Picabo Street",
+  // "Della Street"). Guarding them does not just trim an address: it breaks the
+  // chain on a real person, so "Julie Street" vanished entirely and "Anna Street"
+  // shrank to the given name, leaking the surname. A missed name is a leak, a
+  // "Baker Street" span is only over-redaction, so these stay detectable until a
+  // structural gate (house number / preposition) can tell the two apart.
   'avenue',
   'avenues',
   'road',
-  'roads',
   'boulevard',
   'boulevards',
   'drive',
@@ -260,7 +262,6 @@ export const NON_NAME_WORDS = new Set<string>([
   'terraces',
   'highway',
   'parkway',
-  'crescent',
   // IT access-control / configuration nouns. The "admin"/"sysadmin" role cues
   // sit directly beside these in support prose ("admin Access Rights", "sysadmin
   // Login Credentials", "admin Settings Options"), so they are the structural
