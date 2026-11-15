@@ -233,6 +233,35 @@ export const NON_NAME_WORDS = new Set<string>([
   'laboratories',
   'cathedral',
   'cathedrals',
+  // Street / thoroughfare designators. A known given- or family-name token
+  // ("Baker", "Oxford", "Park", "Abbey") directly followed by one of these
+  // ("Baker Street", "Park Avenue", "Abbey Road") is a street address, not a
+  // person — but the DB hit on the leading word lets the chain absorb the
+  // designator as an (unknown- or ambiguous-cap) surname and emit a PERSON span.
+  // Exactly the "Grace Hospital" / "Kingston University" class above: treating
+  // the designator as a structural noun breaks the chain, leaving only the
+  // leading word (lone, below threshold). Only designators that are essentially
+  // never personal surnames are listed. Deliberately EXCLUDED: "Lane", "Court",
+  // "Close", "Square", "Place", "Way", "Walk" — all established real surnames
+  // ("Diane Lane", "Margaret Court", "Glenn Close") the engine must still detect,
+  // same reasoning as the "Church"/"Temple"/"Hall" exclusions above. Also
+  // EXCLUDED, for the same reason: "Street", "Streets", "Roads", "Crescent" — all
+  // four are surnames on file in the committed dictionary ("Picabo Street",
+  // "Della Street"). Guarding them does not just trim an address: it breaks the
+  // chain on a real person, so "Julie Street" vanished entirely and "Anna Street"
+  // shrank to the given name, leaking the surname. A missed name is a leak, a
+  // "Baker Street" span is only over-redaction, so these stay detectable until a
+  // structural gate (house number / preposition) can tell the two apart.
+  'avenue',
+  'avenues',
+  'road',
+  'boulevard',
+  'boulevards',
+  'drive',
+  'terrace',
+  'terraces',
+  'highway',
+  'parkway',
   // IT access-control / configuration nouns. The "admin"/"sysadmin" role cues
   // sit directly beside these in support prose ("admin Access Rights", "sysadmin
   // Login Credentials", "admin Settings Options"), so they are the structural
@@ -292,6 +321,29 @@ export const NON_NAME_WORDS = new Set<string>([
   'gmbh',
   'holding',
   'holdings',
+  // Organization-type descriptor nouns. These trail a company stem — itself often
+  // a real surname — in prose ("von Neumann Systems", "Takeda Pharmaceuticals",
+  // "Falk Industries"), and the chain-extension absorbs the descriptor into the
+  // surname slot via the unknown-capitalization path (the stem's DB hit sets
+  // allowUnknownCap), emitting a bogus two-token PERSON span. Same class as the
+  // legal-entity suffixes above, but these are the *what-they-do* descriptors
+  // rather than the legal form. Guarding them breaks the chain so only the stem
+  // remains, which — being a lone ext-tier token — then drops below threshold.
+  // None of these is a personal surname in the committed dictionary (unlike
+  // "Labs", a real ext surname, which is deliberately omitted), so the guard
+  // never suppresses a real person. Plurals are the dominant org-suffix surface
+  // form and are listed as the distinct tokens they are.
+  'systems',
+  'industries',
+  'technologies',
+  'solutions',
+  'enterprises',
+  'ventures',
+  'logistics',
+  'pharmaceuticals',
+  'consulting',
+  'communications',
+  'networks',
   // --- German --- (German compounds most multi-word structures into a single
   // token, so these mainly guard the handoff/role path against the common
   // standalone ticket nouns that can follow a cue.)

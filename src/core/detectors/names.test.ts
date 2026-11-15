@@ -415,6 +415,12 @@ describe('backward unknown-cap anchor ("<unknown given> <ext surname>")', () => 
     // unknown candidate is held out from the full DB, so any detection here
     // would have to come from this rule alone.
     expect(personsFull('Zzzaard Frank arrived at the office.')).toHaveLength(0);
+    // "Loop" is an ordinary English noun that also lands in the DB at ext-tier,
+    // so a street-style phrase like "Infinite Loop" would anchor an
+    // "<unknown cap> <ambiguous ext>" chain and read as a PERSON. Held-out
+    // candidate ("Qworbis") proves this is the anchor rule firing, not DB
+    // membership; the ambiguous-word filter on the corroborator blocks it.
+    expect(personsFull('Qworbis Loop was the detour.')).toHaveLength(0);
   });
 
   it('proves the backward-anchor held-out names are absent from the full DB', () => {
@@ -425,6 +431,7 @@ describe('backward unknown-cap anchor ("<unknown given> <ext surname>")', () => 
       ['standingbear', 'Latin'],
       ['zzzaard', 'Latin'],
       ['qqqulev', 'Latin'],
+      ['qworbis', 'Latin'],
     ];
     for (const [word, script] of heldOut) {
       expect(fullSource.hasGiven(word, script), `${word} should be out-of-DB`).toBe(false);
@@ -525,6 +532,141 @@ describe('company legal-entity designator is not absorbed as a surname', () => {
     for (const stem of ['zentara', 'quorvex', 'brightmoor', 'nordia']) {
       const absent = !fullSource.hasGiven(stem, 'Latin') && !fullSource.hasFamily(stem, 'Latin');
       expect(absent, `${stem} must be held out of the DB`).toBe(true);
+    }
+  });
+});
+
+describe('organization-type descriptor is not absorbed as a surname', () => {
+  // Sibling of the legal-entity designator guard above, for the *what-they-do*
+  // org descriptors ("Systems", "Industries", "Technologies", …). These trail a
+  // company stem that is itself frequently a real surname ("von Neumann Systems",
+  // "Takeda Pharmaceuticals"); the stem's DB hit sets allowUnknownCap, so the
+  // chain used to absorb the (out-of-DB) descriptor into the surname slot and
+  // emit a two-token PERSON span. The chain-extension guard now breaks on the
+  // descriptor, leaving the org stem as a lone token that cannot promote.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not read "<OrgStem> <Descriptor>" as a person (known-surname stem)', () => {
+    // "Neumann" IS a committed ext-tier surname (the exact coverage-gap case),
+    // so dictionary absence cannot be what suppresses the span — only the guard
+    // on "Systems" can. The real people in the sentence still detect.
+    expect(personsFull('von Neumann Systems onboarded Leila Azar and Kaveh Nazari.')).toEqual([
+      'Leila Azar',
+      'Kaveh Nazari',
+    ]);
+  });
+
+  it('does not read "<OrgStem> <Descriptor>" as a person (held-out stems)', () => {
+    // Stems below are held out (absent from the full DB, asserted at the end) and
+    // the descriptors are likewise out-of-DB, so no lone token can promote.
+    expect(personsFull('Quorvex Systems shipped the order.')).toHaveLength(0);
+    expect(personsFull('Zentara Industries signed the contract.')).toHaveLength(0);
+    expect(personsFull('Brightmoor Technologies filed the claim.')).toHaveLength(0);
+    expect(personsFull('Nordia Solutions declined the refund.')).toHaveLength(0);
+    expect(personsFull('Dravenmoor Pharmaceuticals updated the invoice.')).toHaveLength(0);
+    expect(personsFull('Kesterlin Logistics escalated the case.')).toHaveLength(0);
+  });
+
+  it('still detects a genuine two-token name (guard is descriptor-specific)', () => {
+    expect(personsFull('Account holder Johann Neumann confirmed the refund.')).toContain(
+      'Johann Neumann'
+    );
+    expect(personsFull('Priya Gupta reviewed the ticket.')).toContain('Priya Gupta');
+  });
+
+  it('proves the descriptors are out-of-DB and the stems are held out', () => {
+    for (const descriptor of [
+      'systems',
+      'industries',
+      'technologies',
+      'solutions',
+      'pharmaceuticals',
+      'logistics',
+      'enterprises',
+      'ventures',
+      'consulting',
+      'communications',
+      'networks',
+    ]) {
+      const absent =
+        !fullSource.hasGiven(descriptor, 'Latin') && !fullSource.hasFamily(descriptor, 'Latin');
+      expect(absent, `${descriptor} must not be a DB name`).toBe(true);
+    }
+    for (const stem of ['quorvex', 'zentara', 'brightmoor', 'nordia', 'dravenmoor', 'kesterlin']) {
+      const absent = !fullSource.hasGiven(stem, 'Latin') && !fullSource.hasFamily(stem, 'Latin');
+      expect(absent, `${stem} must be held out of the DB`).toBe(true);
+    }
+    // The gap stem IS a committed surname — so the guard, not membership, works.
+    expect(
+      fullSource.hasGiven('neumann', 'Latin') || fullSource.hasFamily('neumann', 'Latin')
+    ).toBe(true);
+  });
+});
+
+describe('street / thoroughfare designator after a name is not absorbed as a surname', () => {
+  // "Street", "Avenue", "Road", etc. are thoroughfare designators (NON_NAME_WORDS)
+  // that trail a capitalized given/family-name token in an address ("Baker Street",
+  // "Park Avenue"). The DB hit on the leading word used to let the chain absorb the
+  // designator and emit a two-token PERSON span — the same bug class as the
+  // "<Given> <RoleNoun>" and "<OrgStem> <Designator>" absorptions above. The
+  // chain-extension guard breaks on the designator, leaving the leading word lone
+  // (below threshold).
+  //
+  // Street names below (Harwick/Ellsworth/Thornbury/Caldecott) are held out from
+  // the benchmark's corpus cases (Park/Mill/Victoria), so the guard
+  // is proven to generalize rather than memorize the benchmarked strings.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not read "<Word> <Thoroughfare>" as a person', () => {
+    expect(personsFull('The café on Harwick Drive is closed.')).toHaveLength(0);
+    expect(personsFull('We parked on Ellsworth Avenue overnight.')).toHaveLength(0);
+    expect(personsFull('The depot sits on Thornbury Road.')).toHaveLength(0);
+    expect(personsFull('Their flat is on Caldecott Boulevard.')).toHaveLength(0);
+  });
+
+  it('still detects a person whose surname collides with a thoroughfare type', () => {
+    // "Lane", "Court", "Close" are deliberately EXCLUDED from the guard because
+    // they are established real surnames — these must still detect.
+    expect(personsFull('We hired Glenn Close for the role.')).toContain('Glenn Close');
+    expect(personsFull('Margaret Court won the title.')).toContain('Margaret Court');
+    expect(personsFull('Please call Sarah Lane about it.')).toContain('Sarah Lane');
+  });
+
+  it('still detects a person surnamed Street / Streets / Roads / Crescent', () => {
+    // These four designators are real surnames on file in the committed DB, so
+    // they are deliberately NOT guarded: blocking them dropped the whole person
+    // ("Julie Street" → nothing) or leaked the surname ("Anna Street" → "Anna").
+    // Given names here are held out from the corpus.
+    expect(personsFull('The agent Julie Street confirmed the booking.')).toContain('Julie Street');
+    expect(personsFull('Customer Della Street reported the issue.')).toContain('Della Street');
+    expect(personsFull('Name: Michael Streets')).toContain('Michael Streets');
+    expect(personsFull('Yesterday Anna Roads called about the refund.')).toContain('Anna Roads');
+    expect(personsFull('Contact: Emily Crescent')).toContain('Emily Crescent');
+    for (const w of ['street', 'streets', 'roads', 'crescent']) {
+      const hit = fullSource.hasGiven(w, 'Latin') || fullSource.hasFamily(w, 'Latin');
+      expect(hit, `${w} should be in the committed DB`).toBe(true);
+    }
+  });
+
+  it('still detects a genuine two-token name adjacent to an address', () => {
+    expect(personsFull('Rajesh Iyer lives on Oxford Street.')).toContain('Rajesh Iyer');
+  });
+
+  it('proves the guard is structural, not dictionary absence', () => {
+    // Both ends are genuine DB hits — the leading words are ext-tier surnames, so
+    // a name chain genuinely would form. The NON_NAME_WORDS guard, not absence
+    // from the dictionary, is what breaks the chain and suppresses the span.
+    for (const w of ['harwick', 'ellsworth', 'thornbury', 'caldecott']) {
+      const hit = fullSource.hasGiven(w, 'Latin') || fullSource.hasFamily(w, 'Latin');
+      expect(hit, `${w} should be in the committed DB`).toBe(true);
     }
   });
 });
@@ -1794,6 +1936,34 @@ describe('frequency tier influences scoring', () => {
   });
 });
 
+describe('a title rescues a common-word (ambiguous) surname', () => {
+  // commonWords.ts' contract: an ambiguous word "needs extra context (a title, or
+  // being part of a multi-token name) before it is treated as PII". These probe
+  // the title half of that contract with held-out words — the corpus fix exercises
+  // "Brown"/"White"/"Green"; here we use the ambiguous words "rose" and "king" so
+  // the behaviour is shown to generalize across the whole AMBIGUOUS_WORDS set, not
+  // just the three cases committed to the benchmark. Checked against the FULL
+  // committed dictionary, where these surnames are only in the ext (bulk) tier, so
+  // they hit the heaviest penalty stack and still must clear threshold on the title.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('detects an ambiguous ext-only surname after a title', () => {
+    expect(personsFull('Please notify Ms. Rose about the delay.')).toContain('Rose');
+    expect(personsFull('Dr. King confirmed the appointment.')).toContain('King');
+  });
+
+  it('still suppresses the same ambiguous word with no cue (precision held)', () => {
+    // No title, no second name part: the ambiguity discount must still apply, so
+    // the ordinary-vocabulary reading wins and nothing is flagged.
+    expect(personsFull('I bought a Rose today.')).not.toContain('Rose');
+    expect(personsFull('Long live the King.')).not.toContain('King');
+  });
+});
+
 describe('clause-opening name after a colon/sentence boundary', () => {
   // Names constantly open a clause after a label in support prose ("Case
   // escalation: <Name>", "Support note: <Name>"). A known-but-bulk (ext) given
@@ -2288,12 +2458,59 @@ describe('AKA-in-parens frame ("<Name> (<Alias>)")', () => {
     }
   });
 
+  it('does not fire on a city name in parens (location annotation)', () => {
+    // `<Name> (<City>)` is a where-they-are note, not a nickname — the
+    // sub-national analogue of the country guard. Only a few cities ("Berlin")
+    // sit in AMBIGUOUS_WORDS; the rest slipped straight through before the
+    // CITY_NAMES guard. The cities below span several countries and are held out
+    // from the corpus (and, per the next test, absent from the full DB), so the
+    // block is the guard, not the dictionary, and it generalizes across the list.
+    expect(personsFull('Eng. Klaus von Höfling (Darmstadt) resolved it.')).toEqual([
+      'Klaus von Höfling',
+    ]);
+    expect(personsFull('Maria López (Mannheim) approved.')).toEqual(['Maria López']);
+    expect(personsFull('Maria López (Rotterdam) approved.')).toEqual(['Maria López']);
+    expect(personsFull('Dr. Fatima Al-Rashid (Yokohama) reviewed.')).toEqual(['Fatima Al-Rashid']);
+    expect(personsFull('Maria López (Stuttgart) approved.')).toEqual(['Maria López']);
+    expect(personsFull('Maria López (Munich) approved.')).toEqual(['Maria López']);
+  });
+
+  it('proves the city-in-parens tokens are held out (absent from the full DB)', () => {
+    // The guard, not dictionary membership, is what suppresses these — none is a
+    // name in the committed DB, so the city class detected ONLY via the AKA cue
+    // before the fix. (Some cities, e.g. "Heidelberg", DO sit in the ext
+    // dictionary as rare surnames; the guard blocks those too, but they are
+    // unusable as a generalization proof, so the held-out set below is restricted
+    // to cities confirmed absent.)
+    for (const word of ['darmstadt', 'mannheim', 'rotterdam', 'yokohama', 'stuttgart', 'munich']) {
+      expect(fullSource.hasGiven(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(word, 'Latin'), `${word} should be out-of-DB`).toBe(false);
+    }
+  });
+
   it('still fires on a real given-name alias that collides with nothing geographic', () => {
     // Precision-first exclusion: dual-use country/given names ("Jordan",
     // "Georgia", "Chad") are intentionally NOT in COUNTRY_NAMES, so a genuine
     // nickname in that slot is still recovered.
     expect(personsFull('Maria López (Jordan) approved.')).toContain('Jordan');
     expect(personsFull('Maria López (Georgia) approved.')).toContain('Georgia');
+  });
+
+  it('still fires on a dual-use city/given-name alias (excluded from CITY_NAMES)', () => {
+    // "Paris", "Milan", "Austin" are as often personal names as cities and are
+    // deliberately NOT in CITY_NAMES, so a genuine nickname in the slot survives
+    // — mirroring the dual-use country exclusions above.
+    expect(personsFull('Maria López (Paris) approved.')).toContain('Paris');
+    expect(personsFull('Maria López (Milan) approved.')).toContain('Milan');
+    expect(personsFull('Maria López (Austin) approved.')).toContain('Austin');
+    // Same policy for city tokens that are established given names — the
+    // given-name disambiguator is the frame's primary use ("<Surname> (<Given>)"),
+    // so these must keep detecting. Surname stems here are held out from the corpus.
+    expect(personsFull('Customer von Neumann (Kobe) called.')).toContain('Kobe');
+    expect(personsFull('Dr. Patel (Sofia) reviewed.')).toContain('Sofia');
+    expect(personsFull('Anna Schmidt (Roma) wrote.')).toContain('Roma');
+    expect(personsFull('Anna Schmidt (Denver) wrote.')).toContain('Denver');
+    expect(personsFull('Anna Schmidt (Geneva) wrote.')).toContain('Geneva');
   });
 
   it('does not fire on a parenthesized non-alias (token followed by more content)', () => {

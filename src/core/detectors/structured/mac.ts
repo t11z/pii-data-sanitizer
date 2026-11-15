@@ -1,9 +1,11 @@
 import type { Span } from '../../types';
 
-// MAC addresses are only matched when they carry separators, which keeps the
-// false-positive rate low (a bare 12-hex run is indistinguishable from a hash
-// fragment, so it is intentionally not matched). EUI-64 (8-group) MACs are also
-// excluded because they are valid IPv6 addresses and would be ambiguous.
+// MAC addresses carrying separators are matched structurally, which keeps the
+// false-positive rate low. A bare 12-hex run has no separators to key on and is
+// indistinguishable from a hash/digest fragment, so it is NOT matched on shape
+// alone — it is only claimed when an explicit "MAC" cue word precedes it (see
+// MAC_BARE_RE below). EUI-64 (8-group) MACs are excluded because they are valid
+// IPv6 addresses and would be ambiguous.
 
 // Colon- or hyphen-separated, six 2-hex groups. The `\1` backreference forces a
 // single consistent separator, so a mixed run like `00:1A-2B:...` is rejected.
@@ -33,6 +35,66 @@ const MAC_SEP_RE =
 const MAC_COMPACT_RE =
   /(?<![\w.+-])[0-9A-Fa-f]{4}([.-])[0-9A-Fa-f]{4}\1[0-9A-Fa-f]{4}(?![\w]|[.-][0-9A-Fa-f])/g;
 
+// Separator-less (bare) 12-hex MAC, e.g. "MAC 001a2b3c4d5e". A bare hex run on
+// its own is ambiguous with a commit hash / digest fragment, so — unlike the
+// separated forms above — it is matched ONLY when an explicit "MAC" cue word
+// sits immediately before it. This mirrors the cue-gated strategy the passport
+// detector uses for its checksum-less numbers: the cue supplies the precision a
+// structural rule alone cannot, while still generalizing to any bare address,
+// not a memorized value. NIC/switch provisioning logs routinely print MACs this
+// way (no colons/dots), which the separated patterns could never reach.
+//
+// `\bMAC\b` requires the cue to be a standalone token — "iMac", "Mac mini", and
+// other prose can't trigger it. `[\s:=#-]+` requires at least one separator
+// between the cue and the run (so "MAC" glued to the value, or a document-type
+// word like "MAC address table", can't match), and the trailing
+// `(?!\w)` pins the run to exactly 12 hex digits so a longer digest tail is
+// never sliced into a 12-char span. The guard is `\w`, not just hex: a hex-only
+// guard let the first 12 chars of a longer alphanumeric token through
+// ("MAC a1b2c3d4e5f6g7" is a serial, not an address). Only group 1 (the
+// address) is claimed; the cue itself stays outside the span.
+const MAC_BARE_RE = /\bMAC\b[\s:=#-]+([0-9A-Fa-f]{12})(?!\w)/gi;
+
+// Dot-separated six 2-hex groups (`00.1a.2b.3c.4d.5e`) — a vendor/tooling MAC
+// notation that mirrors the colon/hyphen six-group form with '.' as the single
+// separator. It gets its own pattern rather than folding '.' into MAC_SEP_RE for
+// two reasons:
+//   1. An all-decimal dotted six-group run (`33.44.55.66.77.88`) otherwise falls
+//      straight through to the PHONE detector, which reads the dotted grouping as
+//      a phone — producing a MAC false negative *and* a PHONE false positive from
+//      one token. The higher-confidence MAC span emitted here shadows the PHONE
+//      span in overlap resolution, closing both at once.
+//   2. The dot form needs the compact detector's nuanced trailing guard: a blanket
+//      `(?![\w.])` would reject a legitimate sentence-ending MAC, while a plain
+//      `(?![\w:-])` would partial-match the first six groups of a longer dotted
+//      hex run. The lookahead rejects only a *continuation* (a 7th `.hex` group)
+//      yet still allows a closing '.'. The lookbehind forbids a preceding word
+//      char, '.', '+' or '-' so the pattern never matches the tail of a longer
+//      dotted/alnum run — and never a '+'-prefixed international phone written
+//      with dots, since a MAC never carries a '+'.
+// Six 2-digit groups is the discriminator from a dotted phone: national dotted
+// groupings (e.g. French `01.42.34.56.78`) run to five pairs / ten digits, never
+// six.
+const MAC_DOT6_RE = /(?<![\w.+-])[0-9A-Fa-f]{2}(?:\.[0-9A-Fa-f]{2}){5}(?![\w]|\.[0-9A-Fa-f])/g;
+
+// An *all-decimal* dotted six-pair run is not MAC-shaped enough on its own: only
+// ~0.4% of real MACs contain no a-f digit, while the same shape is a dotted
+// timestamp (`26.11.14.09.30.15`), a version string, or a twelve-digit phone
+// written in pairs ("Tel. 49.30.12.34.56.78"). The PHONE detector already claims
+// every such run, so nothing leaks by declining it here — but claiming it as a
+// 0.9 MAC would relabel a correctly detected, phone-cued number. So the
+// all-decimal form is only a MAC when a hardware-address cue sits just before it;
+// a run with at least one a-f digit stays purely structural. The cue is searched
+// in a short fixed window (never `text.slice(0, start)`) to stay linear.
+const DOT6_ALL_DECIMAL_RE = /^[\d.]+$/;
+const DOT6_CUE_RE = /\b(?:MAC|BSSID|HWaddr|ether)\b/i;
+const DOT6_CUE_WINDOW = 32;
+
+function isUncuedDecimalDot6(text: string, start: number, raw: string): boolean {
+  if (!DOT6_ALL_DECIMAL_RE.test(raw)) return false;
+  return !DOT6_CUE_RE.test(text.slice(Math.max(0, start - DOT6_CUE_WINDOW), start));
+}
+
 // The broadcast MAC (all-`FF`) is a reserved sentinel that identifies no device,
 // so it carries no PII — it shows up in configs, docs, and network diagnostics
 // as a "send to everyone" placeholder, not as a hardware id. Reject it
@@ -49,9 +111,10 @@ function isBroadcastMac(raw: string): boolean {
 
 export function detectMacs(text: string): Span[] {
   const spans: Span[] = [];
-  for (const re of [MAC_SEP_RE, MAC_COMPACT_RE]) {
+  for (const re of [MAC_SEP_RE, MAC_COMPACT_RE, MAC_DOT6_RE]) {
     for (const match of text.matchAll(re)) {
       if (isBroadcastMac(match[0])) continue;
+      if (re === MAC_DOT6_RE && isUncuedDecimalDot6(text, match.index, match[0])) continue;
       spans.push({
         start: match.index,
         end: match.index + match[0].length,
@@ -61,6 +124,24 @@ export function detectMacs(text: string): Span[] {
         source: 'mac',
       });
     }
+  }
+  // Cue-gated bare form. The span covers only the captured address (group 1),
+  // which — because the trailing lookahead consumes nothing — is always the
+  // suffix of the overall match, so its offset is derivable from the lengths.
+  // Confidence is a notch below the separated forms (0.85 vs 0.9): it leans on a
+  // context cue rather than pure structure, but still clears the threshold.
+  for (const match of text.matchAll(MAC_BARE_RE)) {
+    const addr = match[1];
+    if (isBroadcastMac(addr)) continue;
+    const start = match.index + (match[0].length - addr.length);
+    spans.push({
+      start,
+      end: start + addr.length,
+      type: 'MAC',
+      text: addr,
+      confidence: 0.85,
+      source: 'mac',
+    });
   }
   return spans;
 }

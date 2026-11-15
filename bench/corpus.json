@@ -804,6 +804,32 @@
     "entities": []
   },
   {
+    "text": "Switch port provisioned with MAC a1b2c3d4e5f6 during the maintenance window.",
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "a1b2c3d4e5f6"
+      }
+    ]
+  },
+  {
+    "text": "Endpoint registered under MAC: 0099aabbccdd after reimaging.",
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "0099aabbccdd"
+      }
+    ]
+  },
+  {
+    "text": "Integrity record MAC deadbeefcafe0123 computed over the payload.",
+    "entities": []
+  },
+  {
+    "text": "The MAC fix abcdef001122 note referenced the earlier incident.",
+    "entities": []
+  },
+  {
     "text": "Firmware checksum ab12.cd34.ef56.7890 recorded in the log.",
     "entities": []
   },
@@ -1967,6 +1993,33 @@
     ]
   },
   {
+    "text": "Eng. Klaus von Höfling (Darmstadt) resolved the billing dispute this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Klaus von Höfling"
+      }
+    ]
+  },
+  {
+    "text": "Dr. Priya Mehta (Heidelberg) approved the refund request yesterday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Priya Mehta"
+      }
+    ]
+  },
+  {
+    "text": "Account holder Sofia Lindqvist (Rotterdam) confirmed the transfer.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Sofia Lindqvist"
+      }
+    ]
+  },
+  {
     "text": "Sarah Manager reviewed the ticket this morning.",
     "entities": [
       {
@@ -2844,6 +2897,32 @@
     "entities": []
   },
   {
+    "text": "New ticket TAC #7731: account holder (birth: 1983-07-26) escalated the case.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1983-07-26"
+      }
+    ]
+  },
+  {
+    "text": "Patient intake form — birth: 05/19/1971 — verified against ID.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "05/19/1971"
+      }
+    ]
+  },
+  {
+    "text": "Place of birth: Hamburg; country of birth: Germany on file.",
+    "entities": []
+  },
+  {
+    "text": "After rebirth: 2001-05-05 the migration project relaunched.",
+    "entities": []
+  },
+  {
     "text": "Passport document M8N3B6V1C4 attached to the case file.",
     "entities": [
       {
@@ -3026,6 +3105,255 @@
       {
         "type": "PERSON",
         "text": "Somchai Chaiwat"
+      }
+    ]
+  },
+  {
+    "text": "Our office is at 1 Infinite Loop, Cupertino.",
+    "entities": []
+  },
+  {
+    "text": "Account holder's Steuer-ID 10 172 914 587 is on file for the tax year.",
+    "entities": [
+      {
+        "type": "NATIONAL_ID",
+        "text": "10 172 914 587"
+      }
+    ]
+  },
+  {
+    "text": "Support reached the customer on +49 172 914 587 to confirm the order.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+49 172 914 587"
+      }
+    ]
+  },
+  {
+    "text": "Amex charge 344185 296307 410 approved for the account.",
+    "entities": [
+      {
+        "type": "CREDIT_CARD",
+        "text": "344185 296307 410"
+      }
+    ]
+  },
+  {
+    "text": "Please reconcile EAN 4269548225702 against the shipment manifest.",
+    "entities": []
+  },
+  {
+    "text": "Patient birth record 07/11/1983 filed with the intake team.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "07/11/1983"
+      }
+    ]
+  },
+  {
+    "text": "Birth records: 03-Apr-1985 attached to the application.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "03-Apr-1985"
+      }
+    ]
+  },
+  {
+    "text": "Laut Geburtsregister 1959-02-28 wurde der Fall abgeschlossen.",
+    "entities": [
+      {
+        "type": "DATE_OF_BIRTH",
+        "text": "1959-02-28"
+      }
+    ]
+  },
+  {
+    "text": "The birth record was updated 2022-09-14 after the correction request.",
+    "entities": []
+  },
+  {
+    "text": "Reference birth record no. 48213907 was located in the archive.",
+    "entities": []
+  },
+  {
+    "text": "Please forward the file to Mr. Brown before Friday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Brown"
+      }
+    ]
+  },
+  {
+    "text": "The deposition of Ms. White is scheduled for Monday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "White"
+      }
+    ]
+  },
+  {
+    "text": "Dr. Green reviewed the chart and signed off.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Green"
+      }
+    ]
+  },
+  {
+    "text": "von Neumann Systems onboarded the new client this quarter.",
+    "entities": []
+  },
+  {
+    "text": "Quorvex Technologies and Brightmoor Solutions signed the contract.",
+    "entities": []
+  },
+  {
+    "text": "The order shipped from Zentara Industries to Nordia Logistics.",
+    "entities": []
+  },
+  {
+    "text": "Account holder Johann Neumann confirmed the Dravenmoor Pharmaceuticals invoice.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Johann Neumann"
+      }
+    ]
+  },
+  {
+    "text": "We moved the office to Park Avenue last year.",
+    "entities": []
+  },
+  {
+    "text": "Turn left onto Mill Road and keep going.",
+    "entities": []
+  },
+  {
+    "text": "The showroom is on Victoria Boulevard.",
+    "entities": []
+  },
+  {
+    "text": "Diane Lane signed the attendance sheet.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Diane Lane"
+      }
+    ]
+  },
+  {
+    "text": "Grenzkontrolle: Reisepass NL-3K8M5P2W für den Reisenden hinterlegt.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "NL-3K8M5P2W"
+      }
+    ]
+  },
+  {
+    "text": "Customer verification: Passport No. SE-7Q4W9N1R on file.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "SE-7Q4W9N1R"
+      }
+    ]
+  },
+  {
+    "text": "Border desk logged passport IT-6B3X8K5M at the gate.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "IT-6B3X8K5M"
+      }
+    ]
+  },
+  {
+    "text": "Passport CA-RENEWED at the embassy appointment last week.",
+    "entities": []
+  },
+  {
+    "text": "Finance processed wire to DE75512108001245126199 EUR 5000 today.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "DE75512108001245126199"
+      }
+    ]
+  },
+  {
+    "text": "Refund sent to GB33BUKB20201555555555 USD 200 overnight.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "GB33BUKB20201555555555"
+      }
+    ]
+  },
+  {
+    "text": "Credited DE89370400440532013001 EUR 100 but the account was closed.",
+    "entities": []
+  },
+  {
+    "text": "Statement row: AT75 5260 1815 9083 0166 EUR 20 AT16 1318 6091 3909 9603 EUR 30 booked.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "AT75 5260 1815 9083 0166"
+      },
+      {
+        "type": "IBAN",
+        "text": "AT16 1318 6091 3909 9603"
+      }
+    ]
+  },
+  {
+    "text": "Spare part RI70 BTOH HCXK 0672 42ZE 5643 BMJP is back in stock.",
+    "entities": []
+  },
+  {
+    "text": "Escalation noted MAC 33.44.55.66.77.88 from the access point.",
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "33.44.55.66.77.88"
+      }
+    ]
+  },
+  {
+    "text": "The adapter 0a.1b.2c.3d.4e.5f lost its link overnight.",
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "0a.1b.2c.3d.4e.5f"
+      }
+    ]
+  },
+  {
+    "text": "Interface reported MAC aa.bb.cc.dd.ee.ff.",
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "aa.bb.cc.dd.ee.ff"
+      }
+    ]
+  },
+  {
+    "text": "The flood test used ff.ff.ff.ff.ff.ff as a broadcast placeholder.",
+    "entities": []
+  },
+  {
+    "text": "Reach the Paris desk at 01.42.34.56.78 before noon.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "01.42.34.56.78"
       }
     ]
   }
