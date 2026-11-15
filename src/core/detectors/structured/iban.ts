@@ -220,12 +220,36 @@ export function hasRegisteredIbanStructure(raw: string): boolean {
   return expected !== undefined && compact.length === expected;
 }
 
+/**
+ * The shape regex allows a single space between every alphanumeric so printed
+ * 4-char groupings ("DE89 3704 0044 …") are captured — but that same allowance
+ * lets the greedy match glue trailing space-separated uppercase/digit tokens
+ * (a currency code and amount, "DE89… EUR 5000", or any all-caps word) onto the
+ * IBAN body, so the full run fails mod-97/length and a *valid* IBAN is dropped.
+ * Recover it by trimming trailing space-delimited groups and returning the
+ * longest prefix that still validates. This is precision-neutral: a prefix is
+ * returned only when it passes the exact same mod-97 + registered-length gate,
+ * so no shape leaks that the strict path did not already accept — it is purely a
+ * recall recovery. A fully-valid run (nothing glued on) returns on the first
+ * iteration unchanged.
+ */
+function longestValidIbanPrefix(run: string): string | null {
+  let candidate = run;
+  while (candidate.length > 0) {
+    if (isValidIban(candidate)) return candidate;
+    const lastSpace = candidate.lastIndexOf(' ');
+    if (lastSpace === -1) return null;
+    candidate = candidate.slice(0, lastSpace);
+  }
+  return null;
+}
+
 export function detectIbans(text: string): Span[] {
   const spans: Span[] = [];
   const validated: Array<[number, number]> = [];
   for (const match of text.matchAll(IBAN_RE)) {
-    const value = match[0];
-    if (!isValidIban(value)) continue;
+    const value = longestValidIbanPrefix(match[0]);
+    if (value === null) continue;
     const start = match.index;
     const end = start + value.length;
     spans.push({

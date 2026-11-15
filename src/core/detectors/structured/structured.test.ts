@@ -131,6 +131,44 @@ describe('IBAN detection', () => {
     );
   });
 
+  it('recovers a valid compact IBAN followed by uppercase currency/amount tokens', () => {
+    // Held-out valid IBANs (distinct jurisdictions, none used elsewhere in this
+    // suite), each immediately followed by an uppercase currency code + amount —
+    // the "wire: <IBAN> EUR 5000" shape from the coverage feed. The shape regex
+    // allows a space between every alphanumeric (for printed 4-char grouping), so
+    // the greedy match previously glued " EUR 5000" / " USD 200" onto the body and
+    // the overshoot failed mod-97/length, dropping the IBAN entirely. The
+    // longest-valid-prefix trim recovers the real IBAN with a correct span. This
+    // generalizes across jurisdictions — it is not tied to one value.
+    expect(only('Transfer DE75512108001245126199 EUR 5000 today.', 'IBAN')[0].text).toBe(
+      'DE75512108001245126199'
+    );
+    expect(only('Wire GB33BUKB20201555555555 USD 200 now.', 'IBAN')[0].text).toBe(
+      'GB33BUKB20201555555555'
+    );
+    expect(only('processed wire: FR1420041010050500013M02606 EUR 5000.', 'IBAN')[0].text).toBe(
+      'FR1420041010050500013M02606'
+    );
+    // A trailing all-caps word (not a currency/amount) is trimmed the same way.
+    expect(only('Remit ES7921000813610123456789 URGENT PLEASE.', 'IBAN')[0].text).toBe(
+      'ES7921000813610123456789'
+    );
+  });
+
+  it('does not resurrect an invalid IBAN via trailing-token trimming (precision guard)', () => {
+    // The trim only emits a prefix that still passes mod-97 + the exact registered
+    // length, so a mod-97-INVALID run followed by uppercase tokens stays silent —
+    // no shorter prefix validates. Held-out invalid values (bad check digit /
+    // over-long), each trailed by uppercase currency+amount.
+    expect(only('Transfer DE89370400440532013001 EUR 5000 today.', 'IBAN')).toHaveLength(0);
+    expect(
+      only('Reference DE28 3704 0044 0532 0130 0000 00 EUR 100 attached', 'IBAN')
+    ).toHaveLength(0);
+    // The generator-artifact FR value from the feed (24 chars, FR is 27; mod-97 = 91)
+    // stays correctly rejected even in its "… EUR 5000" context.
+    expect(only('processed wire: FR1420041820051000100131 EUR 5000.', 'IBAN')).toHaveLength(0);
+  });
+
   it('rejects uncued mod-97-valid runs whose compact length differs from the country registry', () => {
     // mod-97 alone passes ~1 in 97 random strings, so a longer-than-canonical
     // run can checksum-validate by chance — exactly how the gap report's
