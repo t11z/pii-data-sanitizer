@@ -3124,5 +3124,32 @@
   {
     "text": "Reference birth record no. 48213907 was located in the archive.",
     "entities": []
+  },
+  {
+    "text": "Please forward the file to Mr. Brown before Friday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Brown"
+      }
+    ]
+  },
+  {
+    "text": "The deposition of Ms. White is scheduled for Monday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "White"
+      }
+    ]
+  },
+  {
+    "text": "Dr. Green reviewed the chart and signed off.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Green"
+      }
+    ]
   }
 ]
