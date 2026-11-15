@@ -232,26 +232,43 @@ export function hasRegisteredIbanStructure(raw: string): boolean {
  * so no shape leaks that the strict path did not already accept — it is purely a
  * recall recovery. A fully-valid run (nothing glued on) returns on the first
  * iteration unchanged.
+ *
+ * Trimming is restricted to *registered* country codes. For those, the exact
+ * registered length pins the one prefix that can validate, so the trim adds at
+ * most a single 1-in-97 chance per run. An unregistered code has no length gate
+ * (mod-97 alone), so every trimmed prefix would be a fresh 1-in-97 draw and a
+ * grouped uppercase serial ("RI70 BTOH HCXK 0672 42ZE …") would validate at
+ * some arbitrary cut roughly 3x as often as before. Unregistered codes therefore
+ * keep the pre-existing full-run-only behaviour.
  */
 function longestValidIbanPrefix(run: string): string | null {
+  if (isValidIban(run)) return run;
+  if (!(run.slice(0, 2) in IBAN_LENGTH_BY_COUNTRY)) return null;
   let candidate = run;
-  while (candidate.length > 0) {
-    if (isValidIban(candidate)) return candidate;
+  for (;;) {
     const lastSpace = candidate.lastIndexOf(' ');
     if (lastSpace === -1) return null;
     candidate = candidate.slice(0, lastSpace);
+    if (isValidIban(candidate)) return candidate;
   }
-  return null;
 }
 
 export function detectIbans(text: string): Span[] {
   const spans: Span[] = [];
   const validated: Array<[number, number]> = [];
-  for (const match of text.matchAll(IBAN_RE)) {
+  // Manual exec loop (on a private copy, so the shared regex keeps no state):
+  // when the greedy run was trimmed back to a valid prefix, scanning must resume
+  // right after that prefix. The discarded tail can itself contain the head of
+  // the *next* IBAN ("BE68 … 7034 EUR 20 BE71 …" on one statement line), which
+  // `matchAll` would have skipped past along with the rest of the greedy match.
+  const strictRe = new RegExp(IBAN_RE.source, IBAN_RE.flags);
+  let match: RegExpExecArray | null;
+  while ((match = strictRe.exec(text)) !== null) {
     const value = longestValidIbanPrefix(match[0]);
     if (value === null) continue;
     const start = match.index;
     const end = start + value.length;
+    strictRe.lastIndex = end;
     spans.push({
       start,
       end,

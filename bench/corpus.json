@@ -3273,5 +3273,22 @@
   {
     "text": "Credited DE89370400440532013001 EUR 100 but the account was closed.",
     "entities": []
+  },
+  {
+    "text": "Statement row: AT75 5260 1815 9083 0166 EUR 20 AT16 1318 6091 3909 9603 EUR 30 booked.",
+    "entities": [
+      {
+        "type": "IBAN",
+        "text": "AT75 5260 1815 9083 0166"
+      },
+      {
+        "type": "IBAN",
+        "text": "AT16 1318 6091 3909 9603"
+      }
+    ]
+  },
+  {
+    "text": "Spare part RI70 BTOH HCXK 0672 42ZE 5643 BMJP is back in stock.",
+    "entities": []
   }
 ]

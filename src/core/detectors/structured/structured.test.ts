@@ -169,6 +169,32 @@ describe('IBAN detection', () => {
     expect(only('processed wire: FR1420041820051000100131 EUR 5000.', 'IBAN')).toHaveLength(0);
   });
 
+  it('finds every IBAN on a one-line statement row after trimming the first', () => {
+    // Held-out valid IBANs (AT / PT / DK, none used elsewhere in this suite). The
+    // greedy shape match for the first IBAN runs on through " EUR 20 " into the
+    // head of the second; after the trim, scanning has to resume right behind the
+    // validated prefix or the second IBAN is swallowed with the discarded tail.
+    const row = 'AT75 5260 1815 9083 0166 EUR 20 AT16 1318 6091 3909 9603 EUR 30';
+    expect(only(row, 'IBAN').map((s) => s.text)).toEqual([
+      'AT75 5260 1815 9083 0166',
+      'AT16 1318 6091 3909 9603',
+    ]);
+    const mixed = 'PT82 0824 6281 9482 1993 5181 9 EUR 5 DK8809378657975432 DKK 40';
+    expect(only(mixed, 'IBAN').map((s) => s.text)).toEqual([
+      'PT82 0824 6281 9482 1993 5181 9',
+      'DK8809378657975432',
+    ]);
+  });
+
+  it('does not trim a grouped run with an unregistered country code (precision guard)', () => {
+    // An unregistered code has no length gate, so each trimmed prefix would be an
+    // independent 1-in-97 mod-97 draw. These held-out grouped serials each contain
+    // a prefix that happens to checksum ("RI70 BTOH HCXK 0672", "LH92 P3OE A3XL
+    // 0061") while the full run does not; they are part codes, not accounts.
+    expect(only('Part RI70 BTOH HCXK 0672 42ZE 5643 BMJP ok', 'IBAN')).toHaveLength(0);
+    expect(only('Part LH92 P3OE A3XL 0061 5234 C7UE OK7E 4908 ok', 'IBAN')).toHaveLength(0);
+  });
+
   it('rejects uncued mod-97-valid runs whose compact length differs from the country registry', () => {
     // mod-97 alone passes ~1 in 97 random strings, so a longer-than-canonical
     // run can checksum-validate by chance — exactly how the gap report's
