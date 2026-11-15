@@ -804,6 +804,32 @@
     "entities": []
   },
   {
+    "text": "Switch port provisioned with MAC a1b2c3d4e5f6 during the maintenance window.",
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "a1b2c3d4e5f6"
+      }
+    ]
+  },
+  {
+    "text": "Endpoint registered under MAC: 0099aabbccdd after reimaging.",
+    "entities": [
+      {
+        "type": "MAC",
+        "text": "0099aabbccdd"
+      }
+    ]
+  },
+  {
+    "text": "Integrity record MAC deadbeefcafe0123 computed over the payload.",
+    "entities": []
+  },
+  {
+    "text": "The MAC fix abcdef001122 note referenced the earlier incident.",
+    "entities": []
+  },
+  {
     "text": "Firmware checksum ab12.cd34.ef56.7890 recorded in the log.",
     "entities": []
   },
