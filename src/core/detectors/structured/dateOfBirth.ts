@@ -8,13 +8,17 @@ import type { Span } from '../../types';
 // ubiquitous form-field label that the "date of birth" wording alone misses.
 const CUE = String.raw`(?:date\s+of\s+birth|birth\s*date|d\.?\s*o\.?\s*b\.?|born(?:\s+on)?|geburtsdatum|geburtstag|geboren(?:\s+am)?|geb\.?)`;
 
-// Birth-*document* cues: a birth certificate's headline date is the date of birth,
-// so "birth certificate 1980-03-14" / "Geburtsurkunde 1975-11-02" should surface
-// the DOB. These are weaker than CUE because such a document also carries an
+// Birth-*document* cues: a birth document's headline date is the date of birth,
+// so "birth certificate 1980-03-14" / "birth record 1992-05-18" /
+// "Geburtsurkunde 1975-11-02" should surface the DOB. A "birth record" (and the
+// German "Geburtsregister" / "Geburtseintrag") is the same class of artifact as
+// a certificate — its defining date is the subject's date of birth — so it binds
+// identically. These are weaker than CUE because such a document also carries an
 // *issue* date, so — unlike CUE — this cue binds only a date sitting directly
 // after it (optional colon/whitespace, no verb filler). That keeps a trailing
-// action date out: "birth certificate issued 2020-01-01" stays silent.
-const DOC_CUE = String.raw`(?:birth\s*certificate|geburtsurkunde)`;
+// action date out: "birth certificate issued 2020-01-01" stays silent. Trailing
+// "s" is allowed ("birth records: …") since the plural label is as common.
+const DOC_CUE = String.raw`(?:birth\s*(?:certificate|record)s?|geburtsurkunde|geburts(?:register|eintrag))`;
 
 const MONTH_EN = String.raw`(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?`;
 const MONTH_DE = String.raw`(?:januar|februar|m[äa]rz|april|mai|juni|juli|august|september|oktober|november|dezember)`;
