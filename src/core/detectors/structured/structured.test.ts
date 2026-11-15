@@ -980,6 +980,15 @@ describe('MAC detection', () => {
     expect(only('MAC a1b2c3d4e5f67 overflow', 'MAC')).toHaveLength(0);
   });
 
+  it('does not slice a longer alphanumeric token that follows a "MAC" cue', () => {
+    // Held-out serial-like tokens: 12 hex chars followed by a non-hex word char
+    // are the head of a longer identifier, not an exact-12 address.
+    expect(only('asset MAC 7cd1c39a0f42k9 tagged', 'MAC')).toHaveLength(0);
+    expect(only('MAC 5e4d3c2b1a00_rev2 logged', 'MAC')).toHaveLength(0);
+    // ...while sentence punctuation after the address still matches.
+    expect(only('The NIC has MAC 7cd1c39a0f42.', 'MAC')[0]?.text).toBe('7cd1c39a0f42');
+  });
+
   it('does not match when a word sits between the "MAC" cue and a hex run', () => {
     // "MAC fix <hash>" / "MAC address table" are prose, not an address.
     expect(only('MAC fix deadbeef0011 landed', 'MAC')).toHaveLength(0);
@@ -1023,6 +1032,18 @@ describe('MAC detection', () => {
     // Held-out French-style five-pair phone (ten digits): five dot groups, not
     // six, so the six-group MAC pattern must not fire.
     expect(only('Reach the desk at 01.42.34.56.78 today', 'MAC')).toHaveLength(0);
+  });
+
+  it('leaves an all-decimal dotted six-pair run without a MAC cue to the phone detector', () => {
+    // Held-out values. All-decimal six pairs are far more often a pair-grouped
+    // phone or a dotted timestamp than a MAC, so without a hardware cue the run
+    // keeps the PHONE label it had before the dot-six pattern existed.
+    expect(only('Tel. 49.30.12.34.56.78 Berlin', 'MAC')).toHaveLength(0);
+    expect(only('Tel. 49.30.12.34.56.78 Berlin', 'PHONE')[0]?.text).toBe('49.30.12.34.56.78');
+    expect(only('log 26.11.14.09.30.15 rotated', 'MAC')).toHaveLength(0);
+    // With a cue the all-decimal form is a MAC; with an a-f digit no cue is needed.
+    expect(only('BSSID 10.20.30.40.50.60 joined', 'MAC')[0]?.text).toBe('10.20.30.40.50.60');
+    expect(only('seen 7c.d1.c3.9a.0f.42 on port 3', 'MAC')[0]?.text).toBe('7c.d1.c3.9a.0f.42');
   });
 
   it('does not read a +prefixed dotted six-group number as a MAC', () => {

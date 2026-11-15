@@ -48,10 +48,12 @@ const MAC_COMPACT_RE =
 // other prose can't trigger it. `[\s:=#-]+` requires at least one separator
 // between the cue and the run (so "MAC" glued to the value, or a document-type
 // word like "MAC address table", can't match), and the trailing
-// `(?![0-9A-Fa-f])` pins the run to exactly 12 hex digits so a longer digest
-// tail is never sliced into a 12-char span. Only group 1 (the address) is
-// claimed; the cue itself stays outside the span.
-const MAC_BARE_RE = /\bMAC\b[\s:=#-]+([0-9A-Fa-f]{12})(?![0-9A-Fa-f])/gi;
+// `(?!\w)` pins the run to exactly 12 hex digits so a longer digest tail is
+// never sliced into a 12-char span. The guard is `\w`, not just hex: a hex-only
+// guard let the first 12 chars of a longer alphanumeric token through
+// ("MAC a1b2c3d4e5f6g7" is a serial, not an address). Only group 1 (the
+// address) is claimed; the cue itself stays outside the span.
+const MAC_BARE_RE = /\bMAC\b[\s:=#-]+([0-9A-Fa-f]{12})(?!\w)/gi;
 
 // Dot-separated six 2-hex groups (`00.1a.2b.3c.4d.5e`) — a vendor/tooling MAC
 // notation that mirrors the colon/hyphen six-group form with '.' as the single
@@ -75,6 +77,24 @@ const MAC_BARE_RE = /\bMAC\b[\s:=#-]+([0-9A-Fa-f]{12})(?![0-9A-Fa-f])/gi;
 // six.
 const MAC_DOT6_RE = /(?<![\w.+-])[0-9A-Fa-f]{2}(?:\.[0-9A-Fa-f]{2}){5}(?![\w]|\.[0-9A-Fa-f])/g;
 
+// An *all-decimal* dotted six-pair run is not MAC-shaped enough on its own: only
+// ~0.4% of real MACs contain no a-f digit, while the same shape is a dotted
+// timestamp (`26.11.14.09.30.15`), a version string, or a twelve-digit phone
+// written in pairs ("Tel. 49.30.12.34.56.78"). The PHONE detector already claims
+// every such run, so nothing leaks by declining it here — but claiming it as a
+// 0.9 MAC would relabel a correctly detected, phone-cued number. So the
+// all-decimal form is only a MAC when a hardware-address cue sits just before it;
+// a run with at least one a-f digit stays purely structural. The cue is searched
+// in a short fixed window (never `text.slice(0, start)`) to stay linear.
+const DOT6_ALL_DECIMAL_RE = /^[\d.]+$/;
+const DOT6_CUE_RE = /\b(?:MAC|BSSID|HWaddr|ether)\b/i;
+const DOT6_CUE_WINDOW = 32;
+
+function isUncuedDecimalDot6(text: string, start: number, raw: string): boolean {
+  if (!DOT6_ALL_DECIMAL_RE.test(raw)) return false;
+  return !DOT6_CUE_RE.test(text.slice(Math.max(0, start - DOT6_CUE_WINDOW), start));
+}
+
 // The broadcast MAC (all-`FF`) is a reserved sentinel that identifies no device,
 // so it carries no PII — it shows up in configs, docs, and network diagnostics
 // as a "send to everyone" placeholder, not as a hardware id. Reject it
@@ -94,6 +114,7 @@ export function detectMacs(text: string): Span[] {
   for (const re of [MAC_SEP_RE, MAC_COMPACT_RE, MAC_DOT6_RE]) {
     for (const match of text.matchAll(re)) {
       if (isBroadcastMac(match[0])) continue;
+      if (re === MAC_DOT6_RE && isUncuedDecimalDot6(text, match.index, match[0])) continue;
       spans.push({
         start: match.index,
         end: match.index + match[0].length,
