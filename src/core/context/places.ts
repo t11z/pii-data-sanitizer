@@ -208,11 +208,15 @@ export function isCountryName(lower: string): boolean {
  * family names — "Paris", "Florence", "Milan", "Austin", "Sydney", "Santiago",
  * "Valencia", "Alexandria", "Victoria", "Savannah", "Phoenix", "Jackson",
  * "Lincoln", "Washington", "Houston", "Dallas", "Cleveland", "Columbus",
- * "Salvador", "Rio", "Nice". In the `<Name> (X)` slot those are genuinely
+ * "Salvador", "Rio", "Nice", and likewise "Sofia", "Kobe", "Roma", "Denver",
+ * "Geneva", "Vienna", "Basel", "Cairo", "Doha" (established given names: the
+ * frame's own documented use is the given-name disambiguator "Dr. Patel
+ * (Sofia)", "Müller (Roma)", which a city guard on these would silently drop).
+ * In the `<Name> (X)` slot those are genuinely
  * ambiguous and, under precision-first, we keep detecting a plausible person
  * rather than suppress one on a word that is at least as often a name — mirroring
  * the dual-use exclusions in COUNTRY_NAMES. Stored lowercased; endonym/exonym
- * variants (München/Munich, Köln/Cologne, Wien/Vienna, Praha/Prague) are both
+ * variants (München/Munich, Köln/Cologne, Praha/Prague) are both
  * listed so either spelling in prose is caught.
  */
 export const CITY_NAMES = new Set<string>([
@@ -285,10 +289,7 @@ export const CITY_NAMES = new Set<string>([
   'reykjavik',
   'zurich',
   'zürich',
-  'geneva',
   'lausanne',
-  'basel',
-  'vienna',
   'wien',
   'salzburg',
   'graz',
@@ -305,7 +306,6 @@ export const CITY_NAMES = new Set<string>([
   'gdansk',
   'budapest',
   'bucharest',
-  'sofia',
   'belgrade',
   'zagreb',
   'ljubljana',
@@ -319,7 +319,6 @@ export const CITY_NAMES = new Set<string>([
   'malaga',
   'bilbao',
   'rome',
-  'roma',
   'naples',
   'napoli',
   'turin',
@@ -369,7 +368,6 @@ export const CITY_NAMES = new Set<string>([
   'nagoya',
   'sapporo',
   'fukuoka',
-  'kobe',
   'shanghai',
   'beijing',
   'guangzhou',
@@ -406,7 +404,6 @@ export const CITY_NAMES = new Set<string>([
   'taipei',
   'kaohsiung',
   'dubai',
-  'doha',
   'riyadh',
   'jeddah',
   'tehran',
@@ -414,7 +411,6 @@ export const CITY_NAMES = new Set<string>([
   'beirut',
   'amman',
   // Africa
-  'cairo',
   'casablanca',
   'nairobi',
   'lagos',
@@ -433,7 +429,6 @@ export const CITY_NAMES = new Set<string>([
   'quebec',
   'chicago',
   'seattle',
-  'denver',
   'atlanta',
   'boston',
   'philadelphia',

@@ -2503,6 +2503,14 @@ describe('AKA-in-parens frame ("<Name> (<Alias>)")', () => {
     expect(personsFull('Maria López (Paris) approved.')).toContain('Paris');
     expect(personsFull('Maria López (Milan) approved.')).toContain('Milan');
     expect(personsFull('Maria López (Austin) approved.')).toContain('Austin');
+    // Same policy for city tokens that are established given names — the
+    // given-name disambiguator is the frame's primary use ("<Surname> (<Given>)"),
+    // so these must keep detecting. Surname stems here are held out from the corpus.
+    expect(personsFull('Customer von Neumann (Kobe) called.')).toContain('Kobe');
+    expect(personsFull('Dr. Patel (Sofia) reviewed.')).toContain('Sofia');
+    expect(personsFull('Anna Schmidt (Roma) wrote.')).toContain('Roma');
+    expect(personsFull('Anna Schmidt (Denver) wrote.')).toContain('Denver');
+    expect(personsFull('Anna Schmidt (Geneva) wrote.')).toContain('Geneva');
   });
 
   it('does not fire on a parenthesized non-alias (token followed by more content)', () => {
