@@ -415,6 +415,12 @@ describe('backward unknown-cap anchor ("<unknown given> <ext surname>")', () => 
     // unknown candidate is held out from the full DB, so any detection here
     // would have to come from this rule alone.
     expect(personsFull('Zzzaard Frank arrived at the office.')).toHaveLength(0);
+    // "Loop" is an ordinary English noun that also lands in the DB at ext-tier,
+    // so a street-style phrase like "Infinite Loop" would anchor an
+    // "<unknown cap> <ambiguous ext>" chain and read as a PERSON. Held-out
+    // candidate ("Qworbis") proves this is the anchor rule firing, not DB
+    // membership; the ambiguous-word filter on the corroborator blocks it.
+    expect(personsFull('Qworbis Loop was the detour.')).toHaveLength(0);
   });
 
   it('proves the backward-anchor held-out names are absent from the full DB', () => {
@@ -425,6 +431,7 @@ describe('backward unknown-cap anchor ("<unknown given> <ext surname>")', () => 
       ['standingbear', 'Latin'],
       ['zzzaard', 'Latin'],
       ['qqqulev', 'Latin'],
+      ['qworbis', 'Latin'],
     ];
     for (const [word, script] of heldOut) {
       expect(fullSource.hasGiven(word, script), `${word} should be out-of-DB`).toBe(false);

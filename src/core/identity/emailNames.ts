@@ -93,9 +93,9 @@ export function deriveNamesFromEmail(localPart: string, source: NameSource): Der
 // ("URL", "API") never anchors a chain via this path.
 const LATIN_UPPER = 'A-Z\\u00C0-\\u00D6\\u00D8-\\u00DE\\u0100-\\u024F';
 const LATIN_LOWER = 'a-z\\u00DF-\\u00F6\\u00F8-\\u00FF\\u0100-\\u024F';
-const LATIN_ANY = 'A-Za-z\\u00C0-\\u00D6\\u00D8-\\u00DE\\u00DF-\\u00F6\\u00F8-\\u00FF\\u0100-\\u024F';
-const TITLECASE_TOKEN =
-  `[${LATIN_UPPER}][${LATIN_LOWER}]+(?:-[${LATIN_UPPER}][${LATIN_LOWER}]+)*`;
+const LATIN_ANY =
+  'A-Za-z\\u00C0-\\u00D6\\u00D8-\\u00DE\\u00DF-\\u00F6\\u00F8-\\u00FF\\u0100-\\u024F';
+const TITLECASE_TOKEN = `[${LATIN_UPPER}][${LATIN_LOWER}]+(?:-[${LATIN_UPPER}][${LATIN_LOWER}]+)*`;
 // Run anchored at end of the substring before the email opener: 2–3 Title-Case
 // tokens joined by single spaces, with a non-letter delimiter (or start-of-string)
 // in front, so we never bite into the middle of a longer chain like "Eng Petrov".
@@ -217,9 +217,7 @@ export function deriveNamesFromAdjacentEmails(
           const usedTokens = new Set<number>([wordIdx]);
           let initialsOk = true;
           for (const init of initialSegments) {
-            const idx = lowered.findIndex(
-              (l, i) => !usedTokens.has(i) && l[0] === foldLatin(init)
-            );
+            const idx = lowered.findIndex((l, i) => !usedTokens.has(i) && l[0] === foldLatin(init));
             if (idx < 0) {
               initialsOk = false;
               break;

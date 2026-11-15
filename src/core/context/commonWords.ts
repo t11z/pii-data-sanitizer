@@ -25,6 +25,7 @@ export const AMBIGUOUS_WORDS = new Set<string>([
   'baker',
   'hunter',
   'rich',
+  'loop',
   'sunny',
   'crystal',
   'dawn',
