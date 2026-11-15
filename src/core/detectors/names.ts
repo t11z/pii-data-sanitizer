@@ -12,7 +12,7 @@ import {
 } from '../context/roleWords';
 import { isSentenceOpener } from '../context/sentenceOpeners';
 import { isLikelyAcronym } from '../context/acronyms';
-import { isCountryName } from '../context/places';
+import { isCountryName, isCityName } from '../context/places';
 import { scoreName } from '../scoring';
 import { latinFold } from '../latinFold';
 
@@ -671,6 +671,16 @@ function aliasInParens(tokens: Token[], prevTailIdx: number, text: string): Span
   // short-names are not in AMBIGUOUS_WORDS, so without this the whole
   // `<Name> (<Country>)` class promoted the country as a PERSON alias.
   if (isCountryName(alias.text.toLowerCase())) return null;
+  // A city name in the appositive slot is the sub-national analogue of the
+  // country guard above — "Klaus von Höfling (Darmstadt)", "Priya Mehta
+  // (Heidelberg)", "Sarah Connor (Munich)" annotate *where* the person is, not a
+  // nickname. Only a few cities ("Berlin") happen to sit in AMBIGUOUS_WORDS; the
+  // rest are not ordinary vocabulary, so without this guard the whole
+  // `<Name> (<City>)` class promoted the city as a PERSON alias. See
+  // context/places.ts (CITY_NAMES) — dual-use city/given-name tokens ("Paris",
+  // "Milan", "Austin") are deliberately excluded there, so a genuine nickname in
+  // the slot is still recovered.
+  if (isCityName(alias.text.toLowerCase())) return null;
   // The closing paren must follow the alias directly — a second token inside
   // the parens ("(Smith Watson)", "(Berlin office)") is handled (or rejected)
   // by the normal chain path, not this cue.

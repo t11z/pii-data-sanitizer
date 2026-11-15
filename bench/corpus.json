@@ -1967,6 +1967,33 @@
     ]
   },
   {
+    "text": "Eng. Klaus von Höfling (Darmstadt) resolved the billing dispute this morning.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Klaus von Höfling"
+      }
+    ]
+  },
+  {
+    "text": "Dr. Priya Mehta (Heidelberg) approved the refund request yesterday.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Priya Mehta"
+      }
+    ]
+  },
+  {
+    "text": "Account holder Sofia Lindqvist (Rotterdam) confirmed the transfer.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Sofia Lindqvist"
+      }
+    ]
+  },
+  {
     "text": "Sarah Manager reviewed the ticket this morning.",
     "entities": [
       {
