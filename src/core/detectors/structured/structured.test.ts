@@ -1885,6 +1885,31 @@ describe('date of birth detection (cue-gated)', () => {
       only('Date of birth of the customer noted, invoice dated: 2024-03-01.', 'DATE_OF_BIRTH')
     ).toHaveLength(0);
   });
+
+  // Held-out values (not the ones used to introduce the bare "birth:" label): the
+  // label boundary must also exclude HYPHENATED compounds, which `\b` let through.
+  it('does not read a hyphenated "-birth:" compound as the bare birth label', () => {
+    expect(only('still-birth: 2019-08-14 recorded by ward.', 'DATE_OF_BIRTH')).toHaveLength(0);
+    expect(only('Project re-birth: 03.02.2022 kickoff.', 'DATE_OF_BIRTH')).toHaveLength(0);
+    // …while the plain label still binds.
+    expect(only('Member (birth: 1971-10-26)', 'DATE_OF_BIRTH')[0].text).toBe('1971-10-26');
+  });
+
+  it('keeps colon / no-colon / spaced-colon document cues after the separator rewrite', () => {
+    expect(only('birth certificate 1966-02-09 attached', 'DATE_OF_BIRTH')[0].text).toBe(
+      '1966-02-09'
+    );
+    expect(only('Birth record : 23.09.1958', 'DATE_OF_BIRTH')[0].text).toBe('23.09.1958');
+    expect(only('Geburtsurkunde:\n17.06.1949', 'DATE_OF_BIRTH')[0].text).toBe('17.06.1949');
+  });
+
+  it('scans a document cue followed by a long whitespace run in linear time', () => {
+    // `\s*:?\s*` split the run quadratically (≈1 s at 5,000 spaces, 30 s+ at 100,000).
+    const text = `birth record${' '.repeat(100_000)}x`;
+    const t0 = performance.now();
+    expect(only(text, 'DATE_OF_BIRTH')).toHaveLength(0);
+    expect(performance.now() - t0).toBeLessThan(2000);
+  });
 });
 
 describe('grouped-form relaxations keep international phone numbers as phones', () => {

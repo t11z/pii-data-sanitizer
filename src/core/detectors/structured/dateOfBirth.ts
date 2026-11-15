@@ -98,7 +98,10 @@ const DOB_RE = new RegExp(
 
 // Document cue with a *directly adjacent* date only — optional colon/whitespace,
 // no filler — so the birth date is captured but a trailing issue/action date is not.
-const DOC_DOB_RE = new RegExp(`${DOC_CUE}\\s*:?\\s*(${DATE})`, 'gi');
+// The separator is `\s*(?::\s*)?` rather than `\s*:?\s*`: two adjacent `\s*` around an
+// optional colon let the engine split one whitespace run every possible way, which is
+// quadratic in the run length (a cue followed by 5,000 spaces took ~1 s).
+const DOC_DOB_RE = new RegExp(`${DOC_CUE}\\s*(?::\\s*)?(${DATE})`, 'gi');
 
 // Bare "birth:" label — a ubiquitous form-field / parenthetical DOB form
 // ("birth: 1988-12-03", "(birth: 07/22/1979)") that the CUE list misses because
@@ -107,10 +110,12 @@ const DOC_DOB_RE = new RegExp(`${DOC_CUE}\\s*:?\\s*(${DATE})`, 'gi');
 // a REQUIRED colon directly after "birth" and the date immediately adjacent (no
 // filler, no subject appositive). That keeps precision high: "place of birth:
 // Berlin" / "country of birth: Germany" carry no following date and never match,
-// and the leading \b keeps compounds out ("rebirth:", "childbirth:",
-// "stillbirth:"). The colon label disambiguates the DOB sense from the event /
+// and the leading boundary keeps compounds out ("rebirth:", "childbirth:",
+// "stillbirth:"). It is `(?<![\w-])` rather than `\b` because `\b` also matches
+// after a hyphen, which would let the hyphenated compounds through ("still-birth:",
+// "re-birth:"). The colon label disambiguates the DOB sense from the event /
 // verb senses of "birth", so no softer binding is warranted.
-const BIRTH_LABEL_RE = new RegExp(String.raw`\bbirth\s*:\s*(${DATE})`, 'gi');
+const BIRTH_LABEL_RE = new RegExp(String.raw`(?<![\w-])birth\s*:\s*(${DATE})`, 'gi');
 
 export function detectDatesOfBirth(text: string): Span[] {
   const byStart = new Map<number, Span>();
