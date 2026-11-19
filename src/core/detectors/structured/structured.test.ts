@@ -2104,6 +2104,37 @@ describe('date of birth detection (cue-gated)', () => {
     expect(only(text, 'DATE_OF_BIRTH')).toHaveLength(0);
     expect(performance.now() - t0).toBeLessThan(2000);
   });
+
+  // The DATE alternatives match date *shapes* only, so a birth cue in front of a
+  // calendar-impossible value (month > 12 or day > 31) used to surface it as a
+  // DOB. The plausibility gate drops those while keeping every genuine date.
+  // Held-out impossible values, none in any fixture above, prove the gate
+  // generalizes across date formats rather than matching one memorized string.
+  it('does not flag a calendar-impossible ISO date behind a birth cue', () => {
+    // Impossible month (13, 00) and impossible day (45) — all ISO year-first.
+    expect(only('DOB: 1990-13-45 noted (typo).', 'DATE_OF_BIRTH')).toHaveLength(0);
+    expect(only('Date of birth 1991-00-19 on file.', 'DATE_OF_BIRTH')).toHaveLength(0);
+    expect(only('Birthdate: 1984-07-41 recorded.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
+
+  it('does not flag a numeric date whose fields fit no month/day order', () => {
+    // 15 and 40 can't be assigned to (month ≤ 12, day ≤ 31) in either order.
+    expect(only('Date of birth 15/40/1980 on file.', 'DATE_OF_BIRTH')).toHaveLength(0);
+    // 13/13 — 13 is a valid day but never a valid month, so no order works.
+    expect(only('born 13-13-1975 per intake.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
+
+  it('does not flag a month-name date with an impossible day', () => {
+    expect(only('Date of birth March 45, 1990.', 'DATE_OF_BIRTH')).toHaveLength(0);
+  });
+
+  it('still accepts the ambiguous-order numeric date in either valid reading', () => {
+    // 17 can only be the day, 03 the month — the gate accepts the valid reading
+    // rather than rejecting on the first (month=17) assignment.
+    expect(only('born on 17.03.1985 in Berlin.', 'DATE_OF_BIRTH')[0].text).toBe('17.03.1985');
+    // Unambiguous month-first, boundary day 31 kept.
+    expect(only('DOB: 12-31-1980 per form.', 'DATE_OF_BIRTH')[0].text).toBe('12-31-1980');
+  });
 });
 
 describe('grouped-form relaxations keep international phone numbers as phones', () => {

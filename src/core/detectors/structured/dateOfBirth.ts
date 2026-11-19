@@ -117,11 +117,44 @@ const DOC_DOB_RE = new RegExp(`${DOC_CUE}\\s*(?::\\s*)?(${DATE})`, 'gi');
 // verb senses of "birth", so no softer binding is warranted.
 const BIRTH_LABEL_RE = new RegExp(String.raw`(?<![\w-])birth\s*:\s*(${DATE})`, 'gi');
 
+// The DATE alternatives match date *shapes* only — they accept any 1-2 digit
+// month/day field — so a typo'd or malformed value like "1990-13-45" or
+// "15/40/80" matches the shape and, behind a birth cue, surfaces as a date of
+// birth. This gate rejects values whose numeric fields fall outside the real
+// calendar ranges (month 1-12, day 1-31). It is a pure precision gate: every
+// genuine date still passes, so no valid DOB is ever dropped. The day bound is
+// a flat 1-31 (not per-month): the goal is to drop clearly-impossible values,
+// not to calendar-check leap years or 30-day months — a borderline "31st of a
+// 30-day month" is a plausible-enough typo to keep redacting.
+function monthDayOk(month: number, day: number): boolean {
+  return month >= 1 && month <= 12 && day >= 1 && day <= 31;
+}
+
+function isPlausibleDate(date: string): boolean {
+  // Month-name forms ("March 5, 1990", "12. März 1985", "03-Apr-1985"): the
+  // month is already a valid name via the regex, so only the leading numeric
+  // day needs a range check.
+  if (/[a-z]/i.test(date)) {
+    const day = Number(date.match(/\d{1,2}/)?.[0] ?? NaN);
+    return day >= 1 && day <= 31;
+  }
+  const parts = date.split(/[-./]/).map(Number);
+  // ISO year-first (a 4-digit leading field): fields are [year, month, day].
+  if (/^\d{4}/.test(date)) {
+    return monthDayOk(parts[1], parts[2]);
+  }
+  // Numeric day/month-first: the order is ambiguous (MM-DD-YYYY vs DD/MM/YY — see
+  // the DATE comment), so accept the value if EITHER assignment of the two
+  // leading fields to (month, day) is in range.
+  return monthDayOk(parts[0], parts[1]) || monthDayOk(parts[1], parts[0]);
+}
+
 export function detectDatesOfBirth(text: string): Span[] {
   const byStart = new Map<number, Span>();
   for (const re of [DOB_RE, DOC_DOB_RE, BIRTH_LABEL_RE]) {
     for (const m of text.matchAll(re)) {
       const date = m[1];
+      if (!isPlausibleDate(date)) continue;
       const start = m.index + (m[0].length - date.length);
       // Dedupe by offset: a date preceded by both a strong and a document cue
       // resolves to a single span.
