@@ -1717,6 +1717,29 @@ describe('passport detection (cue-gated)', () => {
     expect(only('Passport Num. today please.', 'PASSPORT')).toHaveLength(0);
   });
 
+  // Held-out values (absent from the corpus/feed): "Nummer" is the German full word
+  // for "number" and the official spelling of the detached label in "Reisepass Nummer X"
+  // / "Reisepass-Nummer X" (and the mixed "Passport Nummer X"). It is distinct from the
+  // glued compound "Passnummer" (a single cue word) and from the "Num"/"Num." abbreviation.
+  // Before the fix "Num" consumed only the "Num" prefix of "Nummer", the separator no
+  // longer lined up, and the whole match was dropped.
+  it('detects a passport number after a detached German "Nummer" connector', () => {
+    expect(only('Reisepass Nummer T5B1M8X confirmed.', 'PASSPORT')[0].text).toBe('T5B1M8X');
+  });
+
+  it('detects a passport number after a hyphenated "Reisepass-Nummer" cue', () => {
+    expect(only('Reisepass-Nummer Q7R3T8V hinterlegt.', 'PASSPORT')[0].text).toBe('Q7R3T8V');
+  });
+
+  it('detects a passport number after an anglophone "Passport Nummer" cue', () => {
+    expect(only('Passport Nummer E9X5K2B confirmed.', 'PASSPORT')[0].text).toBe('E9X5K2B');
+  });
+
+  // Precision guard: the "Nummer" connector still requires a digit-bearing token after it.
+  it('does not flag a following word with no digit after "Nummer"', () => {
+    expect(only('Reisepass Nummer bitte angeben.', 'PASSPORT')).toHaveLength(0);
+  });
+
   // Held-out label words: forms and customs records write the value after "code"
   // or "ID" just as often as after "No.". These connector words were missing, so
   // the following lowercase label was consumed as the (failed) number token and the

@@ -65,7 +65,20 @@ const DOC_NOUN = String.raw`(?:\s+(?:[Dd]ocument|[Dd]oc\.?|[Dd]okument|[Dd]ok\.?
 //
 // "document" joins the qualifier list because "passport document <number>" is as common
 // a lead-in as "passport no.".
-const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)${DOC_NOUN}(?:\s*-?\s*(?:[Nn]umber|[Nn]um\.?|[Nn]o\.?|[Nn]r\.?|[Rr]eference|[Rr]ef\.?|[Cc]ode|[Ii][Dd]|#|[Dd]ocument))?`;
+//
+// `[Nn]ummer` is the German full word for "number" and the official spelling of
+// the detached label in "Reisepass Nummer X" / "Reisepass-Nummer X" (and the
+// anglophone mix "Passport Nummer X"). It is distinct from the already-listed
+// `[Nn]um\.?` abbreviation and from the glued compound `Passnummer` (a single CUE
+// base word): when "Nummer" stands alone after a complete cue it is this
+// connector. It must precede `[Nn]um\.?` in the alternation so the full word wins
+// — otherwise `[Nn]um\.?` consumes "Num", leaves "mer", and the following
+// separator no longer lines up, dropping the whole match. `[Nn]umber` (English)
+// never matches "Nummer" (they diverge at the 4th character, b vs m), so their
+// order is irrelevant. The digit-bearing uppercase NUMBER gate below is
+// unchanged, so this only covers the detached-German-label class without
+// loosening precision.
+const CUE = String.raw`(?:[Pp]assport|[Rr]eisepass|[Pp]assnummer)${DOC_NOUN}(?:\s*-?\s*(?:[Nn]umber|[Nn]ummer|[Nn]um\.?|[Nn]o\.?|[Nn]r\.?|[Rr]eference|[Rr]ef\.?|[Cc]ode|[Ii][Dd]|#|[Dd]ocument))?`;
 // A passport number is very often printed with its two-letter issuing-country code in
 // front ("Passport IN K4759632", "Passnummer IR 98765432"). That code has no digit, so
 // the old regex — which only inspected the token immediately after the cue — matched the
