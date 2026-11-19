@@ -1249,6 +1249,14 @@
     ]
   },
   {
+    "text": "Chart note: date of birth 1988-15-02 is a data-entry error.",
+    "entities": []
+  },
+  {
+    "text": "Patient DOB: 1991-00-19 flagged for correction.",
+    "entities": []
+  },
+  {
     "text": "The team booked the office birthday party for 2025-06-01.",
     "entities": []
   },
