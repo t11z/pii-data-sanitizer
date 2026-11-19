@@ -2498,6 +2498,37 @@
     "entities": []
   },
   {
+    "text": "Reisepass Nummer T5B1M8X confirmed for the applicant.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "T5B1M8X"
+      }
+    ]
+  },
+  {
+    "text": "Grenzkontrolle: Reisepass-Nummer Q7R3T8V hinterlegt.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "Q7R3T8V"
+      }
+    ]
+  },
+  {
+    "text": "Passport Nummer E9X5K2B wurde am Schalter geprüft.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "E9X5K2B"
+      }
+    ]
+  },
+  {
+    "text": "Reisepass Nummer bitte bis Freitag nachreichen.",
+    "entities": []
+  },
+  {
     "text": "Account verified (Passport IN2B3C4D5E6F7; born earlier).",
     "entities": [
       {
