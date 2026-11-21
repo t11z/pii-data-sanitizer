@@ -253,6 +253,25 @@ function adjoinsDigit(token: Token, text: string): boolean {
   return next >= 48 && next <= 57;
 }
 /**
+ * Symmetric sibling of `adjoinsDigit`: the character immediately BEFORE the
+ * token — with no intervening whitespace — is a decimal digit, so the token is
+ * the letter tail of an alphanumeric identifier that the tokenizer split at a
+ * digit boundary ("G7K2X9M" → …"X","M"; "PT50X" → "X"). Such a fragment can
+ * coincide with a title or role cue ("M" = Monsieur, "No", …), but it is never a
+ * real honorific: a genuine title/role word is always preceded by whitespace,
+ * punctuation, or the start of text, never glued onto a digit. Rejecting the cue
+ * in that position keeps an identifier's trailing letter (passport / BIC /
+ * serial / model-number fragment) from spuriously title-anchoring the next
+ * capitalized word ("…Passport No. G7K2X9M. Billing to …" → FP "Billing"). The
+ * check is structural, so it generalizes to every identifier shape and every
+ * title/role token the tokenizer might strand after a digit.
+ */
+function precededByDigit(token: Token, text: string): boolean {
+  if (token.start === 0) return false;
+  const prev = text.charCodeAt(token.start - 1);
+  return prev >= 48 && prev <= 57;
+}
+/**
  * The "number" abbreviation — "No."/"Nr." (trailing dot) and the ordinal
  * ligatures "Nº"/"N°" — as it appears in support / KYC / CRM prose: "Passport
  * No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº 7788". The tokenizer keeps the
@@ -469,7 +488,10 @@ function nameStart(
 
   let titleBefore = false;
   let roleBefore = false;
-  if (i > 0 && !prevWasEmittedNameTail) {
+  // `!precededByDigit(prev)` discards a title/role cue that is really the letter
+  // tail of an alphanumeric identifier ("…No. G7K2X9M." strands an "M" that
+  // collides with the French title Monsieur) — see precededByDigit.
+  if (i > 0 && !prevWasEmittedNameTail && !precededByDigit(tokens[i - 1], text)) {
     const prev = tokens[i - 1];
     const between = text.slice(prev.end, tok.start);
     if (isTitle(prev.text) && TITLE_GAP.test(between)) titleBefore = true;

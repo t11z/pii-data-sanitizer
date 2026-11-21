@@ -735,6 +735,70 @@ describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   });
 });
 
+describe('title/role cue that is really an identifier-letter fragment ("…X9M. Billing")', () => {
+  // An alphanumeric identifier (passport, BIC, serial, model number) is split by
+  // the tokenizer at every digit boundary, so its trailing letter becomes a
+  // standalone token — "G7K2X9M" → …"X","M". That stray "M" collides with the
+  // French title Monsieur ("M"), so the next capitalized word used to be
+  // title-anchored and promoted to a PERSON ("…Passport No. G7K2X9M. Billing to
+  // …" → FP "Billing"). The fix rejects a title/role cue that is glued to a
+  // preceding digit — a genuine honorific is never fused onto a digit — so the
+  // spurious boost disappears. Structural, not vocabulary: it generalizes to
+  // every identifier shape and every stranded title/role letter.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('does not title-anchor the word after an identifier ending in a title letter', () => {
+    // The exact shape from the coverage gap ("Billing"), plus held-out siblings
+    // ("Shipping", "Routing", "Invoicing") that are NOT in the committed
+    // dictionary (asserted below). For the held-out words the ONLY thing that ever
+    // promoted them to a PERSON was the fake "M" (Monsieur) title cue stranded by
+    // the identifier, so their disappearance proves the fix is the heuristic, not
+    // vocabulary.
+    expect(
+      personsFull('Verified via Passport No. G7K2X9M. Billing to ES91 2100 0418 4502 0005 1332.')
+    ).not.toContain('Billing');
+    expect(personsFull('Serial No. 7788X9M. Shipping to the depot confirmed.')).not.toContain(
+      'Shipping'
+    );
+    expect(personsFull('BIC code ABCD12M. Routing to the branch is pending.')).not.toContain(
+      'Routing'
+    );
+    expect(personsFull('Order ref QX40D2M. Invoicing to follow next week.')).not.toContain(
+      'Invoicing'
+    );
+  });
+
+  it('does not drag even a genuine surname in on the fake cue', () => {
+    // "Krimshaw" is a real name shape but absent from the DB; after an identifier
+    // fragment it carries no evidence of its own, so suppressing the fake title
+    // cue correctly drops it — proving we remove the spurious boost, not a value.
+    expect(personsFull('Serial No. AB12X9M. Krimshaw to depot.')).toHaveLength(0);
+  });
+
+  it('still honours a REAL single-letter French title ("M. <Surname>")', () => {
+    // Precision-neutral for genuine titles: a real "M." (preceded by whitespace,
+    // not a digit) still anchors a held-out surname via the title boost alone.
+    expect(personsFull('Reviewed by M. Krimshaw today.')).toContain('Krimshaw');
+    expect(personsFull('Dr. Krimshaw approved the refund.')).toContain('Krimshaw');
+  });
+
+  it('proves the held-out guard words and the positive surname are absent from the DB', () => {
+    // Held-out proof: detection/non-detection of these rides on the heuristic,
+    // never on dictionary membership. (The gap word "Billing" IS an ext-tier
+    // surname — it is suppressed here only because, without the fake title cue,
+    // the sentence-initial ext guard drops it — so it is intentionally excluded
+    // from this absence assertion.)
+    for (const w of ['shipping', 'routing', 'invoicing', 'krimshaw']) {
+      expect(fullSource.hasGiven(w, 'Latin'), `${w} should be out-of-DB`).toBe(false);
+      expect(fullSource.hasFamily(w, 'Latin'), `${w} should be out-of-DB`).toBe(false);
+    }
+  });
+});
+
 describe('role cue with label colon ("<RoleNoun>: <Name>")', () => {
   // Ticket / log / form prose introduces a name with a label colon after the
   // role noun ("Engineer: Per Aarvik", "Customer: Mary Jones",

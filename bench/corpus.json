@@ -3356,5 +3356,31 @@
         "text": "01.42.34.56.78"
       }
     ]
+  },
+  {
+    "text": "Verified via Passport No. G7K2X9M. Billing to the account was confirmed.",
+    "entities": [
+      {
+        "type": "PASSPORT",
+        "text": "G7K2X9M"
+      }
+    ]
+  },
+  {
+    "text": "Serial No. 7788X9M. Shipping to the depot confirmed.",
+    "entities": []
+  },
+  {
+    "text": "BIC code ABCD12M. Routing to the branch is pending.",
+    "entities": []
+  },
+  {
+    "text": "Reviewed by M. Krimshaw today.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Krimshaw"
+      }
+    ]
   }
 ]
