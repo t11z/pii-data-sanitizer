@@ -11,6 +11,7 @@ import {
   isSourceFrame,
 } from '../context/roleWords';
 import { isSentenceOpener } from '../context/sentenceOpeners';
+import { isStreetWord } from '../context/streetWords';
 import { isLikelyAcronym } from '../context/acronyms';
 import { isCountryName, isCityName } from '../context/places';
 import { scoreName } from '../scoring';
@@ -345,6 +346,57 @@ function isSentenceStart(text: string, pos: number): boolean {
   while (i >= 0 && HORIZONTAL_WS.test(text[i])) i--;
   if (i < 0) return true;
   return SENTENCE_BOUNDARY.includes(text[i]);
+}
+
+/**
+ * True when the text directly before `pos` is a house number: optional
+ * horizontal whitespace, then a token (reached across that whitespace) that is
+ * an ASCII alphanumeric run containing at least one digit — "10 ", "221 ",
+ * "10A ", "10bis ". This is the structural address gate `context/streetWords.ts`
+ * documents: a thoroughfare generic ("Rue", "Street", …) sitting right after a
+ * house number is an address, not a person, so the chain it anchors or closes
+ * must not emit as PERSON. The digit requirement keeps an ordinary preceding
+ * word ("met Rue", "Herr Platz") from reading as a numbered address, so a real
+ * person named after a thoroughfare word still detects when no number precedes.
+ */
+function precededByHouseNumber(text: string, pos: number): boolean {
+  let i = pos - 1;
+  while (i >= 0 && HORIZONTAL_WS.test(text[i])) i--;
+  if (i < 0) return false;
+  let hasDigit = false;
+  let any = false;
+  for (; i >= 0; i--) {
+    const c = text.charCodeAt(i);
+    if (c >= 48 && c <= 57) {
+      hasDigit = true;
+      any = true;
+    } else if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) {
+      any = true;
+    } else {
+      break;
+    }
+  }
+  return any && hasDigit;
+}
+
+/**
+ * A just-built name chain [startIdx..endIdx] is actually a street address when
+ * it sits directly after a house number AND its first or last token is a
+ * thoroughfare generic — "10 Rue de Rivoli" (leading designator, Romance/German
+ * order), "221 Baker Street" (trailing designator, English order). This is the
+ * house-number-gated suppression the `NON_NAME_WORDS` street comment invites: it
+ * fires ONLY behind the number, so a real person whose name collides with a
+ * thoroughfare word ("Diane Lane", "Julie Street") — written without a leading
+ * number — is untouched.
+ */
+function isHouseNumberedAddress(
+  tokens: Token[],
+  startIdx: number,
+  endIdx: number,
+  text: string
+): boolean {
+  if (!isStreetWord(tokens[startIdx].text) && !isStreetWord(tokens[endIdx].text)) return false;
+  return precededByHouseNumber(text, tokens[startIdx].start);
 }
 
 interface StartInfo {
@@ -817,6 +869,17 @@ export function detectNames(text: string, source: NameSource, minConfidence: num
     // (no dot, no break) are unaffected: the cue contributes only as the
     // first part of a longer chain proven by its real surname.
     if (parts === 1 && (isTitle(tokens[i].text) || isRoleAbbreviation(tokens[i].text))) {
+      i = j + 1;
+      continue;
+    }
+
+    // House-numbered street address, not a person: "10 Rue de Rivoli", "25 Via
+    // Garibaldi", "221 Baker Street". The thoroughfare generic (Rue/Via/Street/…)
+    // collides with a census surname, so the chain absorbs it and emits a PERSON
+    // span; the leading house number is the structural signal that disambiguates
+    // an address from a same-spelled person. Suppress the whole chain and resume
+    // after it — a real person without a leading number keeps detecting.
+    if (isHouseNumberedAddress(tokens, i, j, text)) {
       i = j + 1;
       continue;
     }

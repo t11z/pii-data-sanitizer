@@ -3239,6 +3239,44 @@
     "entities": []
   },
   {
+    "text": "Parcel delivered to 11 Rue de Vautrelle, Lyon.",
+    "entities": []
+  },
+  {
+    "text": "The showroom moved to 221 Baker Street, London.",
+    "entities": []
+  },
+  {
+    "text": "Return the equipment to 47 Korbinth Street, Leeds.",
+    "entities": []
+  },
+  {
+    "text": "Invoice mailed to 25 Via Garibaldi, Milano.",
+    "entities": []
+  },
+  {
+    "text": "Pickup at 5 Calle Quenby, Sevilla.",
+    "entities": []
+  },
+  {
+    "text": "Our auditor Lena Platz flagged the entry.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Lena Platz"
+      }
+    ]
+  },
+  {
+    "text": "Seat 12 Priya Deshmukh boarded the flight.",
+    "entities": [
+      {
+        "type": "PERSON",
+        "text": "Priya Deshmukh"
+      }
+    ]
+  },
+  {
     "text": "Diane Lane signed the attendance sheet.",
     "entities": [
       {
