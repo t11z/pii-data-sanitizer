@@ -1,37 +1,244 @@
-:root {
-  color-scheme: light dark;
-  font-family:
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
-  --bg: #0f1115;
-  --panel: #181b22;
-  --border: #2a2f3a;
-  --text: #e6e9ef;
-  --muted: #9aa3b0;
-  --accent: #5b8cff;
-  --accent-soft: #243152;
-  --danger: #ff6b6b;
-  --hl: #4a3a12;
-  --hl-border: #b48a2e;
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+  --font-serif: 'Instrument Serif', Georgia, serif;
+
+  --color-obsidian-950: #070709;
+  --color-obsidian-900: #0c0c0f;
+  --color-obsidian-850: #111116;
+  --color-obsidian-800: #17171e;
+  --color-obsidian-700: #23232d;
+
+  --color-alabaster-50: #faf9f6;
+  --color-alabaster-100: #f2f0ea;
+  --color-alabaster-200: #e5e2d9;
 }
 
-* {
-  box-sizing: border-box;
+/* ==========================================================================
+   CUSTOM ATMOSPHERE, TACTILE SURFACES & OPTICAL SCAN ANIMATIONS
+   ========================================================================== */
+:root {
+  --ambient-color: rgba(16, 185, 129, 0.14);
+  --ambient-secondary: rgba(56, 189, 248, 0.08);
 }
 
 body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-#app {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 1.5rem 1rem 4rem;
+/* Architectural dot-matrix background */
+.bg-dot-grid {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+html:not(.dark) .bg-dot-grid {
+  background-image: radial-gradient(rgba(15, 23, 42, 0.08) 1px, transparent 1px);
+}
+
+/* Dynamic ambient glow that shifts with exposure risk */
+.ambient-orb {
+  position: fixed;
+  top: -18vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90vw;
+  max-width: 1200px;
+  height: 55vh;
+  border-radius: 9999px;
+  background: radial-gradient(
+    ellipse at center,
+    var(--ambient-color) 0%,
+    var(--ambient-secondary) 42%,
+    transparent 72%
+  );
+  filter: blur(70px);
+  pointer-events: none;
+  z-index: 0;
+  transition: background 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Tactile glass card with precision top specular highlight */
+.vault-surface {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.06),
+    0 20px 50px -20px rgba(0, 0, 0, 0.65);
+}
+html:not(.dark) .vault-surface {
+  box-shadow:
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
+    0 18px 40px -20px rgba(15, 23, 42, 0.12);
+}
+
+/* Optical laser sweep animation */
+@keyframes scanSweep {
+  0% {
+    top: -4%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    top: 104%;
+    opacity: 0;
+  }
+}
+
+.scan-beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    #10b981 20%,
+    #6ee7b7 50%,
+    #10b981 80%,
+    transparent 100%
+  );
+  box-shadow:
+    0 0 24px 6px rgba(16, 185, 129, 0.45),
+    0 -24px 36px 8px rgba(16, 185, 129, 0.15);
+  pointer-events: none;
+  z-index: 30;
+  opacity: 0;
+}
+.scan-beam.active {
+  animation: scanSweep 0.78s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Classified physical redaction bar */
+.classified-bar {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 6px;
+  margin: 0 1px;
+  border-radius: 4px;
+  background: repeating-linear-gradient(-45deg, #141418, #141418 4px, #1e1e26 4px, #1e1e26 8px);
+  color: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  user-select: none;
+  cursor: help;
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+html:not(.dark) .classified-bar {
+  background: repeating-linear-gradient(-45deg, #18181b, #18181b 4px, #27272a 4px, #27272a 8px);
+  border-color: rgba(0, 0, 0, 0.25);
+}
+.classified-bar::after {
+  content: attr(data-label);
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.42);
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.classified-bar:hover {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #6ee7b7;
+}
+html:not(.dark) .classified-bar:hover {
+  background: rgba(16, 185, 129, 0.15);
+  color: #065f46;
+}
+.classified-bar:hover::after {
+  opacity: 0;
+}
+
+/* Interactive token pill in sanitized output */
+.token-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  margin: 0 1px;
+  border-radius: 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85em;
+  font-weight: 500;
+  border-width: 1px;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+  cursor: pointer;
+}
+.token-pill:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.35);
+}
+
+/* Blurred vault secret until hovered */
+.vault-blur {
+  filter: blur(5px);
+  transition: filter 0.22s ease;
+  cursor: pointer;
+}
+.vault-blur:hover {
+  filter: blur(0px);
+}
+
+/* Custom sleek scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.22);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
+
+/* Dropzone active ring */
+.drop-active {
+  outline: 2px dashed #10b981;
+  outline-offset: -6px;
+  background-color: rgba(16, 185, 129, 0.05) !important;
+}
+
+/* Pulse ring for zero-knowledge indicator */
+@keyframes pulseRing {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(2.1);
+    opacity: 0;
+  }
+}
+.zk-pulse::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: #10b981;
+  animation: pulseRing 2.4s cubic-bezier(0.22, 1, 0.36, 1) infinite;
 }

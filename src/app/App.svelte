@@ -1,12 +1,42 @@
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte';
-  import { runSanitize, onPackProgress, type SanitizeRun } from './sanitizerClient';
-  import { buildMappingView, keyOf, type CustomGroup, type ManualEntry } from './mappingView';
+  import { ALL_PII_TYPES, normalize } from '../core';
+  import type { PiiType } from '../core';
+  import {
+    onPackProgress,
+    runSanitize,
+    type PackProgress,
+    type SanitizeRun,
+  } from './sanitizerClient';
   import { extractText } from './readers';
-  import { ALL_PII_TYPES } from '../core';
-  import type { MappingEntry, PiiType, SanitizeMode } from '../core';
   import { loadLlmSettings, saveLlmSettings, type LlmSettings } from './llm/settings';
-  import { probeOllama, LLM_NUM_CTX } from './llm/ollama';
+  import { LLM_NUM_CTX, probeOllama } from './llm/ollama';
+  import {
+    atelierKeyOf,
+    buildAtelierView,
+    buildAuditReport,
+    parseCustomRule,
+    rehydrateText,
+  } from './atelier/engine';
+  import { getSamplePreset, type SampleKey } from './atelier/samples';
+  import { playTactileSound } from './atelier/audio';
+  import { copyText } from './atelier/clipboard';
+  import {
+    TOGGLEABLE_ENTITY_TYPES,
+    type AtelierEntityType,
+    type AtelierRedactionMode,
+    type CustomRule,
+    type OutputLens,
+    type ToastMessage,
+    type ToastVariant,
+    type ToggleableEntityType,
+  } from './atelier/types';
+  import TopTelemetryBar from './components/TopTelemetryBar.svelte';
+  import ControlDeck from './components/ControlDeck.svelte';
+  import OllamaDrawer from './components/OllamaDrawer.svelte';
+  import SourceWorkbench from './components/SourceWorkbench.svelte';
+  import OutputWorkbench from './components/OutputWorkbench.svelte';
+  import ToastContainer from './components/ToastContainer.svelte';
   import Privacy from './Privacy.svelte';
 
   function currentRoute(): 'home' | 'privacy' {
@@ -19,77 +49,53 @@
     return () => window.removeEventListener('hashchange', onHashChange);
   });
 
-  $effect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') dismissSelection();
-    };
-    const onDown = (e: MouseEvent | TouchEvent) => {
-      if (!(e.target as HTMLElement).closest('.redact-chip')) dismissSelection();
-    };
-    window.addEventListener('keydown', onKey);
-    window.addEventListener('mousedown', onDown);
-    window.addEventListener('touchstart', onDown);
-    window.addEventListener('scroll', dismissSelection, true);
-    window.addEventListener('resize', dismissSelection);
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('mousedown', onDown);
-      window.removeEventListener('touchstart', onDown);
-      window.removeEventListener('scroll', dismissSelection, true);
-      window.removeEventListener('resize', dismissSelection);
-    };
+  // Initial boot sample & helpful re-hydration example
+  const initialSample = getSamplePreset('email_de');
+  let sourceText = $state(initialSample.content);
+  let rehydrateInput = $state(initialSample.rehydrateHint ?? '');
+
+  // Atelier UI state (strictly volatile RAM; raw PII never touches storage)
+  let mode = $state<AtelierRedactionMode>('token');
+  let lens = $state<OutputLens>('sanitized');
+  let minConfidence = $state(0.5);
+  let soundEnabled = $state(false);
+  let darkMode = $state(
+    typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : true
+  );
+  let scanSweepKey = $state(0);
+  let latencyMs = $state(0.4);
+  let fileLoading = $state(false);
+
+  let enabledCategories = $state<Record<ToggleableEntityType, boolean>>(
+    Object.fromEntries(TOGGLEABLE_ENTITY_TYPES.map((t) => [t, true])) as Record<
+      ToggleableEntityType,
+      boolean
+    >
+  );
+  let customRules = $state<CustomRule[]>([]);
+  let disabledKeys = $state<Set<string>>(new Set());
+
+  // Non-blocking toast queue
+  let toasts = $state<ToastMessage[]>([]);
+  const toastTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  function showToast(message: string, variant: ToastVariant = 'success') {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    toasts = [...toasts, { id, message, variant }];
+    const timer = setTimeout(() => {
+      toasts = toasts.filter((t) => t.id !== id);
+      toastTimers.delete(id);
+    }, 2600);
+    toastTimers.set(id, timer);
+  }
+
+  // Name-pack progress reported by the Web Worker
+  let packs = $state<PackProgress | null>(null);
+  onPackProgress((p) => {
+    packs = p;
   });
 
-  const SAMPLE = `Hi, this is Kai-Uwe von Braun. Reach me at kai-uwe@example.com
-or +49 30 1234567. My account is DE89 3704 0044 0532 0130 00 and the
-card on file is 4111 1111 1111 1111. The server 192.168.1.254 is down.
-Please also CC Dr. Anjali Sharma and محمد حسن.`;
-
-  const TYPE_LABELS: Record<PiiType, string> = {
-    EMAIL: '📧 Email',
-    PHONE: '📞 Phone',
-    IBAN: '🏦 IBAN',
-    CREDIT_CARD: '💳 Card',
-    IP: '🌐 IP',
-    MAC: '🔌 MAC',
-    NATIONAL_ID: '🪪 National ID',
-    PASSPORT: '📘 Passport',
-    DATE_OF_BIRTH: '🎂 DOB',
-    PERSON: '🧑 Name',
-  };
-
-  let input = $state(SAMPLE);
-  let mode = $state<SanitizeMode>('redact');
-  let minConfidence = $state(0.5);
-  let enabled = $state<Record<PiiType, boolean>>(
-    Object.fromEntries(ALL_PII_TYPES.map((t) => [t, true])) as Record<PiiType, boolean>
-  );
-  let run = $state<SanitizeRun | null>(null);
-  let copied = $state(false);
-  let fileLoading = $state(false);
-  let fileError = $state('');
-
-  // Manual overrides on top of the worker's detection. They live only in memory.
-  // Values flagged as false positives: kept as-is in the output (not replaced).
-  let disabled = $state<Set<string>>(new Set());
-  // Manual group assignment: keyOf(type, value) -> identity id, or null for ungrouped.
-  let assignments = $state<Record<string, number | null>>({});
-  // Hand-added values covering missed detections (false negatives): replaced everywhere.
-  let manual = $state<ManualEntry[]>([]);
-  // User-created groups for organizing the mapping. Negative ids never collide
-  // with the core's positive auto-identity ids; the counter only grows per session.
-  let customGroups = $state<CustomGroup[]>([]);
-  let customGroupSeq = $state(0);
-  let packs = $state<{
-    loaded: number;
-    total: number;
-    loadedNames: number;
-    totalNames: number;
-  } | null>(null);
-  onPackProgress((p) => (packs = p));
-
-  // --- Optional Ollama second layer (LLM recall boost). Off by default; the
-  // enable/model controls only surface once a local Ollama server is reachable.
+  // Optional local Ollama second layer (off by default, zero network until opened)
   let llm = $state<LlmSettings>(loadLlmSettings());
   let llmOpen = $state(false);
   let llmProbed = $state(false);
@@ -97,18 +103,12 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
   let llmModels = $state<string[]>([]);
   let probeTimer: ReturnType<typeof setTimeout> | undefined;
 
-  // Effective model: the user's choice, falling back to the first installed one.
   const llmModel = $derived(llm.model || llmModels[0] || '');
-  // Whether the LLM layer actually runs: reachable, enabled, and a model exists.
   const llmActive = $derived(llmAvailable && llm.enabled && !!llmModel);
+  const llmContextWarning = $derived(llmActive && sourceText.length / 4 > LLM_NUM_CTX);
 
-  // Probe Ollama only once the user opens the LLM panel — and re-probe (debounced)
-  // when the base URL changes while it's open. Crucially we never touch the network
-  // on page load: reaching a local server otherwise triggers the browser's "access
-  // local network devices" prompt on the hosted (HTTPS) site, which looks alarming.
-  // Failures (offline / CORS / CSP) simply leave the option hidden.
   $effect(() => {
-    if (!llmOpen) return; // no local-network access until the user asks for it
+    if (!llmOpen) return; // no loopback probe until user explicitly opens panel
     const baseUrl = llm.baseUrl;
     clearTimeout(probeTimer);
     llmProbed = false;
@@ -117,7 +117,6 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
         llmAvailable = res.ok;
         llmModels = res.models;
         llmProbed = true;
-        // Default the model to the first installed one if none is chosen yet.
         if (res.ok && res.models.length > 0 && !untrack(() => llm.model)) {
           llm.model = res.models[0];
         }
@@ -125,59 +124,56 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     }, 300);
   });
 
-  // Persist settings whenever they change.
   $effect(() => {
     saveLlmSettings({ enabled: llm.enabled, baseUrl: llm.baseUrl, model: llm.model });
   });
 
-  // Two-phase analysis: heuristics render instantly; the (slower) LLM pass is
-  // debounced longer, runs in parallel, and merges its findings in when ready —
-  // so the preview never freezes waiting on the model.
+  // Worker execution: Phase 1 fast heuristics + Phase 2 optional local Ollama
+  let run = $state<SanitizeRun | null>(null);
   let heurTimer: ReturnType<typeof setTimeout> | undefined;
   let llmTimer: ReturnType<typeof setTimeout> | undefined;
   let llmRunning = $state(false);
-  let gen = 0; // latest input generation; guards drop stale async results
-  let shownGen = -1; // generation of the result currently shown
-  let shownLlm = false; // whether the shown result already includes the LLM pass
+  let gen = 0;
+  let shownGen = -1;
+  let shownLlm = false;
 
-  const HEUR_DEBOUNCE_MS = 100;
+  const HEUR_DEBOUNCE_MS = 60;
   const LLM_DEBOUNCE_MS = 1000;
 
-  // Rough token estimate (~4 chars/token). Inputs beyond the model's context get
-  // truncated by Ollama, so the LLM won't see the tail — warn about it.
-  const llmContextWarning = $derived(llmActive && input.length / 4 > LLM_NUM_CTX);
-
   $effect(() => {
-    const text = input;
+    const text = sourceText;
+    const activeCoreTypes: PiiType[] = ALL_PII_TYPES.filter((t) => enabledCategories[t]);
     const options = {
-      mode,
+      mode: 'pseudonymize' as const,
       minConfidence,
-      types: ALL_PII_TYPES.filter((t) => enabled[t]),
+      types: activeCoreTypes,
     };
     const wantLlm = llmActive;
     const llmReq = wantLlm ? { baseUrl: llm.baseUrl, model: llmModel } : undefined;
     const myGen = ++gen;
 
-    // Phase 1 — fast heuristics. Never blocks on the LLM.
     clearTimeout(heurTimer);
     heurTimer = setTimeout(() => {
+      const t0 = performance.now();
       void runSanitize(text, options).then((r) => {
-        if (myGen !== gen) return; // superseded by newer input
-        if (shownGen === myGen && shownLlm) return; // don't downgrade a merged result
+        if (myGen !== gen) return;
+        if (shownGen === myGen && shownLlm) return;
         run = r;
+        latencyMs = Math.max(0.05, performance.now() - t0);
         shownGen = myGen;
         shownLlm = false;
       });
     }, HEUR_DEBOUNCE_MS);
 
-    // Phase 2 — optional LLM recall boost. Longer debounce, merges in async.
     clearTimeout(llmTimer);
     if (wantLlm) {
       llmTimer = setTimeout(() => {
         llmRunning = true;
+        const t0 = performance.now();
         void runSanitize(text, options, llmReq).then((r) => {
-          if (myGen !== gen) return; // superseded
+          if (myGen !== gen) return;
           run = r;
+          latencyMs = Math.max(0.05, performance.now() - t0);
           shownGen = myGen;
           shownLlm = true;
           llmRunning = false;
@@ -192,963 +188,344 @@ Please also CC Dr. Anjali Sharma and محمد حسن.`;
     clearTimeout(heurTimer);
     clearTimeout(llmTimer);
     clearTimeout(probeTimer);
+    for (const timer of toastTimers.values()) clearTimeout(timer);
+    toastTimers.clear();
   });
 
-  type Segment = { text: string; type?: PiiType; source?: string };
-
-  const view = $derived(
-    run
-      ? buildMappingView(
-          run.normalized,
-          run.result.spans,
-          mode,
-          disabled,
-          assignments,
-          manual,
-          customGroups
-        )
-      : null
-  );
-
-  const segments = $derived.by<Segment[]>(() => {
-    if (!run || !view) return [{ text: input }];
-    const normalized = run.normalized;
-    const spans = [...view.activeSpans].sort((a, b) => a.start - b.start);
-    const out: Segment[] = [];
-    let cursor = 0;
-    for (const span of spans) {
-      if (span.start > cursor) out.push({ text: normalized.slice(cursor, span.start) });
-      out.push({
-        text: normalized.slice(span.start, span.end),
-        type: span.type,
-        source: span.source,
-      });
-      cursor = span.end;
-    }
-    if (cursor < normalized.length) out.push({ text: normalized.slice(cursor) });
-    return out;
+  // Derived Atelier view combining Web Worker spans + Secrets + Custom Rules + Redaction Mode
+  const view = $derived.by(() => {
+    const normalized = run ? run.normalized : normalize(sourceText);
+    const coreSpans = run ? run.result.spans : [];
+    return buildAtelierView({
+      normalized,
+      coreSpans,
+      mode,
+      secretsEnabled: enabledCategories.SECRET,
+      customRules,
+      disabledKeys,
+    });
   });
 
-  const manualKeys = $derived(new Set(manual.map((m) => keyOf(m.type, m.value))));
+  const rehydrated = $derived(rehydrateText(rehydrateInput, view.vaultEntries));
 
-  const counts = $derived.by<Array<[PiiType, number]>>(() => {
-    const map = new Map<PiiType, number>();
-    for (const span of view?.activeSpans ?? []) {
-      map.set(span.type, (map.get(span.type) ?? 0) + 1);
+  // Sync dynamic ambient glow CSS custom property with live exposure risk
+  $effect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.style.setProperty('--ambient-color', view.exposure.ambientColor);
     }
-    return [...map.entries()].sort((a, b) => b[1] - a[1]);
   });
 
-  const hasOverrides = $derived(
-    disabled.size > 0 ||
-      Object.keys(assignments).length > 0 ||
-      manual.length > 0 ||
-      customGroups.length > 0
-  );
-
-  // Sentinel select value: "create a new group and drop this row into it".
-  const NEW_GROUP = '__new__';
-
-  function assignRow(type: PiiType, original: string, value: string) {
-    if (value === NEW_GROUP) {
-      createCustomGroup(type, original);
-      return;
+  // Sync dark class on <html>
+  $effect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('dark', darkMode);
     }
-    assignments = { ...assignments, [keyOf(type, original)]: value === '' ? null : Number(value) };
+  });
+
+  function triggerOpticalSweep(toastMessage?: string) {
+    scanSweepKey += 1;
+    playTactileSound('scan', soundEnabled);
+    showToast(
+      toastMessage ?? `Optical scan complete · ${view.totalDetections} entities shielded`,
+      'success'
+    );
   }
 
-  // Creates an empty custom group and, if given, assigns the triggering row to it.
-  function createCustomGroup(type?: PiiType, original?: string) {
-    const id = -(customGroupSeq + 1);
-    customGroupSeq += 1;
-    customGroups = [...customGroups, { id, label: `Group ${customGroupSeq}` }];
-    if (type && original) {
-      assignments = { ...assignments, [keyOf(type, original)]: id };
+  function handleModeChange(nextMode: AtelierRedactionMode) {
+    mode = nextMode;
+    playTactileSound('click', soundEnabled);
+  }
+
+  function handleToggleCategory(type: ToggleableEntityType) {
+    enabledCategories = { ...enabledCategories, [type]: !enabledCategories[type] };
+    playTactileSound('click', soundEnabled);
+  }
+
+  function handleSelectSample(key: SampleKey) {
+    const preset = getSamplePreset(key);
+    sourceText = preset.content;
+    if (preset.rehydrateHint) {
+      rehydrateInput = preset.rehydrateHint;
     }
+    scanSweepKey += 1;
+    playTactileSound('scan', soundEnabled);
+    showToast(`Loaded "${preset.label}" sample locally`, 'success');
   }
 
-  function renameCustomGroup(id: number, label: string) {
-    const name = label.trim() || `Group ${Math.abs(id)}`;
-    customGroups = customGroups.map((g) => (g.id === id ? { ...g, label: name } : g));
-  }
-
-  // Dissolves a custom group: drop it and prune its assignments so the rows fall
-  // back to ungrouped (and a later Reset has nothing stale to clear).
-  function deleteCustomGroup(id: number) {
-    customGroups = customGroups.filter((g) => g.id !== id);
-    const next = { ...assignments };
-    for (const [k, v] of Object.entries(next)) if (v === id) delete next[k];
-    assignments = next;
-  }
-
-  function toggleDisabled(type: PiiType, original: string, off: boolean) {
-    const next = new Set(disabled);
-    const k = keyOf(type, original);
-    if (off) next.add(k);
-    else next.delete(k);
-    disabled = next;
-  }
-
-  function addManual(type: PiiType, value: string) {
-    const v = value.trim();
-    if (!v) return;
-    const k = keyOf(type, v);
-    if (manual.some((m) => keyOf(m.type, m.value) === k)) return;
-    manual = [...manual, { type, value: v }];
-  }
-
-  function removeManual(type: PiiType, value: string) {
-    const k = keyOf(type, value);
-    manual = manual.filter((m) => keyOf(m.type, m.value) !== k);
-  }
-
-  function resetOverrides() {
-    assignments = {};
-    disabled = new Set();
-    manual = [];
-    customGroups = [];
-    customGroupSeq = 0;
-  }
-
-  // --- Select-to-redact: a floating chip anchored to a text selection in the preview.
-  let selection = $state<{ text: string; type: PiiType; rect: DOMRect } | null>(null);
-  let manualValue = $state('');
-  let manualType = $state<PiiType>('PERSON');
-
-  function onPreviewSelect(event: Event) {
-    const preview = event.currentTarget as HTMLElement;
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed || sel.rangeCount === 0) {
-      selection = null;
-      return;
-    }
-    const range = sel.getRangeAt(0);
-    if (!preview.contains(range.commonAncestorContainer)) {
-      selection = null;
-      return;
-    }
-    const text = sel.toString().trim();
-    if (!text) {
-      selection = null;
-      return;
-    }
-    selection = { text, type: 'PERSON', rect: range.getBoundingClientRect() };
-  }
-
-  function confirmSelection() {
-    if (!selection) return;
-    addManual(selection.type, selection.text);
-    window.getSelection()?.removeAllRanges();
-    selection = null;
-  }
-
-  function dismissSelection() {
-    selection = null;
-  }
-
-  function submitManualField() {
-    addManual(manualType, manualValue);
-    manualValue = '';
-  }
-
-  async function copyOutput() {
-    if (!view) return;
-    await navigator.clipboard.writeText(view.text);
-    copied = true;
-    setTimeout(() => (copied = false), 1500);
-  }
-
-  function loadSample() {
-    input = SAMPLE;
-  }
-
-  function clearAll() {
-    input = '';
-  }
-
-  async function onFile(event: Event) {
-    const el = event.target as HTMLInputElement;
-    const file = el.files?.[0];
-    if (!file) return;
-    fileError = '';
+  async function handleImportFile(file: File) {
     fileLoading = true;
     try {
-      input = await extractText(file);
+      const text = await extractText(file);
+      sourceText = text;
+      scanSweepKey += 1;
+      playTactileSound('scan', soundEnabled);
+      showToast(`Loaded "${file.name}" locally`, 'success');
     } catch (err) {
-      fileError = err instanceof Error ? err.message : 'Could not read this file.';
+      showToast(err instanceof Error ? err.message : 'Could not read this file.', 'danger');
     } finally {
       fileLoading = false;
-      el.value = ''; // allow re-selecting the same file
     }
+  }
+
+  function handleAddCustomRule(raw: string): boolean {
+    if (!raw.trim()) return false;
+    const rule = parseCustomRule(raw, `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`);
+    if (!rule) {
+      showToast('Invalid regex syntax.', 'danger');
+      return false;
+    }
+    customRules = [...customRules, rule];
+    playTactileSound('click', soundEnabled);
+    showToast(`Added custom rule: "${rule.raw}"`, 'success');
+    return true;
+  }
+
+  function handleRemoveCustomRule(id: string) {
+    customRules = customRules.filter((r) => r.id !== id);
+    playTactileSound('click', soundEnabled);
+  }
+
+  function handleDisableEntity(type: AtelierEntityType, original: string) {
+    const next = new Set(disabledKeys);
+    next.add(atelierKeyOf(type, original));
+    disabledKeys = next;
+    playTactileSound('click', soundEnabled);
+    showToast('Entity marked as false positive (kept original)', 'info');
+  }
+
+  function handleRestoreEntity(key: string) {
+    const next = new Set(disabledKeys);
+    next.delete(key);
+    disabledKeys = next;
+    playTactileSound('click', soundEnabled);
+    showToast('Entity restored to redaction vault', 'success');
+  }
+
+  async function handleCopySafe() {
+    if (!view.plainText) {
+      showToast('Nothing to copy yet.', 'info');
+      return;
+    }
+    const ok = await copyText(view.plainText);
+    if (ok) {
+      playTactileSound('click', soundEnabled);
+      showToast('Sanitized text copied to clipboard!', 'success');
+    } else {
+      showToast('Clipboard copy failed.', 'danger');
+    }
+  }
+
+  async function handleCopyToken(token: string) {
+    const ok = await copyText(token);
+    if (ok) {
+      playTactileSound('click', soundEnabled);
+      showToast(`Copied token ${token}`, 'success');
+    } else {
+      showToast('Clipboard copy failed.', 'danger');
+    }
+  }
+
+  async function handleCopyRestored() {
+    if (!rehydrateInput.trim()) {
+      showToast('Nothing to copy yet.', 'info');
+      return;
+    }
+    const ok = await copyText(rehydrated.text);
+    if (ok) {
+      playTactileSound('click', soundEnabled);
+      showToast('Restored text copied!', 'success');
+    } else {
+      showToast('Clipboard copy failed.', 'danger');
+    }
+  }
+
+  function triggerDownload(content: string, mime: string, filename: string) {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleDownloadTxt() {
+    if (!view.plainText) {
+      showToast('Nothing to download yet.', 'info');
+      return;
+    }
+    triggerDownload(
+      view.plainText,
+      'text/plain;charset=utf-8',
+      `sanitized-document-${Date.now()}.txt`
+    );
+    playTactileSound('click', soundEnabled);
+    showToast('Downloaded sanitized .txt file', 'success');
+  }
+
+  function handleExportAuditJson() {
+    const report = buildAuditReport(view, mode);
+    triggerDownload(
+      JSON.stringify(report, null, 2),
+      'application/json',
+      `pii-audit-report-${Date.now()}.json`
+    );
+    playTactileSound('click', soundEnabled);
+    showToast('Exported zero-PII audit report (.json)', 'success');
+  }
+
+  function handlePurge() {
+    sourceText = '';
+    rehydrateInput = '';
+    customRules = [];
+    disabledKeys = new Set();
+    run = null;
+    playTactileSound('purge', soundEnabled);
+    showToast('Volatile memory & vault map purged.', 'danger');
+  }
+
+  function handleToggleSound() {
+    soundEnabled = !soundEnabled;
+    if (soundEnabled) playTactileSound('click', true);
+    showToast(soundEnabled ? 'Tactile audio enabled' : 'Tactile audio muted', 'info');
+  }
+
+  function handleToggleTheme() {
+    darkMode = !darkMode;
+    playTactileSound('click', soundEnabled);
   }
 </script>
 
-{#if route === 'privacy'}
-  <Privacy />
-{:else}
-  <header>
-    <h1>🔒 PII Data Sanitizer</h1>
-    <p class="tagline">
-      Heuristic, multilingual PII detection &amp; redaction — running entirely in your browser.
-    </p>
-    <p class="zk">🛡️ Zero-knowledge: your text never leaves this device. No servers, no storage.</p>
-    {#if packs && packs.totalNames > 0}
-      <p class="packs">
-        🌍 {packs.loadedNames.toLocaleString()} / {packs.totalNames.toLocaleString()} names loaded
-      </p>
+<!-- Ambient Background Layers -->
+<div class="fixed inset-0 bg-dot-grid pointer-events-none z-0" aria-hidden="true"></div>
+<div class="ambient-orb" aria-hidden="true"></div>
+
+<!-- Main Application Shell -->
+<div
+  class="relative z-10 max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 flex flex-col min-h-screen"
+>
+  <TopTelemetryBar
+    {soundEnabled}
+    {darkMode}
+    {llmOpen}
+    {llmActive}
+    {llmRunning}
+    llmPending={llm.enabled && !llmActive}
+    {packs}
+    onToggleSound={handleToggleSound}
+    onToggleTheme={handleToggleTheme}
+    onToggleLlm={() => {
+      llmOpen = !llmOpen;
+      playTactileSound('click', soundEnabled);
+    }}
+    onPurge={handlePurge}
+  />
+
+  {#if route === 'privacy'}
+    <Privacy />
+  {:else}
+    {#if llmOpen}
+      <OllamaDrawer
+        {llm}
+        {llmProbed}
+        {llmAvailable}
+        {llmModels}
+        {llmContextWarning}
+        onBaseUrlChange={(url) => (llm.baseUrl = url)}
+        onModelChange={(model) => (llm.model = model)}
+        onEnabledChange={(val) => (llm.enabled = val)}
+        onClose={() => (llmOpen = false)}
+      />
     {/if}
-  </header>
 
-  <section class="controls">
-    <div class="control">
-      <span class="label">Mode</span>
-      <label><input type="radio" bind:group={mode} value="redact" /> 🏷️ Redact</label>
-      <label><input type="radio" bind:group={mode} value="pseudonymize" /> 🔁 Pseudonymize</label>
-    </div>
+    <ControlDeck
+      exposure={view.exposure}
+      totalDetections={view.totalDetections}
+      {mode}
+      {minConfidence}
+      {enabledCategories}
+      categoryCounts={view.categoryCounts}
+      onModeChange={handleModeChange}
+      onMinConfidenceChange={(v) => (minConfidence = v)}
+      onToggleCategory={handleToggleCategory}
+      onOpticalSanitize={() => triggerOpticalSweep()}
+    />
 
-    <div class="control">
-      <span class="label">Detect</span>
-      {#each ALL_PII_TYPES as type (type)}
-        <label><input type="checkbox" bind:checked={enabled[type]} /> {TYPE_LABELS[type]}</label>
-      {/each}
-    </div>
+    <!-- Main Optical Redaction Workbench (Split Pane) -->
+    <main class="mt-5 flex-1 grid grid-cols-1 lg:grid-cols-2 gap-5 min-h-[520px]">
+      <SourceWorkbench
+        {sourceText}
+        {customRules}
+        {fileLoading}
+        onSourceChange={(val) => (sourceText = val)}
+        onSelectSample={handleSelectSample}
+        onImportFile={handleImportFile}
+        onAddCustomRule={handleAddCustomRule}
+        onRemoveCustomRule={handleRemoveCustomRule}
+      />
 
-    <div class="control">
-      <span class="label">Min. confidence: {minConfidence.toFixed(2)}</span>
-      <input type="range" min="0" max="1" step="0.05" bind:value={minConfidence} />
-    </div>
-
-    {#if llmActive}
-      <div class="control">
-        <span class="label">Layers</span>
-        <span class="chip llm-on">🧠 LLM second layer · {llmModel}</span>
-      </div>
-    {/if}
-
-    <div class="control actions">
-      <button onclick={loadSample}>Sample</button>
-      <button onclick={clearAll}>Clear</button>
-      <label class="file"
-        >📁 {fileLoading ? 'Reading…' : 'Open file'}<input
-          type="file"
-          accept=".txt,.csv,.json,.docx,.pdf,text/plain,text/csv,application/json,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/pdf"
-          disabled={fileLoading}
-          onchange={onFile}
-        /></label
-      >
-      <button
-        class="llm-toggle"
-        class:active={llmActive}
-        class:pending={llm.enabled && !llmActive}
-        aria-expanded={llmOpen}
-        title={llmActive
-          ? 'LLM second layer active (local Ollama)'
-          : llm.enabled
-            ? 'LLM second layer enabled — open to connect to your local Ollama'
-            : 'Optional local LLM (Ollama) second layer'}
-        onclick={() => (llmOpen = !llmOpen)}>⚙︎ LLM</button
-      >
-      {#if fileError}<span class="file-error" role="alert">{fileError}</span>{/if}
-    </div>
-  </section>
-
-  {#if llmOpen}
-    <section class="pane llm-panel">
-      <h2>🧠 LLM second layer (Ollama) — optional</h2>
-      <p class="llm-note">
-        A local <a href="https://ollama.com" target="_blank" rel="noopener">Ollama</a> server can
-        act as a second pass that flags extra PII the heuristics miss. Your text is sent
-        <strong>only to your own Ollama</strong> — never to us or any cloud. Off by default, and no connection
-        is attempted until you open this panel.
-      </p>
-
-      <div class="llm-row">
-        <label class="llm-field">
-          Server URL
-          <input
-            type="text"
-            bind:value={llm.baseUrl}
-            spellcheck="false"
-            placeholder="http://localhost:11434"
-          />
-        </label>
-        <span class="llm-status" class:ok={llmAvailable} class:bad={llmProbed && !llmAvailable}>
-          {#if !llmProbed}⏳ Checking…
-          {:else if llmAvailable}✅ Connected ({llmModels.length} model{llmModels.length === 1
-              ? ''
-              : 's'})
-          {:else}⚠️ Not reachable{/if}
-        </span>
-      </div>
-
-      {#if llmAvailable}
-        <div class="llm-row">
-          <label class="llm-field">
-            Model
-            <select bind:value={llm.model}>
-              {#each llmModels as m (m)}
-                <option value={m}>{m}</option>
-              {/each}
-            </select>
-          </label>
-          <label class="llm-enable">
-            <input type="checkbox" bind:checked={llm.enabled} />
-            Use as second layer
-          </label>
-        </div>
-      {:else if llmProbed}
-        <p class="llm-help">
-          Start Ollama with <code>ollama serve</code> and pull a model (e.g.
-          <code>ollama pull llama3.2</code>). For the hosted site, allow this origin via
-          <code>OLLAMA_ORIGINS</code>.
-        </p>
-      {/if}
-    </section>
-  {/if}
-
-  <section class="panes">
-    <div class="pane">
-      <h2>Input</h2>
-      <textarea bind:value={input} spellcheck="false" placeholder="Paste text with PII…"></textarea>
-    </div>
-
-    <div class="pane">
-      <h2>
-        Detected
-        {#each counts as [type, n] (type)}
-          <span class="chip">{TYPE_LABELS[type]} {n}</span>
-        {/each}
-        {#if llmRunning}
-          <span class="chip llm-running" title="The local LLM is running a second pass"
-            >🧠 LLM analyzing…</span
-          >
-        {/if}
-      </h2>
-      {#if llmContextWarning}
-        <p class="llm-warn" role="status">
-          ⚠️ Long input — the LLM only sees roughly the first {LLM_NUM_CTX.toLocaleString()} tokens, so
-          PII further down may be caught by the heuristics only.
-        </p>
-      {/if}
-      <div
-        class="preview"
-        role="textbox"
-        tabindex="0"
-        aria-label="Detected PII preview — select any missed value to redact it"
-        onmouseup={onPreviewSelect}
-        ontouchend={onPreviewSelect}
-      >
-        {#each segments as seg, i (i)}
-          {#if seg.type}
-            <mark
-              class="pii"
-              data-type={seg.type}
-              data-source={seg.source}
-              title={seg.source === 'manual'
-                ? `${seg.type} (added manually)`
-                : seg.source === 'llm'
-                  ? `${seg.type} (found by LLM)`
-                  : seg.type}>{seg.text}</mark
-            >
-          {:else}{seg.text}{/if}
-        {/each}
-      </div>
-      <p class="hint">💡 Missed something? Select it above to redact every occurrence.</p>
-    </div>
-  </section>
-
-  {#if selection}
-    <div
-      class="redact-chip"
-      style="left: {selection.rect.left + selection.rect.width / 2}px; top: {selection.rect.top}px;"
-      role="dialog"
-      aria-label="Redact selected value"
-    >
-      <span class="chip-text" title={selection.text}>“{selection.text}”</span>
-      <select bind:value={selection.type} aria-label="Type of the selected value">
-        {#each ALL_PII_TYPES as type (type)}
-          <option value={type}>{TYPE_LABELS[type]}</option>
-        {/each}
-      </select>
-      <button class="chip-add" onclick={confirmSelection}>➕ Redact all</button>
-    </div>
-  {/if}
-
-  <section class="pane output">
-    <h2>
-      Sanitized output
-      <button onclick={copyOutput} disabled={!view}>{copied ? '✅ Copied' : '📋 Copy'}</button>
-    </h2>
-    <pre>{view?.text ?? ''}</pre>
-  </section>
-
-  {#snippet rowsTable(rows: MappingEntry[])}
-    {@const showGroup = mode === 'pseudonymize'}
-    <table>
-      <thead>
-        <tr>
-          <th>Placeholder</th>
-          <th>Original</th>
-          <th>Type</th>
-          {#if showGroup}<th>Group</th>{/if}
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {#each rows as m (m.placeholder + '|' + m.original)}
-          {@const isManual = manualKeys.has(keyOf(m.type, m.original))}
-          <tr>
-            <td><code>{m.placeholder}</code></td>
-            <td
-              >{m.original}{#if isManual}<span class="badge" title="Added manually">✋ manual</span
-                >{/if}</td
-            >
-            <td>{m.type}</td>
-            {#if showGroup && view}
-              <td>
-                <select
-                  class="group-select"
-                  aria-label="Assign {m.original} to a group"
-                  onchange={(e) => assignRow(m.type, m.original, e.currentTarget.value)}
-                >
-                  {#each view.assignableGroups as g (g.id)}
-                    <option
-                      value={String(g.id)}
-                      selected={view.memberOf.get(m.placeholder) === g.id}>{g.label}</option
-                    >
-                  {/each}
-                  <option value="" selected={view.memberOf.get(m.placeholder) === undefined}
-                    >— Ungrouped —</option
-                  >
-                  <option value={NEW_GROUP}>＋ New group…</option>
-                </select>
-              </td>
-            {/if}
-            <td class="row-action">
-              {#if isManual}
-                <button
-                  class="link"
-                  title="Remove this manual entry — stop replacing this value"
-                  onclick={() => removeManual(m.type, m.original)}>🗑 Remove</button
-                >
-              {:else}
-                <button
-                  class="link"
-                  title="Keep as-is — don't replace this value in the output (false positive)"
-                  onclick={() => toggleDisabled(m.type, m.original, true)}>✕ Keep original</button
-                >
-              {/if}
-            </td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  {/snippet}
-
-  {#if view && (view.rows.length > 0 || view.removed.length > 0 || manual.length > 0)}
-    <section class="pane">
-      <h2>
-        Mapping ({view.rows.length})
-        {#if hasOverrides}
-          <button class="link reset" onclick={resetOverrides} title="Undo all manual changes"
-            >↺ Reset</button
-          >
-        {/if}
-      </h2>
-      <form
-        class="manual-add"
-        onsubmit={(e) => {
-          e.preventDefault();
-          submitManualField();
+      <OutputWorkbench
+        sourceEmpty={!sourceText.trim()}
+        {view}
+        {lens}
+        {mode}
+        {scanSweepKey}
+        {latencyMs}
+        {rehydrateInput}
+        rehydrateOutput={rehydrated.text}
+        rehydrateRestoredCount={rehydrated.restoredCount}
+        {llmRunning}
+        onLensChange={(nextLens) => {
+          lens = nextLens;
+          playTactileSound('click', soundEnabled);
         }}
-      >
-        <span class="manual-label">Missed a value?</span>
-        <input
-          type="text"
-          bind:value={manualValue}
-          placeholder="Type a value to redact everywhere…"
-          aria-label="Value to redact"
-        />
-        <select bind:value={manualType} aria-label="Type of the value to redact">
-          {#each ALL_PII_TYPES as type (type)}
-            <option value={type}>{TYPE_LABELS[type]}</option>
-          {/each}
-        </select>
-        <button type="submit" disabled={!manualValue.trim()}>+ Add</button>
-      </form>
-      {#if mode === 'pseudonymize'}
-        <button
-          class="link new-group"
-          onclick={() => createCustomGroup()}
-          title="Create a new group">＋ New group</button
-        >
-      {/if}
-      {#each view.groups as g (g.id)}
-        {#if g.id < 0}
-          <h3 class="identity custom">
-            <span aria-hidden="true">🧩</span>
-            <input
-              class="group-rename"
-              value={g.label}
-              aria-label="Rename group"
-              onchange={(e) => renameCustomGroup(g.id, e.currentTarget.value)}
-            />
-            <button
-              class="link"
-              title="Dissolve group — its items return to Ungrouped"
-              onclick={() => deleteCustomGroup(g.id)}>🗑 Dissolve</button
-            >
-          </h3>
-        {:else}
-          <h3 class="identity">🧩 {g.label}</h3>
-        {/if}
-        {#if g.rows.length > 0}
-          {@render rowsTable(g.rows)}
-        {:else}
-          <p class="group-empty">No items yet — assign some with the group dropdown.</p>
-        {/if}
-      {/each}
-      {#if view.ungrouped.length > 0}
-        {#if view.groups.length > 0}<h3 class="identity">Other</h3>{/if}
-        {@render rowsTable(view.ungrouped)}
-      {/if}
-      {#if view.removed.length > 0}
-        <h3 class="identity">Kept as original (not replaced)</h3>
-        <table>
-          <thead>
-            <tr><th>Original</th><th>Type</th><th></th></tr>
-          </thead>
-          <tbody>
-            {#each view.removed as r (r.key)}
-              <tr class="removed">
-                <td>{r.original}</td>
-                <td>{r.type}</td>
-                <td class="row-action">
-                  <button
-                    class="link"
-                    title="Replace this value again"
-                    onclick={() => toggleDisabled(r.type, r.original, false)}>↩ Restore</button
-                  >
-                </td>
-              </tr>
-            {/each}
-          </tbody>
-        </table>
-      {/if}
-    </section>
+        onCopySafe={handleCopySafe}
+        onCopyToken={handleCopyToken}
+        onDownloadTxt={handleDownloadTxt}
+        onExportAuditJson={handleExportAuditJson}
+        onRehydrateInputChange={(val) => (rehydrateInput = val)}
+        onCopyRestored={handleCopyRestored}
+        onDisableEntity={handleDisableEntity}
+        onRestoreEntity={handleRestoreEntity}
+      />
+    </main>
   {/if}
 
-  <footer>
-    <p>
-      Open source (MIT) ·
-      <a href="https://github.com/t11z/pii-data-sanitizer">GitHub</a> ·
-      <a href="#/privacy">Privacy &amp; Security</a> · Contributions welcome 🤝
-    </p>
+  <!-- Footer -->
+  <footer
+    class="mt-6 pt-4 border-t border-slate-200/70 dark:border-white/[0.06] flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-500"
+  >
+    <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
+      <span>
+        Designed for
+        <a
+          href="https://github.com/t11z/pii-data-sanitizer"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-slate-700 dark:text-slate-300 hover:text-emerald-500 underline underline-offset-4 transition-colors"
+        >
+          t11z/pii-data-sanitizer
+        </a>
+        — Zero-Knowledge by Design.
+      </span>
+      <span class="text-slate-300 dark:text-slate-700">·</span>
+      <a
+        href="#/privacy"
+        class="text-slate-600 dark:text-slate-400 hover:text-emerald-500 underline underline-offset-4 transition-colors"
+      >
+        Privacy &amp; Security
+      </a>
+    </div>
+    <div class="font-mono text-[11px] flex flex-wrap items-center gap-2">
+      {#if packs && packs.totalNames > 0}
+        <span class="text-slate-400 dark:text-slate-500">
+          {packs.loadedNames.toLocaleString()} names local
+        </span>
+        <span class="text-slate-300 dark:text-slate-700">·</span>
+      {/if}
+      <span>No telemetry · No cookies · No network calls</span>
+    </div>
   </footer>
-{/if}
+</div>
 
-<style>
-  header h1 {
-    margin: 0;
-    font-size: 1.8rem;
-  }
-  .tagline {
-    margin: 0.25rem 0 0;
-    color: var(--muted);
-  }
-  .packs {
-    margin: 0.25rem 0 0;
-    color: var(--muted);
-    font-size: 0.8rem;
-  }
-  .zk {
-    margin: 0.5rem 0 1.25rem;
-    padding: 0.5rem 0.75rem;
-    background: var(--accent-soft);
-    border: 1px solid var(--accent);
-    border-radius: 8px;
-    font-size: 0.9rem;
-  }
-  .controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    margin-bottom: 1.25rem;
-  }
-  .control {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.6rem 0.75rem;
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-  }
-  .control .label {
-    font-weight: 600;
-    color: var(--muted);
-    margin-right: 0.25rem;
-  }
-  .control label {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    font-size: 0.9rem;
-  }
-  .actions {
-    gap: 0.5rem;
-  }
-  button,
-  .file {
-    background: var(--accent-soft);
-    color: var(--text);
-    border: 1px solid var(--accent);
-    border-radius: 8px;
-    padding: 0.4rem 0.7rem;
-    cursor: pointer;
-    font-size: 0.85rem;
-  }
-  button:disabled {
-    opacity: 0.5;
-    cursor: default;
-  }
-  .file input {
-    display: none;
-  }
-  .file-error {
-    color: #b00020;
-    font-size: 0.8rem;
-    align-self: center;
-  }
-  .panes {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-  @media (max-width: 800px) {
-    .panes {
-      grid-template-columns: 1fr;
-    }
-  }
-  .pane {
-    background: var(--panel);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 0.75rem 1rem 1rem;
-    margin-bottom: 1rem;
-  }
-  .pane h2 {
-    font-size: 1rem;
-    margin: 0 0 0.6rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-  }
-  textarea,
-  .preview,
-  pre {
-    box-sizing: border-box;
-    width: 100%;
-    height: 220px;
-    overflow: auto;
-    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
-    font-size: 0.9rem;
-    line-height: 1.5;
-    border-radius: 8px;
-  }
-  textarea {
-    background: var(--bg);
-    color: var(--text);
-    border: 1px solid var(--border);
-    padding: 0.6rem;
-    resize: vertical;
-  }
-  .preview {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    padding: 0.6rem;
-    white-space: pre-wrap;
-    word-break: break-word;
-    overflow-wrap: anywhere;
-  }
-  pre {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    padding: 0.6rem;
-    white-space: pre-wrap;
-    word-break: break-word;
-    margin: 0;
-  }
-  mark.pii {
-    background: var(--hl);
-    color: var(--text);
-    border: 1px solid var(--hl-border);
-    border-radius: 4px;
-    padding: 0 2px;
-  }
-  mark.pii[data-source='manual'] {
-    background: var(--accent-soft);
-    border-color: var(--accent);
-    border-style: dashed;
-  }
-  mark.pii[data-source='llm'] {
-    border-style: dotted;
-    border-width: 2px;
-  }
-  .chip.llm-on {
-    color: var(--accent);
-    border-color: var(--accent);
-    background: var(--accent-soft);
-  }
-  .chip.llm-running {
-    color: var(--accent);
-    border-color: var(--accent);
-    background: var(--accent-soft);
-    animation: llm-pulse 1.2s ease-in-out infinite;
-  }
-  @keyframes llm-pulse {
-    50% {
-      opacity: 0.5;
-    }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .chip.llm-running {
-      animation: none;
-    }
-  }
-  .llm-warn {
-    margin: 0 0 0.5rem;
-    color: var(--muted);
-    font-size: 0.8rem;
-  }
-  .llm-toggle.active {
-    border-color: var(--accent);
-    background: var(--accent-soft);
-    color: var(--accent);
-  }
-  .llm-toggle.pending {
-    border-style: dashed;
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-  .llm-panel .llm-note,
-  .llm-panel .llm-help {
-    margin: 0 0 0.75rem;
-    color: var(--muted);
-    font-size: 0.85rem;
-  }
-  .llm-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: end;
-    gap: 1rem;
-    margin-bottom: 0.6rem;
-  }
-  .llm-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    font-size: 0.8rem;
-    color: var(--muted);
-  }
-  .llm-field input[type='text'],
-  .llm-field select {
-    background: var(--bg);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.35rem 0.5rem;
-    font-size: 0.85rem;
-    min-width: 14rem;
-  }
-  .llm-enable {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.9rem;
-  }
-  .llm-status {
-    font-size: 0.85rem;
-    color: var(--muted);
-    align-self: center;
-  }
-  .llm-status.ok {
-    color: var(--accent);
-  }
-  .llm-status.bad {
-    color: #b00020;
-  }
-  .hint {
-    margin: 0.4rem 0 0;
-    color: var(--muted);
-    font-size: 0.8rem;
-  }
-  .redact-chip {
-    position: fixed;
-    transform: translate(-50%, calc(-100% - 8px));
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0.45rem;
-    background: var(--panel);
-    border: 1px solid var(--accent);
-    border-radius: 10px;
-    box-shadow: 0 6px 20px rgb(0 0 0 / 0.35);
-  }
-  .redact-chip .chip-text {
-    max-width: 10rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: 0.8rem;
-    color: var(--muted);
-  }
-  .redact-chip select {
-    background: var(--bg);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.15rem 0.3rem;
-    font-size: 0.8rem;
-  }
-  .redact-chip .chip-add {
-    white-space: nowrap;
-  }
-  .badge {
-    display: inline-block;
-    margin-left: 0.4rem;
-    padding: 0 0.4rem;
-    font-size: 0.7rem;
-    color: var(--accent);
-    background: var(--accent-soft);
-    border: 1px solid var(--accent);
-    border-radius: 999px;
-  }
-  .manual-add {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.4rem;
-    margin-bottom: 0.75rem;
-  }
-  .manual-add .manual-label {
-    font-size: 0.8rem;
-    color: var(--muted);
-  }
-  .manual-add input[type='text'] {
-    flex: 1 1 12rem;
-    min-width: 8rem;
-    background: var(--bg);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.3rem 0.5rem;
-    font-size: 0.85rem;
-  }
-  .manual-add select {
-    background: var(--bg);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.25rem 0.3rem;
-    font-size: 0.8rem;
-  }
-  .chip {
-    font-size: 0.75rem;
-    font-weight: 500;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    padding: 0.1rem 0.5rem;
-    color: var(--muted);
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.85rem;
-  }
-  th,
-  td {
-    text-align: left;
-    padding: 0.35rem 0.5rem;
-    border-bottom: 1px solid var(--border);
-  }
-  .group-select {
-    background: var(--bg);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.15rem 0.3rem;
-    font-size: 0.8rem;
-    max-width: 14rem;
-  }
-  button.link {
-    background: none;
-    border: none;
-    color: var(--accent);
-    padding: 0.1rem 0.3rem;
-    font-size: 0.8rem;
-    cursor: pointer;
-  }
-  button.link:hover {
-    text-decoration: underline;
-  }
-  button.link.reset {
-    margin-left: auto;
-  }
-  .row-action {
-    text-align: right;
-    white-space: nowrap;
-  }
-  tr.removed td {
-    color: var(--muted);
-  }
-  tr.removed td:first-child {
-    text-decoration: line-through;
-  }
-  h3.identity {
-    margin: 0.9rem 0 0.3rem;
-    font-size: 0.9rem;
-    color: var(--muted);
-  }
-  h3.identity:first-of-type {
-    margin-top: 0.3rem;
-  }
-  h3.identity.custom {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-  .group-rename {
-    background: var(--bg);
-    color: var(--text);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 0.15rem 0.4rem;
-    font-size: 0.9rem;
-    max-width: 14rem;
-  }
-  button.link.new-group {
-    display: block;
-    margin: 0.6rem 0 0;
-    padding-left: 0;
-  }
-  .group-empty {
-    margin: 0.2rem 0 0.6rem;
-    color: var(--muted);
-    font-size: 0.8rem;
-    font-style: italic;
-  }
-  footer {
-    margin-top: 2rem;
-    color: var(--muted);
-    font-size: 0.85rem;
-    text-align: center;
-  }
-  a {
-    color: var(--accent);
-  }
-</style>
+<ToastContainer {toasts} />
