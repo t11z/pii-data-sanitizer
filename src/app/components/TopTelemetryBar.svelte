@@ -73,11 +73,6 @@
             Atelier
           </span>
         </h1>
-        <span
-          class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider bg-slate-200/80 dark:bg-white/[0.06] text-slate-600 dark:text-slate-400 border border-slate-300/60 dark:border-white/[0.08]"
-        >
-          t11z/pii-data-sanitizer
-        </span>
       </div>
       <p class="text-xs text-slate-500 dark:text-slate-400">
         Zero-knowledge client-side redaction &amp; reversible AI vault
