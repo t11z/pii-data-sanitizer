@@ -1108,6 +1108,32 @@ describe('phone detection', () => {
     expect(only('Ticket CASE-2024-99812 escalated.', 'PHONE')).toHaveLength(0);
   });
 
+  it('does not flag a digit run slash-joined to an alpha reference prefix', () => {
+    // Support desks write slash-delimited ticket / case / incident references
+    // ("TKT/2024/88402", "REF/2024/55129"). The candidate regex stops at word
+    // characters but not at '/', so the "2024/88402" part matches and its
+    // internal slash reads as phone grouping. The fused-to-letters guard now
+    // crosses '/' (as it already does '-'/'_') to reach the alpha prefix. Held-out
+    // prefixes / years / sequences (not the gap's own TKT/2024/88402) prove the
+    // guard is structural — a digit run fused via '/' to letters — not memorized.
+    expect(only('Please quote REF/2026/77310 on all correspondence.', 'PHONE')).toHaveLength(0);
+    expect(only('Logged as INC/2025/0042 in the tracker.', 'PHONE')).toHaveLength(0);
+    expect(only('Dispute CASE/2023/900187 reopened.', 'PHONE')).toHaveLength(0);
+  });
+
+  it('keeps a real phone on a line that also has a slash-joined reference', () => {
+    // Precision guard: the '/'-fusion reject must be scoped to the digit run it
+    // joins, not swallow a genuine phone elsewhere on the line. A phone whose own
+    // slash is internal (German "0221/1234567") is preceded by whitespace, so the
+    // backward walk stops immediately and the number survives.
+    const spans = only(
+      'Ticket TKT/2024/88402 open; reach us on 0221/1234567 for an update.',
+      'PHONE'
+    );
+    expect(spans).toHaveLength(1);
+    expect(spans[0].text).toBe('0221/1234567');
+  });
+
   it('does not flag a digit run directly prefixed by # (case/ticket/order refs)', () => {
     // Held-out reference prefixes (not the gap's "Case #2024-005") — different
     // cue words, spacing variants, the `№` European equivalent, and a bare `#`
@@ -1298,6 +1324,30 @@ describe('phone detection', () => {
     expect(only('Card on file 5555 4444 3333 2 disputed.', 'PHONE')).toHaveLength(0); // 4-4-4-1 (13d)
     expect(only('Disputed PAN 3056 654321 0987 today.', 'PHONE')).toHaveLength(0); // 4-6-4 (14d)
     expect(only('PAN 3782 654321 09876 reviewed.', 'PHONE')).toHaveLength(0); // 4-6-5 (15d)
+  });
+
+  it('does not flag a hyphen-grouped ≥13-digit run (card-shaped)', () => {
+    // A PAN printed with hyphen grouping (AmEx 4-6-5, Diners 4-6-4, dashed
+    // 4-4-4-x) is a card-style identifier, not a phone, but it used to skip the
+    // card-shape gate entirely because that gate only inspected space-grouped /
+    // fused runs. The gate now also covers a single-hyphen-separated run with a
+    // 4-digit leading group. All values are Luhn-invalid, so the credit-card
+    // detector does not claim them; without this they surface as PHONE. Held-out
+    // numbers (distinct from the gap's own 3782-822463-51005) prove it is
+    // structural — leading 4-digit group, hyphen grouping, ≥13 digits.
+    expect(only('Investigating 3499-991827-40016 (decoy).', 'PHONE')).toHaveLength(0); // 4-6-5 (15d)
+    expect(only('Card 3058-271634-9921 declined.', 'PHONE')).toHaveLength(0); // 4-6-4 (14d)
+    expect(only('PAN 3652-123456-789 reviewed.', 'PHONE')).toHaveLength(0); // 4-6-3 (13d)
+  });
+
+  it('keeps a hyphen-grouped phone whose leading group is not 4 digits', () => {
+    // Precision guard for the widened (hyphen-aware) card-shape gate: the gate
+    // only rejects a leading group of exactly four digits. A long domestic /
+    // international phone written with hyphens and a 1–3-digit leading group —
+    // which no PAN layout uses — must still pass. Held-out groupings prove the
+    // leading-group-size distinction generalizes.
+    expect(only('Call 030-1234-567-8901 today.', 'PHONE')[0].text).toBe('030-1234-567-8901'); // lead 3
+    expect(only('Dial 44-20-7946-0958-11 now.', 'PHONE')[0].text).toBe('44-20-7946-0958-11'); // lead 2
   });
 
   it('still rejects fused 13+ digit identifier runs (no grouping)', () => {

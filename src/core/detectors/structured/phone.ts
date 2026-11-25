@@ -4,7 +4,12 @@ import { precededByRefMarker } from './refMarker';
 // Candidate runs: an optional leading '+', then digits and common separators.
 const PHONE_RE = /(?<![\w+])\+?\d[\d().\-/ ]{5,}\d(?![\w])/g;
 
-const ID_CHAR = /[A-Za-z0-9_-]/;
+// Connectors that fuse a digit run to an alphabetic reference prefix. '-' and '_'
+// glue a serial / order number ("ORD-2025-001847-X"); '/' glues the slash-delimited
+// ticket / case references support desks write constantly ("TKT/2024/88402",
+// "REF/2024/55129"). A real phone never carries an alphabetic neighbour across any of
+// these at its outer boundary, so crossing them to look for a letter is safe.
+const FUSE_CHAR = /[A-Za-z0-9_/-]/;
 const LETTER = /[A-Za-z]/;
 
 // A date-shaped candidate: YYYY[.-/]MM[.-/]DD (ISO / dotted / slashed) or its
@@ -128,18 +133,20 @@ function hasPhoneCueBefore(text: string, pos: number): boolean {
 }
 
 /**
- * True when the digit run is fused — across hyphens or underscores — to letters,
- * i.e. it is part of a structured reference (order #, ticket, invoice, serial,
- * SKU) rather than a phone number. The candidate regex stops at word characters
- * but not at '-', so the "2025-001847" inside "ORD-2025-001847-X" still matches;
- * this guard drops it. Real phones use internal hyphens but are never glued to
- * alphabetic neighbours at their outer boundary.
+ * True when the digit run is fused — across hyphens, underscores, or slashes — to
+ * letters, i.e. it is part of a structured reference (order #, ticket, invoice,
+ * serial, SKU) rather than a phone number. The candidate regex stops at word
+ * characters but not at '-' or '/', so the "2025-001847" inside "ORD-2025-001847-X"
+ * and the "2024/88402" inside "TKT/2024/88402" still match; this guard drops both.
+ * Real phones use internal separators but are never glued to alphabetic neighbours at
+ * their outer boundary. The walk only reports a fusion when it actually reaches a
+ * letter, so a purely numeric slash run ("12/2024/88402") is left untouched here.
  */
 function fusedToLetters(text: string, start: number, end: number): boolean {
-  for (let i = start - 1; i >= 0 && ID_CHAR.test(text[i]); i--) {
+  for (let i = start - 1; i >= 0 && FUSE_CHAR.test(text[i]); i--) {
     if (LETTER.test(text[i])) return true;
   }
-  for (let j = end; j < text.length && ID_CHAR.test(text[j]); j++) {
+  for (let j = end; j < text.length && FUSE_CHAR.test(text[j]); j++) {
     if (LETTER.test(text[j])) return true;
   }
   return false;
@@ -174,10 +181,12 @@ export function detectPhones(text: string): Span[] {
         hasPhoneCueBefore(text, start - 1));
     if (!hasSignal) continue;
     // Reject card-shaped digit groupings. ISO/IEC 7812-1 PANs are 13–19 digits.
-    // A space-only digit run with ≥13 digits and a 4-digit leading group
-    // (Visa/MC 4-4-4-4, AmEx 4-6-5, Diners 4-6-4, old Visa 4-4-4-1) is
-    // structurally a card-style identifier, not a phone — every PAN layout
-    // starts with four digits. A fused 13+ digit run with no grouping is
+    // A digit run with ≥13 digits grouped by a single, consistent separator —
+    // spaces (Visa/MC 4-4-4-4) or hyphens (AmEx 4-6-5, Diners 4-6-4, dashed
+    // 4-4-4-4) — with a 4-digit leading group is structurally a card-style
+    // identifier, not a phone: every PAN layout starts with four digits, and a
+    // PAN never mixes separators or carries '+', parens, dots or slashes. A fused
+    // 13+ digit run with no grouping is
     // likewise identifier-shaped (bank account / reference number), never
     // phone-shaped. A Luhn-valid PAN is claimed by the credit-card detector
     // and overlap-resolved away from PHONE, but a Luhn-invalid PAN (synthetic
@@ -194,9 +203,15 @@ export function detectPhones(text: string): Span[] {
     // never be a card — ISO/IEC 7812-1 reserves MII 0, so no PAN starts with 0 —
     // so the international prefix is exempt from the card-shape gate, like `+`.
     const intlPrefix = digits.startsWith('00');
-    if (digits.length >= 13 && !intlPrefix && !/[+()\-./]/.test(value)) {
-      const groups = value.trim().split(/\s+/);
-      if (groups.length === 1 || groups[0].length === 4) continue;
+    if (digits.length >= 13 && !intlPrefix && !/[+()./]/.test(value)) {
+      // A PAN uses one consistent separator — all spaces or all hyphens — never a
+      // mix; a space/hyphen mix is left to fall through as a possible phone.
+      const hyphenGrouped = value.includes('-');
+      const spaceGrouped = /\s/.test(value);
+      if (!(hyphenGrouped && spaceGrouped)) {
+        const groups = value.trim().split(hyphenGrouped ? '-' : /\s+/);
+        if (groups.length === 1 || groups[0].length === 4) continue;
+      }
     }
     // Skip date-shaped candidates: bare dates, ISO timestamps, and
     // invoice/case refs suffixed with a short sequence number. The year-last
