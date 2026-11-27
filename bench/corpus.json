@@ -3356,5 +3356,30 @@
         "text": "01.42.34.56.78"
       }
     ]
+  },
+  {
+    "text": "Please quote REF/2026/77310 on all correspondence.",
+    "entities": []
+  },
+  {
+    "text": "Dispute logged as INC/2025/0042 in the tracker.",
+    "entities": []
+  },
+  {
+    "text": "Card 3499-991827-40016 was declined.",
+    "entities": []
+  },
+  {
+    "text": "Reference 3058-271634-9921 under review.",
+    "entities": []
+  },
+  {
+    "text": "Ticket TKT/2024/88402 open; please call +49 30 1234567 for an update.",
+    "entities": [
+      {
+        "type": "PHONE",
+        "text": "+49 30 1234567"
+      }
+    ]
   }
 ]
