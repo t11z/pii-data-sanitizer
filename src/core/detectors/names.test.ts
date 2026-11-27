@@ -671,6 +671,63 @@ describe('street / thoroughfare designator after a name is not absorbed as a sur
   });
 });
 
+describe('house-numbered street address is not a person ("10 Rue de Rivoli")', () => {
+  // The surname-colliding thoroughfare generics that roleWords.ts deliberately
+  // leaves OUT of NON_NAME_WORDS (Rue/Via/Calle/Street/…, all on file as census
+  // surnames) only need suppressing when a HOUSE NUMBER precedes the chain — the
+  // structural gate that comment explicitly invites. "10 Rue de Rivoli", "25 Via
+  // Garibaldi", "221 Baker Street" are addresses; "Diane Lane", "Julie Street"
+  // (no number) are people and must still detect.
+  const fullSource = nameSourceFromBuildInputs();
+  const personsFull = (text: string) =>
+    detect(text, { nameSource: fullSource })
+      .filter((s) => s.type === 'PERSON')
+      .map((s) => s.text);
+
+  it('suppresses a leading-designator address (Romance / German order)', () => {
+    // Held-out street-name tokens (Vautrelle/Quenby absent from the DB) prove the
+    // suppression is driven by the <number> + thoroughfare structure, not by the
+    // name's dictionary membership.
+    expect(personsFull('Parcel delivered to 11 Rue de Vautrelle, Lyon.')).toHaveLength(0);
+    expect(personsFull('Invoice mailed to 25 Via Garibaldi, Milano.')).toHaveLength(0);
+    expect(personsFull('Pickup at 5 Calle Quenby, Sevilla.')).toHaveLength(0);
+  });
+
+  it('suppresses a trailing-designator address (English order)', () => {
+    expect(personsFull('The showroom moved to 221 Baker Street, London.')).toHaveLength(0);
+    // Korbinth is held out from the DB, yet the address is still suppressed.
+    expect(personsFull('Return the equipment to 47 Korbinth Street, Leeds.')).toHaveLength(0);
+  });
+
+  it('still detects a person whose name collides with a thoroughfare word (no number)', () => {
+    // Same street-generic surnames, written WITHOUT a leading house number, must
+    // keep detecting — the gate is house-number-specific.
+    expect(personsFull('The report was signed by Julie Street yesterday.')).toContain(
+      'Julie Street'
+    );
+    expect(personsFull('We spoke with Diane Lane about the claim.')).toContain('Diane Lane');
+    expect(personsFull('Our auditor Lena Platz flagged the entry.')).toContain('Lena Platz');
+  });
+
+  it('is structural: the same string gains/loses the span with the house number', () => {
+    // Without a number "Rue de Vautrelle" would chain into a (spurious) person;
+    // the number is the only thing that changes, proving the gate is the lever.
+    expect(personsFull('Rue de Vautrelle phoned the office.').length).toBeGreaterThan(0);
+    expect(personsFull('11 Rue de Vautrelle was the address.')).toHaveLength(0);
+  });
+
+  it('does not over-fire: a house number before a non-street name still detects', () => {
+    expect(personsFull('Seat 12 Priya Deshmukh boarded the flight.')).toContain('Priya Deshmukh');
+  });
+
+  it('proves the fix is a heuristic, not memorization (held-out street names absent from DB)', () => {
+    for (const w of ['vautrelle', 'quenby', 'korbinth']) {
+      const hit = fullSource.hasGiven(w, 'Latin') || fullSource.hasFamily(w, 'Latin');
+      expect(hit, `${w} must be ABSENT from the committed DB`).toBe(false);
+    }
+  });
+});
+
 describe('number-abbreviation label guard ("<Label> No./Nr./Nº <id>")', () => {
   // Support / KYC / CRM prose labels an identifier with the "number"
   // abbreviation — "Passport No. A2B4D7K9", "Account Nr. 55-01", "Serial Nº
